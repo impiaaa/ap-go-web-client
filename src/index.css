@@ -1,0 +1,182 @@
+@import "maplibre-gl";
+
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+
+  display: flex;
+  flex-direction: column;
+}
+
+@media (pointer: coarse) {
+  input,
+  button {
+    font-size: large;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: white;
+    background-color: darkslategray;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    color: black;
+    background-color: ghostwhite;
+  }
+}
+
+nav ul {
+  user-select: none;
+  -webkit-user-select: none;
+  list-style: none;
+  font-size: large;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+nav ul li {
+  padding: 4px;
+}
+
+nav li a {
+  display: block;
+  text-align: center;
+  border-bottom: 2px solid silver;
+  padding-bottom: 2px;
+}
+
+nav li a.active {
+  font-weight: bold;
+  border-bottom: 2px solid cornflowerblue;
+}
+
+section {
+  flex-grow: 1;
+  flex-basis: 0;
+  padding: 1rem;
+}
+
+/** Setup **/
+
+.gridform {
+  display: grid;
+  gap: 5px;
+  max-width: 600px;
+}
+
+input:invalid {
+  background-color: tomato;
+}
+
+.error {
+  color: red;
+}
+
+@media (width >= 450px) {
+  .gridform {
+    grid-template-columns: auto 1fr;
+  }
+  .gridform button {
+    grid-column: 2;
+  }
+}
+
+/** Text Client **/
+
+#page-text-client {
+  display: flex;
+  flex-direction: column;
+}
+
+.log {
+  overflow-y: scroll;
+  flex-grow: 1;
+  flex-basis: 0;
+}
+
+.log span {
+  white-space-collapse: preserve;
+}
+
+#page-text-client form {
+  display: grid;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* the official text client uses these named colors for special things in logs */
+/*.player {
+  color: yellow;
+}
+.player.self {
+  color: magenta;
+}
+.item {
+  color: cyan;
+}*/
+.item.progression {
+  color: plum;
+}
+.item.useful {
+  color: slateblue;
+}
+.item.trap {
+  color: salmon;
+}
+.location {
+  color: green;
+}
+.entrance {
+  color: blue;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* the official text client, which has a dark color scheme, actually uses these colors below, different from CSS, for the names above */
+  .player {
+    color: lightgoldenrodyellow;
+  }
+  .player.self {
+    color: #ee00ee;
+  }
+  .item {
+    color: #00eeee;
+  }
+  .item.progression {
+    color: #af99ef;
+  }
+  .item.useful {
+    color: #6d8be8;
+  }
+  .location {
+    color: springgreen;
+  }
+  .entrance {
+    color: cornflowerblue;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  /* these colors are personal choices for a light color scheme */
+  .player {
+    color: darkgoldenrod;
+  }
+  .player.self {
+    color: mediumorchid;
+  }
+  .item {
+    color: darkturquoise;
+  }
+}

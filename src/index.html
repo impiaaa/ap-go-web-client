@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Archipela-GO!</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <nav>
+            <ul>
+                <li><a id="nav-setup" onclick="navTo(this, 'setup')" class="active">Connect</a></li>
+                <li><a id="nav-text-client" onclick="navTo(this, 'text-client')">Log</a></li>
+                <li><a id="nav-map" onclick="navTo(this, 'map')">Map</a></li>
+                <li><a id="nav-hints" onclick="navTo(this, 'hints')">Hints</a></li>
+            </ul>
+        </nav>
+        <section id="page-setup">
+            <h2>Archipela-GO!</h2>
+            <h3>Connect to server</h3>
+            <form class="gridform" id="setup-form" action="#">
+                <label for="ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
+                <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
+                <label for="player">Player name</label><input autocapitalize="off" autocorrect="off" id="player" name="player" required spellcheck="false">
+                <label for="password">Password</label><input id="password" name="password" type="password">
+                <button type="submit" id="submit">Connect</button>
+            </form>
+            <span id="connection-error" class="error"></span>
+        </section>
+        <section id="page-text-client" style="display: none;">
+            <div class="log" id="text-log"></div>
+            <form id="text-input">
+                <input autocapitalize="off" autocorrect="off" spellcheck="false">
+            </form>
+        </section>
+        <section id="page-map" style="display: none;">
+            <div id="map" style="height: 100%;"></div>
+        </section>
+        <section id="page-hints" style="display: none;">
+            <div></div>
+        </section>
+    </body>
+</html>
