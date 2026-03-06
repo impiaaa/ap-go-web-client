@@ -1,5 +1,5 @@
 import './index.css';
-import { Client, type MessageNode } from 'archipelago.js';
+import { Client, Hint, Item, Player, type MessageNode } from 'archipelago.js';
 import maplibregl from 'maplibre-gl';
 
 /* Types */
@@ -14,8 +14,15 @@ type TripDict = {
   [index: string]: Trip;
 };
 
+enum Goal {
+  OneHardTravel = 0,
+  Allsanity = 1,
+  ShortMacGuffin = 2,
+  LongMacGuffin = 3,
+}
+
 type APGoSlotData = {
-  goal: number;
+  goal: Goal;
   minimum_distance: number;
   maximum_distance: number;
   speed_requirement: number;
@@ -98,11 +105,13 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
         'datapackage_cache',
         JSON.stringify(client.package.exportPackage()),
       );
+
       ip.disabled = false;
       port.disabled = false;
       player.disabled = false;
       password.disabled = false;
       submit.disabled = false;
+
       text_log.childNodes.forEach((c) => {
         text_log.removeChild(c);
       });
@@ -111,7 +120,10 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
         text_log.appendChild(document.createElement('br'));
       });
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
+
       window.navTo(document.getElementById('nav-text-client')!, 'text-client');
+
+      // TODO: generate locations
     })
     .catch((reason) => {
       console.error(reason);
@@ -127,10 +139,27 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
 /* Text client */
 
 const text_log = document.getElementById('text-log')!;
+
+function styleItemElement(element: HTMLElement, item: Item) {
+  if (item.progression) element.classList.add('progression');
+  if (item.useful) element.classList.add('useful');
+  if (item.trap) element.classList.add('trap');
+}
+
+function stylePlayerElement(element: HTMLElement, player: Player) {
+  if (
+    player.slot === client.players.self.slot ||
+    client.players.slots[player.slot].group_members.includes(
+      client.players.self.slot,
+    )
+  ) {
+    element.classList.add('self');
+  }
+}
+
 function addMessageNode(node: MessageNode) {
   const msg_el = document.createElement('span');
-  const text_node = document.createTextNode(node.text);
-  msg_el.appendChild(text_node);
+  msg_el.appendChild(document.createTextNode(node.text));
   msg_el.classList.add(node.type);
   switch (node.type) {
     case 'color':
@@ -149,20 +178,11 @@ function addMessageNode(node: MessageNode) {
       break;
 
     case 'player':
-      if (
-        node.player.slot === client.players.self.slot ||
-        client.players.slots[node.player.slot].group_members.includes(
-          client.players.self.slot,
-        )
-      ) {
-        msg_el.classList.add('self');
-      }
+      stylePlayerElement(msg_el, node.player);
       break;
 
     case 'item':
-      if (node.item.progression) msg_el.classList.add('progression');
-      if (node.item.useful) msg_el.classList.add('useful');
-      if (node.item.trap) msg_el.classList.add('trap');
+      styleItemElement(msg_el, node.item);
       break;
 
     default:
@@ -210,3 +230,48 @@ window
       `https://tiles.versatiles.org/assets/styles/${event.matches ? 'eclipse' : 'colorful'}/style.json`,
     );
   });
+
+/* Hints */
+
+const hint_table = document.getElementById('hint-table')!;
+function addHint(hint: Hint) {
+  console.log(hint);
+  const row = document.createElement('tr');
+
+  const receiver = document.createElement('td');
+  receiver.classList.add('player');
+  stylePlayerElement(receiver, hint.item.receiver);
+  receiver.appendChild(document.createTextNode(hint.item.receiver.name));
+  row.appendChild(receiver);
+
+  const item = document.createElement('td');
+  item.classList.add('item');
+  styleItemElement(item, hint.item);
+  item.appendChild(document.createTextNode(hint.item.name));
+  row.appendChild(item);
+
+  const sender = document.createElement('td');
+  sender.classList.add('player');
+  stylePlayerElement(sender, hint.item.sender);
+  sender.appendChild(document.createTextNode(hint.item.sender.name));
+  row.appendChild(sender);
+
+  const location = document.createElement('td');
+  location.classList.add('location');
+  location.appendChild(document.createTextNode(hint.item.locationName));
+  row.appendChild(location);
+
+  const entrance = document.createElement('td');
+  entrance.classList.add('entrance');
+  entrance.appendChild(document.createTextNode(hint.entrance));
+  row.appendChild(entrance);
+
+  const status = document.createElement('td');
+  status.appendChild(document.createTextNode(hint.found ? '✓' : '✗'));
+  row.appendChild(status);
+
+  hint_table.appendChild(row);
+}
+client.items.on('hintsInitialized', (hints) => hints.forEach(addHint));
+client.items.on('hintReceived', addHint);
+// TODO: hintFound. how to find the right row?
