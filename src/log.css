@@ -1,0 +1,83 @@
+#page-log {
+  display: flex;
+  flex-direction: column;
+}
+
+.log {
+  overflow-y: scroll;
+  flex-grow: 1;
+  flex-basis: 0;
+}
+
+.log span {
+  white-space-collapse: preserve;
+}
+
+#page-log form {
+  display: grid;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* the official text client uses these named colors for special things in logs */
+/*.player {
+  color: yellow;
+}
+.player.self {
+  color: magenta;
+}
+.item {
+  color: cyan;
+}*/
+.item.progression {
+  color: plum;
+}
+.item.useful {
+  color: slateblue;
+}
+.item.trap {
+  color: salmon;
+}
+.location {
+  color: green;
+}
+.entrance {
+  color: blue;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* the official text client, which has a dark color scheme, actually uses these colors below, different from CSS, for the names above */
+  .player {
+    color: lightgoldenrodyellow;
+  }
+  .player.self {
+    color: #ee00ee;
+  }
+  .item {
+    color: #00eeee;
+  }
+  .item.progression {
+    color: #af99ef;
+  }
+  .item.useful {
+    color: #6d8be8;
+  }
+  .location {
+    color: springgreen;
+  }
+  .entrance {
+    color: cornflowerblue;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  /* these colors are personal choices for a light color scheme */
+  .player {
+    color: darkgoldenrod;
+  }
+  .player.self {
+    color: mediumorchid;
+  }
+  .item {
+    color: darkturquoise;
+  }
+}

@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "archipelago.js": "^2.0.4",
-    "maplibre-gl": "^5.19.0"
+    "maplibre-gl": "^5.19.0",
+    "pure-rand": "^8.0.0"
   }
 }

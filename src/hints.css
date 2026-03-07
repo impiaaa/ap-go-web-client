@@ -1,0 +1,12 @@
+#page-hints {
+  overflow: scroll;
+}
+#page-hints table {
+  width: 100%;
+}
+#page-hints table td:nth-of-type(6) {
+  text-align: center;
+}
+#page-hints table tr:nth-of-type(even) {
+  background-color: rgba(0, 0, 0, 8%);
+}

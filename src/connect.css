@@ -1,0 +1,68 @@
+.gridform {
+  display: grid;
+  gap: 5px;
+  max-width: 600px;
+}
+
+input:invalid,
+button.invalid {
+  background-color: tomato;
+}
+
+.error {
+  color: red;
+}
+
+@media (width >= 450px) {
+  .gridform {
+    grid-template-columns: auto 1fr;
+  }
+  .gridform button {
+    grid-column: 2;
+  }
+}
+
+dialog:modal {
+  margin: 2rem;
+  padding: 1rem;
+  width: calc(100% - 6rem);
+  height: calc(100% - 6rem);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-color-scheme: dark) {
+  dialog:modal {
+    background-color: darkslategray;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  dialog:modal {
+    background-color: ghostwhite;
+  }
+}
+
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 50%);
+}
+
+dialog > div {
+  flex-grow: 1;
+}
+
+.crosshair {
+  position: absolute;
+}
+
+@media (prefers-color-scheme: dark) {
+  .crosshair {
+    background-color: white;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .crosshair {
+    background-color: black;
+  }
+}
