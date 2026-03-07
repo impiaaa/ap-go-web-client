@@ -10,7 +10,9 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family:
+    system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell,
+    "Helvetica Neue", sans-serif;
 
   display: flex;
   flex-direction: column;
@@ -57,6 +59,8 @@ nav li a {
   text-align: center;
   border-bottom: 2px solid silver;
   padding-bottom: 2px;
+  text-decoration: none;
+  color: inherit;
 }
 
 nav li a.active {
@@ -78,7 +82,8 @@ section {
   max-width: 600px;
 }
 
-input:invalid {
+input:invalid,
+button.invalid {
   background-color: tomato;
 }
 
@@ -95,9 +100,54 @@ input:invalid {
   }
 }
 
+dialog:modal {
+  margin: 2rem;
+  padding: 1rem;
+  width: calc(100% - 6rem);
+  height: calc(100% - 6rem);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-color-scheme: dark) {
+  dialog:modal {
+    background-color: darkslategray;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  dialog:modal {
+    background-color: ghostwhite;
+  }
+}
+
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 50%);
+}
+
+dialog > div {
+  flex-grow: 1;
+}
+
+.crosshair {
+  position: absolute;
+}
+
+@media (prefers-color-scheme: dark) {
+  .crosshair {
+    background-color: white;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .crosshair {
+    background-color: black;
+  }
+}
+
 /** Text Client **/
 
-#page-text-client {
+#page-log {
   display: flex;
   flex-direction: column;
 }
@@ -112,7 +162,7 @@ input:invalid {
   white-space-collapse: preserve;
 }
 
-#page-text-client form {
+#page-log form {
   display: grid;
   padding-bottom: env(safe-area-inset-bottom);
 }

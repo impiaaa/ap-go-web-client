@@ -8,32 +8,37 @@
     <body>
         <nav>
             <ul>
-                <li><a id="nav-setup" onclick="navTo(this, 'setup')" class="active">Connect</a></li>
-                <li><a id="nav-text-client" onclick="navTo(this, 'text-client')">Log</a></li>
-                <li><a id="nav-map" onclick="navTo(this, 'map')">Map</a></li>
-                <li><a id="nav-hints" onclick="navTo(this, 'hints')">Hints</a></li>
+                <li><a href="#connect">Connect</a></li>
+                <li><a href="#map">Map</a></li>
+                <li><a href="#log">Log</a></li>
+                <li><a href="#hints">Hints</a></li>
             </ul>
         </nav>
-        <section id="page-setup">
+        <section id="page-connect" style="display: none;">
             <h2>Archipela-GO!</h2>
             <h3>Connect to server</h3>
-            <form class="gridform" id="setup-form" action="#">
+            <form class="gridform" id="connect-form">
                 <label for="ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
                 <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
-                <label for="player">Player name</label><input autocapitalize="off" autocorrect="off" id="player" name="player" required spellcheck="false">
+                <label for="player">Player Name</label><input autocapitalize="off" autocorrect="off" id="player" maxlength="16" name="player" required spellcheck="false">
                 <label for="password">Password</label><input id="password" name="password" type="password">
-                <button type="submit" id="submit">Connect</button>
+                <button id="set-home" command="show-modal" commandfor="set-home-dialog" type="button">Set Home Location…</button>
+                <button id="submit" type="submit">Connect</button>
             </form>
             <span id="connection-error" class="error"></span>
+            <dialog id="set-home-dialog" closedby="any">
+                <div id="set-home-map"></div>
+                <button commandfor="set-home-dialog" command="close" id="save-home">Save</button>
+            </dialog>
         </section>
-        <section id="page-text-client" style="display: none;">
+        <section id="page-map" style="display: none;">
+            <div id="map" style="height: 100%;"></div>
+        </section>
+        <section id="page-log" style="display: none;">
             <div class="log" id="text-log"></div>
             <form id="text-input">
                 <input autocapitalize="off" autocorrect="off" spellcheck="false">
             </form>
-        </section>
-        <section id="page-map" style="display: none;">
-            <div id="map" style="height: 100%;"></div>
         </section>
         <section id="page-hints" style="display: none;">
             <table id="hint-table">

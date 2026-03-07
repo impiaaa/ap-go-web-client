@@ -1,8 +1,14 @@
 import './index.css';
-import { Client, Hint, Item, Player, type MessageNode } from 'archipelago.js';
+import {
+  Client,
+  type Hint,
+  type Item,
+  type MessageNode,
+  type Player,
+} from 'archipelago.js';
 import maplibregl from 'maplibre-gl';
 
-/* Types */
+/* Types & globals */
 
 type Trip = {
   distance_tier: number;
@@ -29,6 +35,10 @@ type APGoSlotData = {
   trips: TripDict;
 };
 
+const DATAPACKAGE_KEY = 'datapackage_cache';
+const DEFAULT_PAGE = 'connect';
+let home: [number, number] | null = null;
+
 /* Client setup */
 
 const client = new Client();
@@ -36,48 +46,74 @@ const client = new Client();
 declare global {
   interface Window {
     client: Client;
-    navTo: (dest_nav: HTMLElement, dest_name: string) => void;
   }
 }
 window.client = client; // debug access
 
-const data = localStorage.getItem('datapackage_cache');
-if (data) {
-  client.package.importPackage(JSON.parse(data));
+const datapackage_str = localStorage.getItem(DATAPACKAGE_KEY);
+if (datapackage_str) {
+  client.package.importPackage(JSON.parse(datapackage_str));
+}
+
+const home_str = localStorage.getItem('home');
+if (home_str) {
+  const home_json = JSON.parse(home_str);
+  if (
+    home_json &&
+    Array.isArray(home_json) &&
+    home_json.length == 2 &&
+    typeof home_json[0] === 'number' &&
+    typeof home_json[1] === 'number'
+  ) {
+    home = home_json as [number, number];
+  }
 }
 
 /* Page layout */
 
-window.navTo = (dest_nav: HTMLElement, dest_name: string) => {
-  const dest_section = document.getElementById(`page-${dest_name}`);
-  const sections = document.getElementsByTagName('section');
-  for (let i = 0; i < sections.length; i++) {
-    const element = sections[i];
-    if (element !== dest_section) {
-      element.style.setProperty('display', 'none');
+function showPage(new_hash: string) {
+  let page = document.getElementById(`page-${new_hash}`);
+  if (!page) {
+    new_hash = DEFAULT_PAGE;
+    window.history.replaceState({}, '', `#${new_hash}`);
+    page = document.getElementById(`page-${new_hash}`);
+    if (!page) {
+      throw 'no default page';
     }
   }
-  dest_section?.style.removeProperty('display');
-
-  dest_nav.classList.add('active');
-  const nav_query = document.evaluate('//nav//a', document);
-  // gather into a list to avoid "InvalidStateError: The document has been mutated since the result was returned"
-  const navs: HTMLElement[] = [];
-  let nav = nav_query.iterateNext();
-  while (nav) {
-    if (nav !== dest_nav) {
-      navs.push(nav as HTMLElement);
-    }
-    nav = nav_query.iterateNext();
+  page.style.removeProperty('display');
+  document
+    .querySelectorAll(`nav a[href="#${new_hash}"]`)
+    .forEach((el) => el.classList.add('active'));
+  if (new_hash === 'map') {
+    setUpMap();
   }
-  navs.forEach((nav) => {
-    nav.classList.remove('active');
-  });
-};
+}
 
-/* Setup page */
+window.addEventListener('hashchange', (ev) => {
+  const old_hash = new URL(ev.oldURL).hash.substring(1);
+  const new_hash = new URL(ev.newURL).hash.substring(1);
+  document
+    .getElementById(`page-${old_hash}`)
+    ?.style.setProperty('display', 'none');
+  document
+    .querySelectorAll(`nav a[href="#${old_hash}"]`)
+    .forEach((el) => el.classList.remove('active'));
+  showPage(new_hash);
+});
+window.addEventListener('load', () => {
+  showPage(window.location.hash.substring(1));
+});
 
-const setup_form = document.forms.namedItem('setup-form')!;
+/* Connection page */
+
+const setup_form = document.forms.namedItem('connect-form')!;
+{
+  const set_home = setup_form.querySelector('#set-home') as HTMLButtonElement;
+  if (!home) {
+    set_home.classList.add('invalid');
+  }
+}
 setup_form.addEventListener('submit', (ev: SubmitEvent) => {
   ev.preventDefault();
   const ip = setup_form.elements.namedItem('ip') as HTMLInputElement;
@@ -86,11 +122,20 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
   const password = setup_form.elements.namedItem(
     'password',
   ) as HTMLInputElement;
-  const submit = setup_form.elements.namedItem('submit') as HTMLButtonElement;
+  const set_home = setup_form.querySelector('#set-home') as HTMLButtonElement;
+  const submit = setup_form.querySelector('#submit') as HTMLButtonElement;
+
+  if (!home) {
+    document.getElementById('connection-error')!.innerText =
+      'Set a home location';
+    return;
+  }
+
   ip.disabled = true;
   port.disabled = true;
   player.disabled = true;
   password.disabled = true;
+  set_home.disabled = true;
   submit.disabled = true;
   client
     .login<APGoSlotData>(
@@ -102,7 +147,7 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
     .then((_slot_info) => {
       console.log('Connected!');
       localStorage.setItem(
-        'datapackage_cache',
+        DATAPACKAGE_KEY,
         JSON.stringify(client.package.exportPackage()),
       );
 
@@ -110,6 +155,7 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
       port.disabled = false;
       player.disabled = false;
       password.disabled = false;
+      set_home.disabled = false;
       submit.disabled = false;
 
       text_log.childNodes.forEach((c) => {
@@ -121,9 +167,7 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
       });
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
 
-      window.navTo(document.getElementById('nav-text-client')!, 'text-client');
-
-      // TODO: generate locations
+      window.location.hash = '#map';
     })
     .catch((reason) => {
       console.error(reason);
@@ -135,6 +179,42 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
       submit.disabled = false;
     });
 });
+const set_home_button = document.getElementById('set-home')!;
+function setUpSetHomeMap() {
+  set_home_button.removeEventListener('click', setUpSetHomeMap);
+  const map = createMap('set-home-map');
+  if (home) {
+    map.setCenter(home);
+  }
+  map.addControl(new maplibregl.GeolocateControl({}));
+
+  const overlay = document.createElement('div');
+
+  const xhair = document.createElement('div');
+  xhair.classList.add('crosshair');
+  xhair.style.setProperty('top', '50%');
+  xhair.style.setProperty('height', '1px');
+  xhair.style.setProperty('width', '100%');
+  overlay.appendChild(xhair);
+
+  const yhair = document.createElement('div');
+  yhair.classList.add('crosshair');
+  yhair.style.setProperty('left', '50%');
+  yhair.style.setProperty('width', '1px');
+  yhair.style.setProperty('height', '100%');
+  overlay.appendChild(yhair);
+
+  map.getCanvasContainer().appendChild(overlay);
+
+  document.getElementById('save-home')?.addEventListener('click', () => {
+    home = map.getCenter().toArray();
+    localStorage.setItem('home', JSON.stringify(home));
+    const set_home = setup_form.querySelector('#set-home') as HTMLButtonElement;
+    set_home.classList.remove('invalid');
+    setUpHomeMarker();
+  });
+}
+set_home_button.addEventListener('click', setUpSetHomeMap);
 
 /* Text client */
 
@@ -217,25 +297,52 @@ text_input_form.addEventListener('submit', (ev) => {
 
 /* Map */
 
-const darkModeMql = window.matchMedia?.('(prefers-color-scheme: dark)');
-const map = new maplibregl.Map({
-  container: 'map',
-  // https://stackoverflow.com/a/57795495
-  style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? 'eclipse' : 'colorful'}/style.json`,
-});
-window
-  .matchMedia('(prefers-color-scheme: dark)')
-  .addEventListener('change', (event) => {
-    map.setStyle(
-      `https://tiles.versatiles.org/assets/styles/${event.matches ? 'eclipse' : 'colorful'}/style.json`,
-    );
+function createMap(container: string) {
+  const darkModeMql = window.matchMedia?.('(prefers-color-scheme: dark)');
+  const map = new maplibregl.Map({
+    container: container,
+    // https://stackoverflow.com/a/57795495
+    style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? 'eclipse' : 'colorful'}/style.json`,
   });
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', (event) => {
+      map.setStyle(
+        `https://tiles.versatiles.org/assets/styles/${event.matches ? 'eclipse' : 'colorful'}/style.json`,
+      );
+    });
+  return map;
+}
+
+let game_map: maplibregl.Map | null = null;
+let home_marker: maplibregl.Marker | null = null;
+function setUpMap() {
+  if (game_map) {
+    return;
+  }
+  game_map = createMap('map');
+  setUpHomeMarker();
+}
+function setUpHomeMarker() {
+  if (!home) {
+    return;
+  }
+  if (!game_map) {
+    return;
+  }
+  if (home_marker) {
+    home_marker.setLngLat(home);
+  } else {
+    home_marker = new maplibregl.Marker();
+    home_marker.setLngLat(home);
+    home_marker.addTo(game_map);
+  }
+}
 
 /* Hints */
 
 const hint_table = document.getElementById('hint-table')!;
 function addHint(hint: Hint) {
-  console.log(hint);
   const row = document.createElement('tr');
 
   const receiver = document.createElement('td');
