@@ -3,7 +3,7 @@ import { home } from './globals';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
-export let location_markers: {[key: string]: maplibregl.Marker;} = {};
+export let location_markers: { [key: string]: maplibregl.Marker } = {};
 
 export function clearMarkers() {
   location_markers = {};
@@ -39,7 +39,7 @@ export function lateSetUpMap() {
       const marker = location_markers[marker_name];
       marker.addTo(game_map!);
       bounds.extend(marker.getLngLat());
-    };
+    }
     game_map?.fitBounds(bounds);
   }
 }
@@ -54,7 +54,7 @@ export function setUpHomeMarker() {
   if (home_marker) {
     home_marker.setLngLat(home);
   } else {
-    home_marker = new maplibregl.Marker();
+    home_marker = new maplibregl.Marker({color: "green"});
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }

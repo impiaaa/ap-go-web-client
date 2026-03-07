@@ -3,8 +3,16 @@ import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
 import { client, DATAPACKAGE_KEY, home, setHome } from './globals';
 import { addMessages } from './log';
-import { clearMarkers, createMap, game_map, location_markers, setUpHomeMarker } from './map';
-import type { APGoSlotData } from './types';
+import {
+  clearMarkers,
+  createMap,
+  game_map,
+  location_markers,
+  setUpHomeMarker,
+} from './map';
+import type { APGoSlotData, Trip } from './types';
+import type { Item } from 'archipelago.js';
+import { uniformInt } from 'pure-rand/distribution/uniformInt';
 
 // earth radius in km
 const EARTH_RADIUS = 6371;
@@ -152,13 +160,36 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
+function getItemColor(item: Item, trip: Trip, key_progression: number): string {
+  if (key_progression < trip.key_needed)
+    return "gray";
+  else if (item.progression)
+    return 'plum';
+  else if (item.useful)
+    return 'slateblue';
+  else if (item.trap) {
+    // Don't totally give away that a location is a trap.
+    // Instead, choose a random other classification, and alter the color slightly.
+    const rng = xoroshiro128plus(item.locationId);
+    const n = uniformInt(rng, 0, 13);
+    if (n < 1)
+      return "#ddabdd";
+    else if (n < 4)
+      return "#7364cd";
+    else
+      return "#0dffff";
+  }
+  else
+    return 'cyan';
+}
+
 function generate(seed: number, options: APGoSlotData) {
   if (!home) {
     return;
   }
   const rng = xoroshiro128plus(seed);
   const bounds = new maplibregl.LngLatBounds();
-  let points: {[key: string]: maplibregl.LngLatLike} = {};
+  let points: { [key: string]: maplibregl.LngLatLike } = {};
   for (const trip_name in options.trips) {
     const trip = options.trips[trip_name];
     let max_dist = (options.maximum_distance / 10) * trip.distance_tier;
@@ -185,14 +216,21 @@ function generate(seed: number, options: APGoSlotData) {
   }
   if (game_map) game_map.fitBounds(bounds);
 
+  const key_progression = client.items.received.filter(
+    (item) => item.id == 8902301100000 + 2,
+  ).length;
+
   client.scout(client.room.allLocations).then((items) => {
     for (let marker_name in location_markers) {
-        const marker = location_markers[marker_name];
-        marker.remove();
+      const marker = location_markers[marker_name];
+      marker.remove();
     }
     clearMarkers();
     items.forEach((item) => {
-      const marker = new maplibregl.Marker({color: item.progression ? "plum" : item.useful ? "slateblue" : item.trap ? "salmon" : "cyan"});
+      const trip = options.trips[item.locationName];
+      const marker = new maplibregl.Marker({
+        color: getItemColor(item, trip, key_progression),
+      });
       marker.setLngLat(points[item.locationName]);
       marker.setPopup(new maplibregl.Popup().setText(item.locationName));
       if (game_map) marker.addTo(game_map);

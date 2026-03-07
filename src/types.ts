@@ -1,4 +1,4 @@
-type Trip = {
+export type Trip = {
   distance_tier: number;
   key_needed: number;
   speed_tier: number;
