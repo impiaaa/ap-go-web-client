@@ -22,13 +22,13 @@
                 <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
                 <label for="player">Player Name</label><input autocapitalize="off" autocorrect="off" id="player" maxlength="16" name="player" required spellcheck="false">
                 <label for="password">Password</label><input id="password" name="password" type="password">
-                <button id="set-home" command="show-modal" commandfor="set-home-dialog" type="button">Set Home Location…</button>
+                <button id="set-home" type="button">Set Home Location…</button>
                 <button id="submit" type="submit">Connect</button>
             </form>
             <span id="connection-error" class="error"></span>
             <dialog id="set-home-dialog" closedby="any">
                 <div id="set-home-map"></div>
-                <button commandfor="set-home-dialog" command="close" id="save-home">Save</button>
+                <button id="save-home">Save</button>
             </dialog>
         </section>
         <section id="page-map" style="display: none;">

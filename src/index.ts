@@ -180,10 +180,14 @@ setup_form.addEventListener('submit', (ev: SubmitEvent) => {
     });
 });
 const set_home_button = document.getElementById('set-home')!;
+set_home_button.addEventListener('click', () => {
+  (document.getElementById('set-home-dialog') as HTMLDialogElement).showModal();
+});
 function setUpSetHomeMap() {
   set_home_button.removeEventListener('click', setUpSetHomeMap);
   const map = createMap('set-home-map');
   if (home) {
+    map.setZoom(9);
     map.setCenter(home);
   }
   map.addControl(new maplibregl.GeolocateControl({}));
@@ -212,6 +216,7 @@ function setUpSetHomeMap() {
     const set_home = setup_form.querySelector('#set-home') as HTMLButtonElement;
     set_home.classList.remove('invalid');
     setUpHomeMarker();
+    (document.getElementById('set-home-dialog') as HTMLDialogElement).close();
   });
 }
 set_home_button.addEventListener('click', setUpSetHomeMap);
