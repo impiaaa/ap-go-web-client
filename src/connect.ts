@@ -3,7 +3,7 @@ import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
 import { client, DATAPACKAGE_KEY, home, setHome } from './globals';
 import { addMessages } from './log';
-import { createMap, game_map, location_markers, setUpHomeMarker } from './map';
+import { clearMarkers, createMap, game_map, location_markers, setUpHomeMarker } from './map';
 import type { APGoSlotData } from './types';
 
 // earth radius in km
@@ -156,12 +156,9 @@ function generate(seed: number, options: APGoSlotData) {
   if (!home) {
     return;
   }
-  location_markers.forEach((marker) => {
-    marker.remove();
-  });
-  location_markers.splice(0, location_markers.length);
   const rng = xoroshiro128plus(seed);
   const bounds = new maplibregl.LngLatBounds();
+  let points: {[key: string]: maplibregl.LngLatLike} = {};
   for (const trip_name in options.trips) {
     const trip = options.trips[trip_name];
     let max_dist = (options.maximum_distance / 10) * trip.distance_tier;
@@ -182,13 +179,24 @@ function generate(seed: number, options: APGoSlotData) {
     const new_longitude =
       home[0] + dx / (DEGREE * Math.cos(deg2rad(new_latitude)));
 
-    bounds.extend([new_longitude, new_latitude]);
-
-    const marker = new maplibregl.Marker();
-    marker.setLngLat([new_longitude, new_latitude]);
-    marker.setPopup(new maplibregl.Popup().setText(trip_name));
-    if (game_map) marker.addTo(game_map);
-    location_markers.push(marker);
+    const lnglat: [number, number] = [new_longitude, new_latitude];
+    bounds.extend(lnglat);
+    points[trip_name] = lnglat;
   }
   if (game_map) game_map.fitBounds(bounds);
+
+  client.scout(client.room.allLocations).then((items) => {
+    for (let marker_name in location_markers) {
+        const marker = location_markers[marker_name];
+        marker.remove();
+    }
+    clearMarkers();
+    items.forEach((item) => {
+      const marker = new maplibregl.Marker({color: item.progression ? "plum" : item.useful ? "slateblue" : item.trap ? "salmon" : "cyan"});
+      marker.setLngLat(points[item.locationName]);
+      marker.setPopup(new maplibregl.Popup().setText(item.locationName));
+      if (game_map) marker.addTo(game_map);
+      location_markers[item.locationName] = marker;
+    });
+  });
 }

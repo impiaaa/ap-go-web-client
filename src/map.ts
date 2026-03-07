@@ -3,7 +3,11 @@ import { home } from './globals';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
-export const location_markers: maplibregl.Marker[] = [];
+export let location_markers: {[key: string]: maplibregl.Marker;} = {};
+
+export function clearMarkers() {
+  location_markers = {};
+}
 
 export function createMap(container: string) {
   const darkModeMql = window.matchMedia?.('(prefers-color-scheme: dark)');
@@ -29,12 +33,13 @@ export function lateSetUpMap() {
   game_map = createMap('map');
   setUpHomeMarker();
 
-  if (location_markers.length > 0) {
+  if (Object.keys(location_markers).length > 0) {
     const bounds = new maplibregl.LngLatBounds();
-    location_markers.forEach((marker) => {
+    for (let marker_name in location_markers) {
+      const marker = location_markers[marker_name];
       marker.addTo(game_map!);
       bounds.extend(marker.getLngLat());
-    });
+    };
     game_map?.fitBounds(bounds);
   }
 }
