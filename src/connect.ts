@@ -1,4 +1,6 @@
+import type { Item } from 'archipelago.js';
 import maplibregl from 'maplibre-gl';
+import { uniformInt } from 'pure-rand/distribution/uniformInt';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
 import { client, DATAPACKAGE_KEY, home, setHome } from './globals';
@@ -11,8 +13,6 @@ import {
   setUpHomeMarker,
 } from './map';
 import type { APGoSlotData, Trip } from './types';
-import type { Item } from 'archipelago.js';
-import { uniformInt } from 'pure-rand/distribution/uniformInt';
 
 // earth radius in km
 const EARTH_RADIUS = 6371;
@@ -181,7 +181,7 @@ function generate(seed: number, options: APGoSlotData) {
   }
   const rng = xoroshiro128plus(seed);
   const bounds = new maplibregl.LngLatBounds();
-  let points: { [key: string]: maplibregl.LngLatLike } = {};
+  const points: { [key: string]: maplibregl.LngLatLike } = {};
   for (const trip_name in options.trips) {
     const trip = options.trips[trip_name];
     let max_dist = (options.maximum_distance / 10) * trip.distance_tier;
@@ -209,11 +209,11 @@ function generate(seed: number, options: APGoSlotData) {
   if (game_map) game_map.fitBounds(bounds);
 
   const key_progression = client.items.received.filter(
-    (item) => item.id == 8902301100000 + 2,
+    (item) => item.id === 8902301100000 + 2,
   ).length;
 
   client.scout(client.room.allLocations).then((items) => {
-    for (let marker_name in location_markers) {
+    for (const marker_name in location_markers) {
       const marker = location_markers[marker_name];
       marker.remove();
     }

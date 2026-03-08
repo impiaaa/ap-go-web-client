@@ -35,7 +35,7 @@ export function lateSetUpMap() {
 
   if (Object.keys(location_markers).length > 0) {
     const bounds = new maplibregl.LngLatBounds();
-    for (let marker_name in location_markers) {
+    for (const marker_name in location_markers) {
       const marker = location_markers[marker_name];
       marker.addTo(game_map!);
       bounds.extend(marker.getLngLat());
