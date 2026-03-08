@@ -15,7 +15,8 @@
     background-color: #bdd7fa;
   }
 }
-#page-hints th, #page-hints td {
+#page-hints th,
+#page-hints td {
   padding: 4px;
 }
 #page-hints th {
@@ -34,7 +35,8 @@
     color: black;
   }
 }
-#page-hints td:nth-of-type(6) { /* "found" checkbox */
+#page-hints td:nth-of-type(6) {
+  /* "found" checkbox */
   text-align: center;
 }
 @media (prefers-color-scheme: dark) {

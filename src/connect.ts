@@ -161,26 +161,18 @@ function deg2rad(deg: number) {
 }
 
 function getItemColor(item: Item, trip: Trip, key_progression: number): string {
-  if (key_progression < trip.key_needed)
-    return "gray";
-  else if (item.progression)
-    return 'plum';
-  else if (item.useful)
-    return 'slateblue';
+  if (key_progression < trip.key_needed) return 'gray';
+  else if (item.progression) return 'plum';
+  else if (item.useful) return 'slateblue';
   else if (item.trap) {
     // Don't totally give away that a location is a trap.
     // Instead, choose a random other classification, and alter the color slightly.
     const rng = xoroshiro128plus(item.locationId);
     const n = uniformInt(rng, 0, 13);
-    if (n < 1)
-      return "#ddabdd";
-    else if (n < 4)
-      return "#7364cd";
-    else
-      return "#0dffff";
-  }
-  else
-    return 'cyan';
+    if (n < 1) return '#ddabdd';
+    else if (n < 4) return '#7364cd';
+    else return '#0dffff';
+  } else return 'cyan';
 }
 
 function generate(seed: number, options: APGoSlotData) {

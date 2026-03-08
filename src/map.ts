@@ -54,7 +54,7 @@ export function setUpHomeMarker() {
   if (home_marker) {
     home_marker.setLngLat(home);
   } else {
-    home_marker = new maplibregl.Marker({color: "green"});
+    home_marker = new maplibregl.Marker({ color: 'green' });
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }
