@@ -33,13 +33,13 @@ dialog:modal {
 
 @media (prefers-color-scheme: dark) {
   dialog:modal {
-    background-color: darkslategray;
+    background-color: #000920;
   }
 }
 
 @media (prefers-color-scheme: light) {
   dialog:modal {
-    background-color: ghostwhite;
+    background-color: #dfe8ff;
   }
 }
 

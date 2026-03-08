@@ -31,15 +31,15 @@ body {
 
 @media (prefers-color-scheme: dark) {
   body {
-    color: white;
-    background-color: darkslategray;
+    color: #80baff;
+    background-color: #000920;
   }
 }
 
 @media (prefers-color-scheme: light) {
   body {
-    color: black;
-    background-color: ghostwhite;
+    color: #003a7f;
+    background-color: #dfe8ff;
   }
 }
 
@@ -55,25 +55,57 @@ nav ul {
 }
 
 nav ul li {
-  padding: 4px;
+  padding: 0;
 }
 
 nav li a {
   display: block;
   text-align: center;
-  border-bottom: 2px solid silver;
-  padding-bottom: 2px;
   text-decoration: none;
-  color: inherit;
+  padding: 8px 0;
 }
 
-nav li a.active {
-  font-weight: bold;
-  border-bottom: 2px solid cornflowerblue;
+@media (prefers-color-scheme: dark) {
+  nav li a {
+    color: white;
+    background-color: #031736;
+  }
+  nav li a.active {
+    color: #80baff;
+    background-color: #2968b8;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  nav li a {
+    color: black;
+    background-color: #c9ddfc;
+  }
+  nav li a.active {
+    color: #003a7f;
+    background-color: #4786d6;
+  }
 }
 
 section {
   flex-grow: 1;
   flex-basis: 0;
   padding: 1rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  button {
+    background-color: #80baff;
+    color: #123052;
+    border: 0;
+    border-radius: 4px;
+    padding: 4px;
+  }
+  input {
+    background-color: #000920;
+    color: #9db1d5;
+    border: 1px solid #9db1d5;
+    border-radius: 4px;
+    padding: 4px;
+  }
 }

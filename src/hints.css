@@ -2,11 +2,48 @@
   overflow: scroll;
 }
 #page-hints table {
+  border-spacing: 0 2px;
   width: 100%;
 }
-#page-hints table td:nth-of-type(6) {
+@media (prefers-color-scheme: dark) {
+  #page-hints thead {
+    background-color: #051f42;
+  }
+}
+@media (prefers-color-scheme: light) {
+  #page-hints thead {
+    background-color: #bdd7fa;
+  }
+}
+#page-hints th, #page-hints td {
+  padding: 4px;
+}
+#page-hints th {
+  font-weight: normal;
+}
+#page-hints td {
+  font-weight: normal;
+}
+@media (prefers-color-scheme: dark) {
+  #page-hints table {
+    color: white;
+  }
+}
+@media (prefers-color-scheme: light) {
+  #page-hints table {
+    color: black;
+  }
+}
+#page-hints td:nth-of-type(6) { /* "found" checkbox */
   text-align: center;
 }
-#page-hints table tr:nth-of-type(even) {
-  background-color: rgba(0, 0, 0, 8%);
+@media (prefers-color-scheme: dark) {
+  #page-hints tr:nth-of-type(odd) {
+    background-color: #051f42;
+  }
+}
+@media (prefers-color-scheme: light) {
+  #page-hints tr:nth-of-type(odd) {
+    background-color: #bdd7fa;
+  }
 }
