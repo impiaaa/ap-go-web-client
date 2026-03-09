@@ -1,11 +1,19 @@
 import maplibregl from 'maplibre-gl';
-import { home } from './globals';
+import { client, home, slot_data } from './globals';
+import type { Item } from 'archipelago.js';
+import { uniformInt } from 'pure-rand/distribution/uniformInt';
+import type { Trip } from './types';
+import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
 export let location_markers: { [key: string]: maplibregl.Marker } = {};
 
 export function clearMarkers() {
+  for (const marker_name in location_markers) {
+    const marker = location_markers[marker_name];
+    marker.remove();
+  }
   location_markers = {};
 }
 
@@ -58,4 +66,54 @@ export function setUpHomeMarker() {
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }
+}
+
+function getItemColor(location_id: number, trip: Trip, key_progression: number, item: Item | undefined, hinted: boolean): string {
+  if (key_progression < trip.key_needed) return 'gray';
+  else if (client.room.checkedLocations.includes(location_id)) return 'darkgray';
+  else if (item === undefined) return "#ff00ff"; // shouldn't happen
+  else if (item.progression) return 'plum';
+  else if (item.useful) return 'slateblue';
+  else if (item.trap && hinted) return 'salmon';
+  else if (item.trap) {
+    // Don't totally give away that a location is a trap.
+    // Instead, choose a random other classification, and alter the color slightly.
+    const rng = xoroshiro128plus(item.locationId);
+    const n = uniformInt(rng, 0, 13);
+    if (n < 1) return '#ddabdd';
+    else if (n < 4) return '#7364cd';
+    else return '#0dffff';
+  } else return 'cyan';
+}
+
+export function updateMarker(location_id: number, location_name: string, point?: maplibregl.LngLatLike, item?: Item, hinted: boolean=false) {
+  if (!slot_data) {
+    throw "updateMarker called without being connected";
+  }
+  if (location_markers[location_name]) {
+    if (point === undefined) {
+      point = location_markers[location_name].getLngLat();
+    }
+    location_markers[location_name].remove();
+  }
+  const trip = slot_data.trips[location_name];
+  if (!trip) {
+    throw "Unknown trip " + location_name;
+  }
+  const key_progression = client.items.received.filter(
+    (item) => item.id === 8902301100000 + 2,
+  ).length;
+  const marker = new maplibregl.Marker({
+    color: getItemColor(location_id, trip, key_progression, item, hinted),
+  });
+  if (point !== undefined) {
+    marker.setLngLat(point);
+  }
+  if (key_progression >= trip.key_needed) {
+    marker.setPopup(new maplibregl.Popup().setText(location_name));
+  }
+  if (game_map && point) {
+    marker.addTo(game_map);
+  }
+  location_markers[location_name] = marker;
 }

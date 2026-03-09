@@ -1,18 +1,15 @@
-import type { Item } from 'archipelago.js';
 import maplibregl from 'maplibre-gl';
-import { uniformInt } from 'pure-rand/distribution/uniformInt';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
-import { client, DATAPACKAGE_KEY, home, setHome } from './globals';
+import { client, DATAPACKAGE_KEY, home, setHome, setSlotData, slot_data } from './globals';
 import { addMessages } from './log';
 import {
-  clearMarkers,
   createMap,
   game_map,
-  location_markers,
   setUpHomeMarker,
+  updateMarker,
 } from './map';
-import type { APGoSlotData, Trip } from './types';
+import type { APGoSlotData } from './types';
 
 // earth radius in km
 const EARTH_RADIUS = 6371;
@@ -53,12 +50,13 @@ function onSubmit(ev: SubmitEvent) {
       'Archipela-Go!',
       { password: password.value },
     )
-    .then((slot_info) => {
+    .then((new_slot_info) => {
       console.log('Connected!');
       localStorage.setItem(
         DATAPACKAGE_KEY,
         JSON.stringify(client.package.exportPackage()),
       );
+      setSlotData(new_slot_info);
 
       ip.disabled = false;
       port.disabled = false;
@@ -80,7 +78,7 @@ function onSubmit(ev: SubmitEvent) {
       // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
       const seed =
         Number.parseFloat(client.room.seedName) * (0x100000000 / 1e20);
-      generate(seed, slot_info);
+      generate(seed);
 
       window.location.hash = '#map';
     })
@@ -160,37 +158,25 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-function getItemColor(item: Item, trip: Trip, key_progression: number): string {
-  if (key_progression < trip.key_needed) return 'gray';
-  else if (item.progression) return 'plum';
-  else if (item.useful) return 'slateblue';
-  else if (item.trap) {
-    // Don't totally give away that a location is a trap.
-    // Instead, choose a random other classification, and alter the color slightly.
-    const rng = xoroshiro128plus(item.locationId);
-    const n = uniformInt(rng, 0, 13);
-    if (n < 1) return '#ddabdd';
-    else if (n < 4) return '#7364cd';
-    else return '#0dffff';
-  } else return 'cyan';
-}
-
-function generate(seed: number, options: APGoSlotData) {
+function generate(seed: number) {
   if (!home) {
-    return;
+    throw "generate called with no home set";
+  }
+  if (!slot_data) {
+    throw "generate called while not connected";
   }
   const rng = xoroshiro128plus(seed);
   const bounds = new maplibregl.LngLatBounds();
   const points: { [key: string]: maplibregl.LngLatLike } = {};
-  for (const trip_name in options.trips) {
-    const trip = options.trips[trip_name];
-    let max_dist = (options.maximum_distance / 10) * trip.distance_tier;
-    let min_dist = options.minimum_distance;
-    if (max_dist < options.minimum_distance) {
-      max_dist = options.minimum_distance * (1 + DISTANCE_LENIENCY);
+  for (const trip_name in slot_data.trips) {
+    const trip = slot_data.trips[trip_name];
+    let max_dist = (slot_data.maximum_distance / 10) * trip.distance_tier;
+    let min_dist = slot_data.minimum_distance;
+    if (max_dist < slot_data.minimum_distance) {
+      max_dist = slot_data.minimum_distance * (1 + DISTANCE_LENIENCY);
     }
-    if (min_dist > options.maximum_distance) {
-      min_dist = options.maximum_distance * (1 - DISTANCE_LENIENCY);
+    if (min_dist > slot_data.maximum_distance) {
+      min_dist = slot_data.maximum_distance * (1 - DISTANCE_LENIENCY);
     }
 
     const r = (max_dist - min_dist) * uniformFloat32(rng) ** 0.5 + min_dist;
@@ -211,22 +197,21 @@ function generate(seed: number, options: APGoSlotData) {
   const key_progression = client.items.received.filter(
     (item) => item.id === 8902301100000 + 2,
   ).length;
+  const reachable_locations = client.room.missingLocations.filter((location_id) => {
+    const location_name = client.package.lookupLocationName(client.game, location_id);
+    const trip = slot_data?.trips[location_name];
+    return trip && key_progression >= trip.key_needed;
+  });
 
-  client.scout(client.room.allLocations).then((items) => {
-    for (const marker_name in location_markers) {
-      const marker = location_markers[marker_name];
-      marker.remove();
-    }
-    clearMarkers();
+  client.scout(reachable_locations).then((items) => {
     items.forEach((item) => {
-      const trip = options.trips[item.locationName];
-      const marker = new maplibregl.Marker({
-        color: getItemColor(item, trip, key_progression),
-      });
-      marker.setLngLat(points[item.locationName]);
-      marker.setPopup(new maplibregl.Popup().setText(item.locationName));
-      if (game_map) marker.addTo(game_map);
-      location_markers[item.locationName] = marker;
+      updateMarker(item.locationId, item.locationName, points[item.locationName], item);
     });
+  });
+  client.room.allLocations.forEach((location_id) => {
+    if (!reachable_locations.includes(location_id)) {
+      const location_name = client.package.lookupLocationName(client.game, location_id);
+      updateMarker(location_id, location_name, points[location_name]);
+    }
   });
 }

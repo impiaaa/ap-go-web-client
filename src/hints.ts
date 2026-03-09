@@ -1,6 +1,7 @@
 import type { Hint } from 'archipelago.js';
 import { client } from './globals';
 import { styleItemElement, stylePlayerElement } from './log';
+import { updateMarker } from './map';
 
 const hint_table = document.getElementById('hint-table')!;
 function addHint(hint: Hint) {
@@ -39,6 +40,10 @@ function addHint(hint: Hint) {
   row.appendChild(status);
 
   hint_table.appendChild(row);
+
+  if (hint.item.locationGame === client.game) {
+    updateMarker(hint.item.locationId, hint.item.locationName, undefined, hint.item, true);
+  }
 }
 
 export function setUpHintsPage() {
