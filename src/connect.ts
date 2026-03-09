@@ -1,14 +1,16 @@
 import maplibregl from 'maplibre-gl';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
-import { client, DATAPACKAGE_KEY, home, setHome, setSlotData, slot_data } from './globals';
-import { addMessages } from './log';
 import {
-  createMap,
-  game_map,
-  setUpHomeMarker,
-  updateMarker,
-} from './map';
+  client,
+  DATAPACKAGE_KEY,
+  home,
+  setHome,
+  setSlotData,
+  slot_data,
+} from './globals';
+import { addMessages } from './log';
+import { createMap, game_map, setUpHomeMarker, updateMarker } from './map';
 import type { APGoSlotData } from './types';
 
 // earth radius in km
@@ -160,10 +162,10 @@ function deg2rad(deg: number) {
 
 function generate(seed: number) {
   if (!home) {
-    throw "generate called with no home set";
+    throw 'generate called with no home set';
   }
   if (!slot_data) {
-    throw "generate called while not connected";
+    throw 'generate called while not connected';
   }
   const rng = xoroshiro128plus(seed);
   const bounds = new maplibregl.LngLatBounds();
@@ -197,11 +199,16 @@ function generate(seed: number) {
   const key_progression = client.items.received.filter(
     (item) => item.id === 8902301100000 + 2,
   ).length;
-  const reachable_locations = client.room.missingLocations.filter((location_id) => {
-    const location_name = client.package.lookupLocationName(client.game, location_id);
-    const trip = slot_data?.trips[location_name];
-    return trip && key_progression >= trip.key_needed;
-  });
+  const reachable_locations = client.room.missingLocations.filter(
+    (location_id) => {
+      const location_name = client.package.lookupLocationName(
+        client.game,
+        location_id,
+      );
+      const trip = slot_data?.trips[location_name];
+      return trip && key_progression >= trip.key_needed;
+    },
+  );
 
   client.scout(reachable_locations).then((items) => {
     items.forEach((item) => {
@@ -210,7 +217,10 @@ function generate(seed: number) {
   });
   client.room.allLocations.forEach((location_id) => {
     if (!reachable_locations.includes(location_id)) {
-      const location_name = client.package.lookupLocationName(client.game, location_id);
+      const location_name = client.package.lookupLocationName(
+        client.game,
+        location_id,
+      );
       updateMarker(location_id, points[location_name]);
     }
   });
