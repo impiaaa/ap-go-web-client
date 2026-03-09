@@ -1,9 +1,10 @@
 import maplibregl from 'maplibre-gl';
 import { client, home, slot_data } from './globals';
-import type { Item } from 'archipelago.js';
+import { Item } from 'archipelago.js';
 import { uniformInt } from 'pure-rand/distribution/uniformInt';
 import type { Trip } from './types';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
+import { styleItemElement, stylePlayerElement } from './log';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -68,10 +69,10 @@ export function setUpHomeMarker() {
   }
 }
 
-function getItemColor(location_id: number, trip: Trip, key_progression: number, item: Item | undefined, hinted: boolean): string {
+function getItemColor(location_id: number, trip: Trip, key_progression: number, item: Item | null, hinted: boolean): string {
   if (key_progression < trip.key_needed) return 'gray';
   else if (client.room.checkedLocations.includes(location_id)) return 'darkgray';
-  else if (item === undefined) return "#ff00ff"; // shouldn't happen
+  else if (item === null) return "#ff00ff"; // shouldn't happen
   else if (item.progression) return 'plum';
   else if (item.useful) return 'slateblue';
   else if (item.trap && hinted) return 'salmon';
@@ -86,9 +87,28 @@ function getItemColor(location_id: number, trip: Trip, key_progression: number, 
   } else return 'cyan';
 }
 
-export function updateMarker(location_id: number, location_name: string, point?: maplibregl.LngLatLike, item?: Item, hinted: boolean=false) {
+export function updateMarker(arg: Item | number, point?: maplibregl.LngLatLike, hinted: boolean=false) {
   if (!slot_data) {
     throw "updateMarker called without being connected";
+  }
+  let item: Item | null;
+  let location_name: string;
+  let location_id: number;
+  if (arg instanceof Item) {
+    item = arg;
+    location_name = item.locationName;
+    location_id = item.locationId;
+  }
+  else if (typeof arg === "number") {
+    item = null;
+    location_id = arg;
+    location_name = client.package.lookupLocationName(client.game, location_id);
+  }
+  else {
+    throw `Unkown argument type ${typeof arg}`;
+  }
+  if (!hinted) {
+    hinted = client.items.hints.some((hint) => hint.item.locationId === location_id);
   }
   if (location_markers[location_name]) {
     if (point === undefined) {
@@ -109,8 +129,31 @@ export function updateMarker(location_id: number, location_name: string, point?:
   if (point !== undefined) {
     marker.setLngLat(point);
   }
-  if (key_progression >= trip.key_needed) {
-    marker.setPopup(new maplibregl.Popup().setText(location_name));
+  if (key_progression >= trip.key_needed || hinted) {
+    const popup = document.createElement("div");
+    popup.appendChild(document.createTextNode(location_name));
+    if (key_progression < trip.key_needed) {
+      popup.appendChild(document.createElement("br"));
+      popup.appendChild(document.createTextNode(`Requires key ${trip.key_needed} (have ${key_progression})`));
+    }
+    if (hinted && item) {
+      popup.appendChild(document.createElement("br"));
+
+      const player_el = document.createElement("span");
+      player_el.appendChild(document.createTextNode(item.receiver.name));
+      player_el.classList.add("player");
+      stylePlayerElement(player_el, item.receiver);
+      popup.appendChild(player_el);
+
+      popup.appendChild(document.createTextNode(" "));
+
+      const item_el = document.createElement("span");
+      item_el.appendChild(document.createTextNode(item.name));
+      item_el.classList.add("item");
+      styleItemElement(item_el, item);
+      popup.appendChild(item_el);
+    }
+    marker.setPopup(new maplibregl.Popup().setDOMContent(popup));
   }
   if (game_map && point) {
     marker.addTo(game_map);

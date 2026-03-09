@@ -42,7 +42,7 @@ function addHint(hint: Hint) {
   hint_table.appendChild(row);
 
   if (hint.item.locationGame === client.game) {
-    updateMarker(hint.item.locationId, hint.item.locationName, undefined, hint.item, true);
+    updateMarker(hint.item, undefined, true);
   }
 }
 

@@ -205,13 +205,13 @@ function generate(seed: number) {
 
   client.scout(reachable_locations).then((items) => {
     items.forEach((item) => {
-      updateMarker(item.locationId, item.locationName, points[item.locationName], item);
+      updateMarker(item, points[item.locationName]);
     });
   });
   client.room.allLocations.forEach((location_id) => {
     if (!reachable_locations.includes(location_id)) {
       const location_name = client.package.lookupLocationName(client.game, location_id);
-      updateMarker(location_id, location_name, points[location_name]);
+      updateMarker(location_id, points[location_name]);
     }
   });
 }
