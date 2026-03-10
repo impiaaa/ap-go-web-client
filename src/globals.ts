@@ -14,6 +14,10 @@ export function setSlotData(new_slot_data: APGoSlotData) {
   slot_data = new_slot_data;
 }
 export const client = new Client();
+export let points: maplibregl.LngLatLike[] = [];
+export function clearPoints() {
+  points = [];
+}
 
 declare global {
   interface Window {

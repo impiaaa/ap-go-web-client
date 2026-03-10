@@ -2,21 +2,22 @@ import { Item } from 'archipelago.js';
 import maplibregl from 'maplibre-gl';
 import { uniformInt } from 'pure-rand/distribution/uniformInt';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
-import { client, home, slot_data } from './globals';
+import { getKeyProgress } from './gameplay';
+import { client, home, points, slot_data } from './globals';
 import { styleItemElement, stylePlayerElement } from './log';
 import type { Trip } from './types';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
 let current_location_marker: maplibregl.Marker | null = null;
-export let location_markers: { [key: string]: maplibregl.Marker } = {};
+export let location_markers: maplibregl.Marker[] = [];
 
 export function clearMarkers() {
   for (const marker_name in location_markers) {
     const marker = location_markers[marker_name];
     marker.remove();
   }
-  location_markers = {};
+  location_markers = [];
 }
 
 export function createMap(container: string) {
@@ -94,7 +95,7 @@ function getItemColor(
   else if (client.room.checkedLocations.includes(location_id))
     return 'darkgray';
   else if (item === null)
-    return '#ff00ff'; // shouldn't happen
+    return 'lightseagreen'; // available but not scouted
   else if (item.progression) return 'plum';
   else if (item.useful) return 'slateblue';
   else if (item.trap && hinted) return 'salmon';
@@ -109,11 +110,7 @@ function getItemColor(
   } else return 'cyan';
 }
 
-export function updateMarker(
-  arg: Item | number,
-  point?: maplibregl.LngLatLike,
-  hinted: boolean = false,
-) {
+export function updateMarker(arg: Item | number, hinted: boolean = false) {
   if (!slot_data) {
     throw 'updateMarker called without being connected';
   }
@@ -136,19 +133,18 @@ export function updateMarker(
       (hint) => hint.item.locationId === location_id,
     );
   }
-  if (location_markers[location_name]) {
+  let point = points[location_id];
+  if (location_id < location_markers.length) {
     if (point === undefined) {
-      point = location_markers[location_name].getLngLat();
+      point = location_markers[location_id].getLngLat();
     }
-    location_markers[location_name].remove();
+    location_markers[location_id].remove();
   }
   const trip = slot_data.trips[location_name];
   if (!trip) {
     throw `Unknown trip ${location_name}`;
   }
-  const key_progression = client.items.received.filter(
-    (item) => item.id === 8902301100000 + 2,
-  ).length;
+  const key_progression = getKeyProgress();
   const marker = new maplibregl.Marker({
     color: getItemColor(location_id, trip, key_progression, item, hinted),
   });
@@ -188,5 +184,5 @@ export function updateMarker(
   if (game_map && point) {
     marker.addTo(game_map);
   }
-  location_markers[location_name] = marker;
+  location_markers[location_id] = marker;
 }

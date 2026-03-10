@@ -1,4 +1,5 @@
 import maplibregl from 'maplibre-gl';
+import { checkItems } from './gameplay';
 import { generate } from './generate';
 import {
   client,
@@ -98,6 +99,7 @@ function onSubmit(ev: SubmitEvent) {
 
 function geoLocationUpdate(location: GeolocationPosition) {
   updateCurrentLocationPin(location.coords);
+  checkItems(location.coords);
 }
 
 function geoLocationError(error: GeolocationPositionError) {

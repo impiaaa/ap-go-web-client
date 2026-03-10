@@ -7,11 +7,11 @@
     </head>
     <body>
         <nav>
-            <ul>
-                <li><a href="#connect">Connect</a></li>
-                <li><a href="#map">Map</a></li>
-                <li><a href="#log">Log</a></li>
-                <li><a href="#hints">Hints</a></li>
+            <ul role="tablist">
+                <li><a role="tab" aria-controls="page-connect" href="#connect">Connect</a></li>
+                <li><a role="tab" aria-controls="page-map" href="#map">Map</a></li>
+                <li><a role="tab" aria-controls="page-log" href="#log">Log</a></li>
+                <li><a role="tab" aria-controls="page-hints" href="#hints">Hints</a></li>
             </ul>
         </nav>
         <section id="page-connect" style="display: none;">
@@ -22,11 +22,11 @@
                 <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
                 <label for="player">Player Name</label><input autocapitalize="off" autocorrect="off" id="player" maxlength="16" name="player" required spellcheck="false">
                 <label for="password">Password</label><input id="password" name="password" type="password">
-                <button id="set-home" type="button">Set Home Location…</button>
+                <button id="set-home" type="button" aria-haspopup="dialog">Set Home Location…</button>
                 <button id="submit" type="submit">Connect</button>
             </form>
             <span id="connection-error" class="error"></span>
-            <dialog id="set-home-dialog" closedby="any">
+            <dialog id="set-home-dialog" closedby="any" aria-label="Set home location on map">
                 <div id="set-home-map"></div>
                 <button id="save-home">Save</button>
             </dialog>
@@ -37,7 +37,7 @@
         <section id="page-log" style="display: none;">
             <div class="log" id="text-log"></div>
             <form id="text-input">
-                <input autocapitalize="off" autocorrect="off" spellcheck="false">
+                <input autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Send text or a command to the Archipelago server">
             </form>
         </section>
         <section id="page-hints" style="display: none;">

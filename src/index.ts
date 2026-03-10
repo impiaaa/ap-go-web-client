@@ -19,6 +19,7 @@ function showPage(new_hash: string) {
   }
   page.style.removeProperty('display');
   document.querySelectorAll(`nav a[href="#${new_hash}"]`).forEach((el) => {
+    el.setAttribute('aria-selected', 'true');
     el.classList.add('active');
   });
   if (new_hash === 'map') {
@@ -33,6 +34,7 @@ window.addEventListener('hashchange', (ev) => {
     .getElementById(`page-${old_hash}`)
     ?.style.setProperty('display', 'none');
   document.querySelectorAll(`nav a[href="#${old_hash}"]`).forEach((el) => {
+    el.setAttribute('aria-selected', 'false');
     el.classList.remove('active');
   });
   showPage(new_hash);
