@@ -73,6 +73,7 @@ export function generate(seed: number) {
     },
   );
 
+  // FIXME: scout locations within scouting distance, not all reachable
   client.scout(reachable_locations).then((items) => {
     items.forEach((item) => {
       updateMarker(item, points[item.locationName]);
