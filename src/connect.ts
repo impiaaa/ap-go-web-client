@@ -10,7 +10,13 @@ import {
   slot_data,
 } from './globals';
 import { addMessages } from './log';
-import { createMap, game_map, setUpHomeMarker, updateMarker } from './map';
+import {
+  createMap,
+  game_map,
+  setUpHomeMarker,
+  updateLocation,
+  updateMarker,
+} from './map';
 import type { APGoSlotData } from './types';
 
 // earth radius in km
@@ -83,6 +89,8 @@ function onSubmit(ev: SubmitEvent) {
       generate(seed);
 
       window.location.hash = '#map';
+
+      navigator.geolocation.watchPosition(geoLocationUpdate, geoLocationError);
     })
     .catch((reason) => {
       console.error(reason);
@@ -93,6 +101,23 @@ function onSubmit(ev: SubmitEvent) {
       password.disabled = false;
       submit.disabled = false;
     });
+}
+
+function geoLocationUpdate(location: GeolocationPosition) {
+  updateLocation(location.coords);
+}
+
+function geoLocationError(error: GeolocationPositionError) {
+  let message = error.message;
+  if (error.code === GeolocationPositionError.PERMISSION_DENIED) {
+    message += '\nPlease reload and reconnect.';
+    alert(message);
+  } else {
+    message += '\nEnable cheat mode?';
+    if (confirm(message)) {
+      // TODO
+    }
+  }
 }
 
 function setUpSetHomeMap() {

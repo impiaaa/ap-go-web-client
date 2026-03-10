@@ -8,6 +8,7 @@ import type { Trip } from './types';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
+let current_location_marker: maplibregl.Marker | null = null;
 export let location_markers: { [key: string]: maplibregl.Marker } = {};
 
 export function clearMarkers() {
@@ -66,6 +67,19 @@ export function setUpHomeMarker() {
     home_marker = new maplibregl.Marker({ color: 'green' });
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
+  }
+}
+
+export function updateLocation(coords: GeolocationCoordinates) {
+  if (!game_map) {
+    return;
+  }
+  if (current_location_marker) {
+    current_location_marker.setLngLat([coords.longitude, coords.latitude]);
+  } else {
+    current_location_marker = new maplibregl.Marker({ color: 'blue' });
+    current_location_marker.setLngLat([coords.longitude, coords.latitude]);
+    current_location_marker.addTo(game_map);
   }
 }
 
