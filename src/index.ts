@@ -1,32 +1,9 @@
 import './index.css';
 import { setUpConnectPage } from './connect';
-import { client, DATAPACKAGE_KEY, DEFAULT_PAGE, setHome } from './globals';
+import { DEFAULT_PAGE } from './globals';
 import { setUpHintsPage } from './hints';
 import { setUpLogPage } from './log';
 import { lateSetUpMap } from './map';
-
-/* Client setup */
-
-const datapackage_str = localStorage.getItem(DATAPACKAGE_KEY);
-if (datapackage_str) {
-  client.package.importPackage(JSON.parse(datapackage_str));
-}
-
-const home_str = localStorage.getItem('home');
-if (home_str) {
-  const home_json = JSON.parse(home_str);
-  if (
-    home_json &&
-    Array.isArray(home_json) &&
-    home_json.length === 2 &&
-    typeof home_json[0] === 'number' &&
-    typeof home_json[1] === 'number'
-  ) {
-    setHome(home_json as [number, number]);
-  } else {
-    localStorage.removeItem('home');
-  }
-}
 
 /* Page layout */
 

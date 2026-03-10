@@ -2,6 +2,7 @@ import { Client } from 'archipelago.js';
 import type { APGoSlotData } from './types';
 
 export const DATAPACKAGE_KEY = 'datapackage_cache';
+export const PREFS_KEY = 'connection_info';
 export const DEFAULT_PAGE = 'connect';
 
 export let home: [number, number] | null = null;
