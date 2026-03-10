@@ -70,7 +70,7 @@ export function setUpHomeMarker() {
   }
 }
 
-export function updateLocation(coords: GeolocationCoordinates) {
+export function updateCurrentLocationPin(coords: GeolocationCoordinates) {
   if (!game_map) {
     return;
   }

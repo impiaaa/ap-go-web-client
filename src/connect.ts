@@ -9,7 +9,7 @@ import {
   setSlotData,
 } from './globals';
 import { addMessages } from './log';
-import { createMap, setUpHomeMarker, updateLocation } from './map';
+import { createMap, setUpHomeMarker, updateCurrentLocationPin } from './map';
 import type { APGoSlotData } from './types';
 
 const setup_form = document.forms.namedItem('connect-form')!;
@@ -72,7 +72,8 @@ function onSubmit(ev: SubmitEvent) {
 
       // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
       const seed =
-        Number.parseFloat(client.room.seedName) * (0x100000000 / 1e20);
+        (Number.parseFloat(client.room.seedName) * (0x100000000 / 1e20)) ^
+        client.players.self.slot;
       generate(seed);
 
       if (window.location.hash === '#connect') {
@@ -96,7 +97,7 @@ function onSubmit(ev: SubmitEvent) {
 }
 
 function geoLocationUpdate(location: GeolocationPosition) {
-  updateLocation(location.coords);
+  updateCurrentLocationPin(location.coords);
 }
 
 function geoLocationError(error: GeolocationPositionError) {
