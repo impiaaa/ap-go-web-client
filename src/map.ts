@@ -3,14 +3,21 @@ import maplibregl, { type LngLatLike } from 'maplibre-gl';
 import { uniformInt } from 'pure-rand/distribution/uniformInt';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import { checkLocations, getKeyProgress } from './gameplay';
-import { cheat, client, home, points, slot_data } from './globals';
+import {
+  cheat,
+  client,
+  home,
+  points,
+  scouted_locations,
+  slot_data,
+} from './globals';
 import { styleItemElement, stylePlayerElement } from './log';
 import type { Trip } from './types';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
 let current_location_marker: maplibregl.Marker | null = null;
-export let location_markers: { [index: number]: maplibregl.Marker } = {};
+export let location_markers: Record<number, maplibregl.Marker> = {};
 
 export function clearMarkers() {
   for (const marker_name in location_markers) {
@@ -128,8 +135,17 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     location_name = item.locationName;
     location_id = item.locationId;
   } else if (typeof arg === 'number') {
-    item = null;
     location_id = arg;
+    if (scouted_locations[location_id]) {
+      item = new Item(
+        client,
+        scouted_locations[location_id],
+        client.players.findPlayer(scouted_locations[location_id].player)!,
+        client.players.self,
+      );
+    } else {
+      item = null;
+    }
     location_name = client.package.lookupLocationName(client.game, location_id);
   } else {
     throw `Unkown argument type ${typeof arg}`;

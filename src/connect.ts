@@ -7,7 +7,9 @@ import {
   DATAPACKAGE_KEY,
   home,
   PREFS_KEY,
+  SAVED_GAME_KEY,
   setHome,
+  setScoutedLocations,
   setSlotData,
 } from './globals';
 import { addMessages } from './log';
@@ -71,6 +73,22 @@ function onSubmit(ev: SubmitEvent) {
         text_log.appendChild(document.createElement('br'));
       });
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
+
+      const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
+      if (saved_game_json) {
+        const saved_game = JSON.parse(saved_game_json);
+        if (
+          saved_game &&
+          saved_game.seed === client.room.seedName &&
+          saved_game.scouted_locations
+        ) {
+          setScoutedLocations(saved_game.scouted_locations);
+        } else {
+          setScoutedLocations({});
+        }
+      } else {
+        setScoutedLocations({});
+      }
 
       // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
       const seed =

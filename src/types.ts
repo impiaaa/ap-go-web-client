@@ -4,10 +4,6 @@ export type Trip = {
   speed_tier: number;
 };
 
-type TripDict = {
-  [index: string]: Trip;
-};
-
 enum Goal {
   OneHardTravel = 0,
   Allsanity = 1,
@@ -20,7 +16,7 @@ export type APGoSlotData = {
   minimum_distance: number;
   maximum_distance: number;
   speed_requirement: number;
-  trips: TripDict;
+  trips: Record<string, Trip>;
 };
 
 const ItemIdOffset = 8902301100000;

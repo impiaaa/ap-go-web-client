@@ -1,5 +1,11 @@
 import { LngLat } from 'maplibre-gl';
-import { client, points, slot_data } from './globals';
+import {
+  client,
+  points,
+  SAVED_GAME_KEY,
+  scouted_locations,
+  slot_data,
+} from './globals';
 import { updateMarker } from './map';
 import { ItemType } from './types';
 
@@ -44,7 +50,7 @@ export function checkLocations(coords: LngLat) {
     const location_id = parseInt(location_id_str);
     const point = points[location_id];
     const dist = LngLat.convert(point).distanceTo(coords);
-    if (dist < scoutingDistance) {
+    if (dist < scoutingDistance && !scouted_locations[location_id]) {
       scouts.push(location_id);
     }
     if (dist < collectionDistance) {
@@ -59,13 +65,27 @@ export function checkLocations(coords: LngLat) {
     }
   }
 
-  // FIXME: Save scout results so that each update doesn't re-scout
   if (scouts.length > 0) {
     console.log(`Scouting locations: ${scouts}`);
     client.scout(scouts).then((items) => {
       items.forEach((item) => {
+        scouted_locations[item.locationId] = {
+          item: item.id,
+          location: item.locationId,
+          player: item.receiver.slot,
+          flags: item.flags,
+        };
         updateMarker(item);
       });
+      console.log(items);
+      console.log(scouted_locations);
+      localStorage.setItem(
+        SAVED_GAME_KEY,
+        JSON.stringify({
+          seed: client.room.seedName,
+          scouted_locations: scouted_locations,
+        }),
+      );
     });
   }
   if (checks.length > 0) {
