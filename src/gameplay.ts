@@ -60,7 +60,8 @@ export function checkLocations(coords: LngLat) {
         location_id,
       );
       const trip = slot_data?.trips[location_name];
-      if (trip && key_progression >= trip.key_needed) {
+      const checked = client.room.checkedLocations.includes(location_id);
+      if (!checked && trip && key_progression >= trip.key_needed) {
         checks.push(location_id);
       }
     }
@@ -100,6 +101,13 @@ export function setUpGameplay() {
   ) as HTMLDialogElement | null;
   trap_dialog?.addEventListener('click', () => {
     trap_dialog.close();
+  });
+  client.socket.on('roomUpdate', (ev) => {
+    if (ev.checked_locations !== undefined) {
+      ev.checked_locations.forEach((location_id) => {
+        updateMarker(location_id);
+      });
+    }
   });
 }
 

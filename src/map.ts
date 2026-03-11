@@ -145,8 +145,8 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
       item = new Item(
         client,
         scouted_locations[location_id],
-        client.players.findPlayer(scouted_locations[location_id].player)!,
         client.players.self,
+        client.players.findPlayer(scouted_locations[location_id].player)!,
       );
     } else {
       item = null;
@@ -172,13 +172,14 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     throw `Unknown trip ${location_name}`;
   }
   const key_progression = getKeyProgress();
+  const checked = client.room.checkedLocations.includes(location_id);
   const marker = new maplibregl.Marker({
     color: getItemColor(location_id, trip, key_progression, item, hinted),
   });
   if (point !== undefined) {
     marker.setLngLat(point);
   }
-  if (item || hinted) {
+  if (item || hinted || checked) {
     const popup = document.createElement('div');
     popup.appendChild(document.createTextNode(location_name));
     if (key_progression < trip.key_needed) {
@@ -189,7 +190,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
         ),
       );
     }
-    if (hinted && item) {
+    if ((hinted || checked) && item) {
       popup.appendChild(document.createElement('br'));
 
       const player_el = document.createElement('span');
