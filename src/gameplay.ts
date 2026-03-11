@@ -118,7 +118,18 @@ function receiveItems(items: Item[]) {
         console.error('DistanceReduction item unimplemented');
         break;
       case ItemType.Key:
-        // TODO: update all markers
+        const key_progression = getKeyProgress();
+        client.room.missingLocations.forEach((location_id) => {
+          const location_name = client.package.lookupLocationName(
+            client.game,
+            location_id,
+          );
+          const trip = slot_data?.trips[location_name];
+          if (trip && key_progression >= trip.key_needed) {
+            updateMarker(location_id);
+          }
+        });
+        // TODO: Perform checks with last known location
         break;
       case ItemType.ScoutingDistance:
         // TODO: Perform scouts with last known location
