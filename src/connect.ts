@@ -1,7 +1,8 @@
-import maplibregl from 'maplibre-gl';
-import { checkItems } from './gameplay';
+import maplibregl, { LngLat } from 'maplibre-gl';
+import { checkLocations } from './gameplay';
 import { generate } from './generate';
 import {
+  cheat,
   client,
   DATAPACKAGE_KEY,
   home,
@@ -81,7 +82,14 @@ function onSubmit(ev: SubmitEvent) {
         window.location.hash = '#map';
       }
 
-      navigator.geolocation.watchPosition(geoLocationUpdate, geoLocationError);
+      if (cheat) {
+        updateCurrentLocationPin(home!);
+      } else {
+        navigator.geolocation.watchPosition(
+          geoLocationUpdate,
+          geoLocationError,
+        );
+      }
     })
     .catch((reason) => {
       console.error(reason);
@@ -98,8 +106,12 @@ function onSubmit(ev: SubmitEvent) {
 }
 
 function geoLocationUpdate(location: GeolocationPosition) {
-  updateCurrentLocationPin(location.coords);
-  checkItems(location.coords);
+  const coords = new LngLat(
+    location.coords.longitude,
+    location.coords.latitude,
+  );
+  updateCurrentLocationPin(coords);
+  checkLocations(coords);
 }
 
 function geoLocationError(error: GeolocationPositionError) {
@@ -110,7 +122,9 @@ function geoLocationError(error: GeolocationPositionError) {
   } else {
     message += '\nEnable cheat mode?';
     if (confirm(message)) {
-      // TODO
+      // TODO: add a way to unset cheat mode
+      localStorage.setItem('cheat', 'true');
+      location.reload();
     }
   }
 }

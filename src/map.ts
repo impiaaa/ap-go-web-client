@@ -1,23 +1,23 @@
 import { Item } from 'archipelago.js';
-import maplibregl from 'maplibre-gl';
+import maplibregl, { type LngLatLike } from 'maplibre-gl';
 import { uniformInt } from 'pure-rand/distribution/uniformInt';
 import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
-import { getKeyProgress } from './gameplay';
-import { client, home, points, slot_data } from './globals';
+import { checkLocations, getKeyProgress } from './gameplay';
+import { cheat, client, home, points, slot_data } from './globals';
 import { styleItemElement, stylePlayerElement } from './log';
 import type { Trip } from './types';
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
 let current_location_marker: maplibregl.Marker | null = null;
-export let location_markers: maplibregl.Marker[] = [];
+export let location_markers: { [index: number]: maplibregl.Marker } = {};
 
 export function clearMarkers() {
   for (const marker_name in location_markers) {
     const marker = location_markers[marker_name];
     marker.remove();
   }
-  location_markers = [];
+  location_markers = {};
 }
 
 export function createMap(container: string) {
@@ -71,17 +71,23 @@ export function setUpHomeMarker() {
   }
 }
 
-export function updateCurrentLocationPin(coords: GeolocationCoordinates) {
+export function updateCurrentLocationPin(coords: LngLatLike) {
   if (!game_map) {
     return;
   }
   if (current_location_marker) {
-    current_location_marker.setLngLat([coords.longitude, coords.latitude]);
+    current_location_marker.setLngLat(coords);
   } else {
     current_location_marker = new maplibregl.Marker({ color: 'blue' });
-    current_location_marker.setLngLat([coords.longitude, coords.latitude]);
+    current_location_marker.setLngLat(coords);
     current_location_marker.addTo(game_map);
+    if (cheat) {
+      current_location_marker.on('dragend', () => {
+        checkLocations(current_location_marker!.getLngLat());
+      });
+    }
   }
+  current_location_marker.setDraggable(cheat);
 }
 
 function getItemColor(
@@ -95,7 +101,7 @@ function getItemColor(
   else if (client.room.checkedLocations.includes(location_id))
     return 'darkgray';
   else if (item === null)
-    return 'lightseagreen'; // available but not scouted
+    return 'lightseagreen'; // available but not scouted or hinted
   else if (item.progression) return 'plum';
   else if (item.useful) return 'slateblue';
   else if (item.trap && hinted) return 'salmon';
@@ -134,7 +140,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     );
   }
   let point = points[location_id];
-  if (location_id < location_markers.length) {
+  if (location_markers[location_id]) {
     if (point === undefined) {
       point = location_markers[location_id].getLngLat();
     }
@@ -151,7 +157,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
   if (point !== undefined) {
     marker.setLngLat(point);
   }
-  if (key_progression >= trip.key_needed || hinted) {
+  if (item || hinted) {
     const popup = document.createElement('div');
     popup.appendChild(document.createTextNode(location_name));
     if (key_progression < trip.key_needed) {

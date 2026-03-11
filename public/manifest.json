@@ -1,5 +1,5 @@
 {
-    "display": "standalone",
-    "short_name": "AP-GO!",
-    "start_url": "index.html#connect"
+  "display": "standalone",
+  "short_name": "AP-GO!",
+  "start_url": "index.html#connect"
 }
