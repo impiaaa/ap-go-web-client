@@ -16,8 +16,8 @@
             </ul>
         </nav>
         <section id="page-connect" style="display: none;">
-            <h2>Archipela-GO!</h2>
-            <h3>Connect to server</h3>
+            <h1>Archipela-GO!</h1>
+            <h2>Connect to server</h2>
             <form class="gridform" id="connect-form">
                 <label for="ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
                 <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
@@ -28,12 +28,12 @@
             </form>
             <span id="connection-error" class="error"></span>
             <dialog id="set-home-dialog" closedby="any" aria-label="Set home location on map">
-                <div id="set-home-map"></div>
+                <div id="set-home-map" class="map-container"></div>
                 <button id="save-home">Save</button>
             </dialog>
         </section>
         <section id="page-map" style="display: none;">
-            <div id="map" style="height: 100%;"></div>
+            <div id="map" class="map-container"></div>
         </section>
         <section id="page-log" style="display: none;">
             <div class="log" id="text-log"></div>
@@ -56,5 +56,10 @@
                 <tbody></tbody>
             </table>
         </section>
+        <dialog id="trap-dialog" closedby="any">
+            <h2></h2>
+            <img>
+            <p>Tap to dismiss</p>
+        </dialog>
     </body>
 </html>

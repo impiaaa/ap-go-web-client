@@ -50,4 +50,7 @@ export enum ItemType {
   MacguffinG = ItemIdOffset + 211,
   MacguffinO = ItemIdOffset + 212,
   MacguffinExclamation = ItemIdOffset + 213,
+
+  Hydrate = ItemIdOffset + 251,
+  TakeBreather = ItemIdOffset + 252,
 }

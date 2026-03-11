@@ -64,7 +64,13 @@ export function generate(seed: number) {
       console.error(`Trip ${trip_name} has no matching location!`);
     }
   }
-  if (game_map) game_map.fitBounds(bounds);
+  if (game_map) {
+    game_map.fitBounds(bounds, {
+      animate: false,
+      // ensure tops and sides of markers are visible
+      padding: { left: 14, right: 14, top: 36, bottom: 0 },
+    });
+  }
 
   client.room.allLocations.forEach((location_id) => {
     updateMarker(location_id);

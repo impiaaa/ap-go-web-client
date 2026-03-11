@@ -1,3 +1,7 @@
 .maplibregl-popup {
   color: black;
 }
+
+#map {
+  height: 100%;
+}

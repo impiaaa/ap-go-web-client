@@ -21,6 +21,10 @@ const set_home_button = document.getElementById('set-home')!;
 
 function onSubmit(ev: SubmitEvent) {
   ev.preventDefault();
+  doLogin(true);
+}
+
+function doLogin(thenShowMap: boolean) {
   const ip = setup_form.elements.namedItem('ip') as HTMLInputElement;
   const port = setup_form.elements.namedItem('port') as HTMLInputElement;
   const player = setup_form.elements.namedItem('player') as HTMLInputElement;
@@ -96,7 +100,7 @@ function onSubmit(ev: SubmitEvent) {
         client.players.self.slot;
       generate(seed);
 
-      if (window.location.hash === '#connect') {
+      if (thenShowMap) {
         window.location.hash = '#map';
       }
 
@@ -210,8 +214,6 @@ export function setUpConnectPage() {
   if (prefs_str) {
     const prefs_json = JSON.parse(prefs_str);
     if (typeof prefs_json === 'object') {
-      const submit = setup_form.querySelector('#submit') as HTMLButtonElement;
-
       const ip_json = prefs_json.ip;
       if (ip_json && typeof ip_json === 'string') {
         ip.value = ip_json;
@@ -248,7 +250,7 @@ export function setUpConnectPage() {
       }
 
       if (setup_form.checkValidity() && home) {
-        submit.click();
+        doLogin(false);
       } else {
         window.location.hash = '#connect';
       }

@@ -22,35 +22,6 @@ button.invalid {
   }
 }
 
-dialog:modal {
-  margin: 2rem;
-  padding: 1rem;
-  width: calc(100% - 6rem);
-  height: calc(100% - 6rem);
-  display: flex;
-  flex-direction: column;
-}
-
-@media (prefers-color-scheme: dark) {
-  dialog:modal {
-    background-color: #000920;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  dialog:modal {
-    background-color: #dfe8ff;
-  }
-}
-
-dialog::backdrop {
-  background-color: rgba(0, 0, 0, 50%);
-}
-
-dialog > div {
-  flex-grow: 1;
-}
-
 .crosshair {
   position: absolute;
 }

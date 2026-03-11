@@ -26,10 +26,3 @@ export function setScoutedLocations(
 ) {
   scouted_locations = new_locations;
 }
-
-declare global {
-  interface Window {
-    client: Client;
-  }
-}
-window.client = client; // debug access

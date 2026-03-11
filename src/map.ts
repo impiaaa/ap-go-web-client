@@ -55,11 +55,16 @@ export function lateSetUpMap() {
     const bounds = new maplibregl.LngLatBounds();
     for (const marker_name in location_markers) {
       const marker = location_markers[marker_name];
-      marker.addTo(game_map!);
+      marker.addTo(game_map);
       bounds.extend(marker.getLngLat());
     }
-    game_map?.fitBounds(bounds);
+    game_map.fitBounds(bounds, {
+      animate: false,
+      // ensure tops and sides of markers are visible
+      padding: { left: 14, right: 14, top: 36, bottom: 0 },
+    });
   }
+  // TODO: add a control that fits to marker bounds
 }
 
 export function setUpHomeMarker() {

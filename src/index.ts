@@ -4,6 +4,7 @@ import { DEFAULT_PAGE } from './globals';
 import { setUpHintsPage } from './hints';
 import { setUpLogPage } from './log';
 import { lateSetUpMap } from './map';
+import { setUpGameplay } from './gameplay';
 
 /* Page layout */
 
@@ -58,3 +59,7 @@ setUpLogPage();
 /* Hints */
 
 setUpHintsPage();
+
+/* Other non-page setup */
+
+setUpGameplay();
