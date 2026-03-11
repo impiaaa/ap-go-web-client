@@ -104,8 +104,8 @@ function doLogin(thenShowMap: boolean) {
         window.location.hash = '#map';
       }
 
-      if (cheat) {
-        updateCurrentLocationPin(home!);
+      if (cheat && home) {
+        updateCurrentLocationPin([home[0] + 0.001, home[1] + 0.001]);
       } else {
         navigator.geolocation.watchPosition(
           geoLocationUpdate,

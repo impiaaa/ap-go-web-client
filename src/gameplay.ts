@@ -78,8 +78,6 @@ export function checkLocations(coords: LngLat) {
         };
         updateMarker(item);
       });
-      console.log(items);
-      console.log(scouted_locations);
       localStorage.setItem(
         SAVED_GAME_KEY,
         JSON.stringify({
