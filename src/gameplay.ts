@@ -174,7 +174,7 @@ function receiveItems(items: Item[]) {
       case ItemType.MacguffinG:
       case ItemType.MacguffinO:
       case ItemType.MacguffinExclamation:
-        // TODO: display macguffins as a map control
+        // Macguffin display has its own update handler
         break;
 
       case ItemType.Hydrate:

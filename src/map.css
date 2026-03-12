@@ -5,3 +5,16 @@
 #map {
   height: 100%;
 }
+
+.macguffin-control {
+  padding: 15px;
+  font-size: xx-large;
+  font-weight: bold;
+  color: transparent;
+  -webkit-text-stroke: 1px #80baff;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.macguffin-control .received {
+  -webkit-text-stroke: 0;
+}

@@ -4,7 +4,7 @@ export type Trip = {
   speed_tier: number;
 };
 
-enum Goal {
+export enum Goal {
   OneHardTravel = 0,
   Allsanity = 1,
   ShortMacGuffin = 2,

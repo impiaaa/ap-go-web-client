@@ -12,7 +12,7 @@ import {
   slot_data,
 } from "./globals";
 import { styleItemElement, stylePlayerElement } from "./log";
-import type { Trip } from "./types";
+import { type APGoSlotData, Goal, ItemType, type Trip } from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -50,18 +50,21 @@ export function lateSetUpMap() {
   }
   game_map = createMap("map");
   setUpHomeMarker();
+  game_map.addControl(new MacguffinDisplayControl());
 
   if (Object.keys(location_markers).length > 0) {
-    const bounds = new maplibregl.LngLatBounds();
-    for (const marker_name in location_markers) {
-      const marker = location_markers[marker_name];
-      marker.addTo(game_map);
-      bounds.extend(marker.getLngLat());
-    }
-    game_map.fitBounds(bounds, {
-      animate: false,
-      // ensure tops and sides of markers are visible
-      padding: { bottom: 0, left: 14, right: 14, top: 36 },
+    game_map.once("loaded", () => {
+      const bounds = new maplibregl.LngLatBounds();
+      for (const marker_name in location_markers) {
+        const marker = location_markers[marker_name];
+        marker.addTo(game_map!);
+        bounds.extend(marker.getLngLat());
+      }
+      game_map!.fitBounds(bounds, {
+        animate: false,
+        // ensure tops and sides of markers are visible
+        padding: { bottom: 0, left: 14, right: 14, top: 36 },
+      });
     });
   }
   // TODO: add a control that fits to marker bounds
@@ -72,6 +75,10 @@ export function setUpHomeMarker() {
     return;
   }
   if (!game_map) {
+    return;
+  }
+  if (!game_map.loaded) {
+    game_map.once("load", setUpHomeMarker);
     return;
   }
   if (home_marker) {
@@ -213,4 +220,130 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     marker.addTo(game_map);
   }
   location_markers[location_id] = marker;
+}
+
+// Source - https://stackoverflow.com/a/2450976
+// Posted by ChristopheD, modified by community. See post 'Timeline' for change history
+// Retrieved 2026-03-12, License - CC BY-SA 4.0
+
+function shuffle<T>(array: Array<T>) {
+  let currentIndex = array.length;
+
+  // While there remain elements to shuffle...
+  while (currentIndex !== 0) {
+    // Pick a remaining element...
+    const randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex],
+      array[currentIndex],
+    ];
+  }
+}
+
+const APColors = [
+  "#C97682",
+  "#75C275",
+  "#EEE391",
+  "#CA94C2",
+  "#767EBD",
+  "#D9A07D",
+];
+
+class MacguffinDisplayControl implements maplibregl.IControl {
+  private _map?: maplibregl.Map;
+  private _container?: HTMLDivElement;
+  private _letters: HTMLSpanElement[] = [];
+  onAdd(map: maplibregl.Map): HTMLElement {
+    this._map = map;
+    this._container = document.createElement("div");
+    this._container.className = "macguffin-control";
+
+    if (slot_data) {
+      this.setUpLetters(slot_data);
+    }
+    client.socket.on("connected", (packet) => {
+      this.setUpLetters(packet.slot_data as APGoSlotData);
+    });
+
+    return this._container;
+  }
+  private setUpLetters(slot_data: APGoSlotData) {
+    this._letters.forEach((el) => {
+      this._container?.removeChild(el);
+    });
+    if (!slot_data) {
+      console.error(
+        "Trying to set up MacguffinDisplayControl with no slot data",
+      );
+      return;
+    }
+    shuffle(APColors);
+    let letters: string;
+    let item_ids: number[];
+    switch (slot_data.goal) {
+      case Goal.ShortMacGuffin:
+        letters = "AP-GO!";
+        item_ids = [
+          ItemType.MacguffinA,
+          ItemType.MacguffinP,
+          ItemType.MacguffinHyphen,
+          ItemType.MacguffinG,
+          ItemType.MacguffinO,
+          ItemType.MacguffinExclamation,
+        ];
+        break;
+      case Goal.LongMacGuffin:
+        letters = "Archipela-GO!";
+        item_ids = [
+          ItemType.MacguffinA,
+          ItemType.MacguffinR,
+          ItemType.MacguffinC,
+          ItemType.MacguffinH,
+          ItemType.MacguffinI,
+          ItemType.MacguffinP,
+          ItemType.MacguffinE,
+          ItemType.MacguffinL,
+          ItemType.MacguffinA2,
+          ItemType.MacguffinHyphen,
+          ItemType.MacguffinG,
+          ItemType.MacguffinO,
+          ItemType.MacguffinExclamation,
+        ];
+        break;
+      default:
+        this._map?.removeControl(this);
+        return;
+    }
+    this._letters = Array.from(letters).map((letter, index) => {
+      const el = document.createElement("span");
+      el.textContent = letter;
+      if (client.items.received.some((item) => item.id === item_ids[index])) {
+        el.className = "received";
+        el.style.setProperty("color", APColors[index % APColors.length]);
+      }
+      this._container?.appendChild(el);
+      return el;
+    });
+    client.items.on("itemsReceived", (items) => {
+      items.forEach((item) => {
+        if (item_ids.includes(item.id)) {
+          const index = item_ids.indexOf(item.id);
+          const el = this._letters[index];
+          el.className = "received";
+          el.style.setProperty("color", APColors[index % APColors.length]);
+        }
+      });
+    });
+  }
+  onRemove(_map: maplibregl.Map): void {
+    this._container?.parentNode?.removeChild(this._container);
+    this._letters = [];
+    this._map = undefined;
+  }
+  getDefaultPosition(): maplibregl.ControlPosition {
+    return "top-left";
+  }
 }
