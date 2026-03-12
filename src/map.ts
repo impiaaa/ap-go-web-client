@@ -7,12 +7,14 @@ import {
   cheat,
   client,
   home,
+  LONG_MACGUFFIN_ITEMS,
   points,
+  SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
 } from "./globals";
 import { styleItemElement, stylePlayerElement } from "./log";
-import { type APGoSlotData, Goal, ItemType, type Trip } from "./types";
+import { type APGoSlotData, Goal, type Trip } from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -286,32 +288,11 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     switch (slot_data.goal) {
       case Goal.ShortMacGuffin:
         letters = "AP-GO!";
-        item_ids = [
-          ItemType.MacguffinA,
-          ItemType.MacguffinP,
-          ItemType.MacguffinHyphen,
-          ItemType.MacguffinG,
-          ItemType.MacguffinO,
-          ItemType.MacguffinExclamation,
-        ];
+        item_ids = SHORT_MACGUFFIN_ITEMS;
         break;
       case Goal.LongMacGuffin:
         letters = "Archipela-GO!";
-        item_ids = [
-          ItemType.MacguffinA,
-          ItemType.MacguffinR,
-          ItemType.MacguffinC,
-          ItemType.MacguffinH,
-          ItemType.MacguffinI,
-          ItemType.MacguffinP,
-          ItemType.MacguffinE,
-          ItemType.MacguffinL,
-          ItemType.MacguffinA2,
-          ItemType.MacguffinHyphen,
-          ItemType.MacguffinG,
-          ItemType.MacguffinO,
-          ItemType.MacguffinExclamation,
-        ];
+        item_ids = LONG_MACGUFFIN_ITEMS;
         break;
       default:
         this._map?.removeControl(this);

@@ -1,10 +1,38 @@
 import { Client, type NetworkItem } from "archipelago.js";
-import type { APGoSlotData } from "./types";
+import { type APGoSlotData, ItemType } from "./types";
 
 export const DATAPACKAGE_KEY = "datapackage_cache";
 export const PREFS_KEY = "connection_info";
 export const SAVED_GAME_KEY = "saved_game";
 export const DEFAULT_PAGE = "connect";
+
+export const SCOUTING_DISTANCE_BASE = 30;
+export const SCOUTING_DISTANCE_INCREMENT = 15;
+export const COLLECTION_DISTANCE_BASE = 20;
+export const COLLECTION_DISTANCE_INCREMENT = 10;
+export const SHORT_MACGUFFIN_ITEMS = [
+  ItemType.MacguffinA,
+  ItemType.MacguffinP,
+  ItemType.MacguffinHyphen,
+  ItemType.MacguffinG,
+  ItemType.MacguffinO,
+  ItemType.MacguffinExclamation,
+];
+export const LONG_MACGUFFIN_ITEMS = [
+  ItemType.MacguffinA,
+  ItemType.MacguffinR,
+  ItemType.MacguffinC,
+  ItemType.MacguffinH,
+  ItemType.MacguffinI,
+  ItemType.MacguffinP,
+  ItemType.MacguffinE,
+  ItemType.MacguffinL,
+  ItemType.MacguffinA2,
+  ItemType.MacguffinHyphen,
+  ItemType.MacguffinG,
+  ItemType.MacguffinO,
+  ItemType.MacguffinExclamation,
+];
 
 export let home: [number, number] | null = null;
 export function setHome(new_home: [number, number]) {

@@ -1,19 +1,20 @@
-import type { Item } from "archipelago.js";
+import { clientStatuses, type Item } from "archipelago.js";
 import { LngLat } from "maplibre-gl";
 import {
+  COLLECTION_DISTANCE_BASE,
+  COLLECTION_DISTANCE_INCREMENT,
   client,
+  LONG_MACGUFFIN_ITEMS,
   points,
   SAVED_GAME_KEY,
+  SCOUTING_DISTANCE_BASE,
+  SCOUTING_DISTANCE_INCREMENT,
+  SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
 } from "./globals";
 import { updateMarker } from "./map";
-import { ItemType } from "./types";
-
-const SCOUTING_DISTANCE_BASE = 30;
-const SCOUTING_DISTANCE_INCREMENT = 10;
-const COLLECTION_DISTANCE_BASE = 20;
-const COLLECTION_DISTANCE_INCREMENT = 10;
+import { Goal, ItemType } from "./types";
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -174,7 +175,22 @@ function receiveItems(items: Item[]) {
       case ItemType.MacguffinG:
       case ItemType.MacguffinO:
       case ItemType.MacguffinExclamation:
-        // Macguffin display has its own update handler
+        if (
+          slot_data?.goal === Goal.ShortMacGuffin ||
+          slot_data?.goal === Goal.LongMacGuffin
+        ) {
+          const required_items =
+            slot_data?.goal === Goal.ShortMacGuffin
+              ? SHORT_MACGUFFIN_ITEMS
+              : LONG_MACGUFFIN_ITEMS;
+          if (
+            required_items.every((item_id) =>
+              client.items.received.some((item) => item.id === item_id),
+            )
+          ) {
+            client.updateStatus(clientStatuses.goal);
+          }
+        }
         break;
 
       case ItemType.Hydrate:
