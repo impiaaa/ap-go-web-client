@@ -1,10 +1,10 @@
 import './index.css';
 import { setUpConnectPage } from './connect';
+import { setUpGameplay } from './gameplay';
 import { DEFAULT_PAGE } from './globals';
 import { setUpHintsPage } from './hints';
 import { setUpLogPage } from './log';
 import { lateSetUpMap } from './map';
-import { setUpGameplay } from './gameplay';
 
 /* Page layout */
 

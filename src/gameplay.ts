@@ -1,3 +1,4 @@
+import type { Item } from 'archipelago.js';
 import { LngLat } from 'maplibre-gl';
 import {
   client,
@@ -8,7 +9,6 @@ import {
 } from './globals';
 import { updateMarker } from './map';
 import { ItemType } from './types';
-import type { Item } from 'archipelago.js';
 
 const SCOUTING_DISTANCE_BASE = 30;
 const SCOUTING_DISTANCE_INCREMENT = 10;
@@ -48,7 +48,7 @@ export function checkLocations(coords: LngLat) {
   const checks: number[] = [];
 
   for (const location_id_str in points) {
-    const location_id = parseInt(location_id_str);
+    const location_id = parseInt(location_id_str, 10);
     const point = points[location_id];
     const dist = LngLat.convert(point).distanceTo(coords);
     if (dist < scoutingDistance && !scouted_locations[location_id]) {
@@ -118,7 +118,7 @@ function receiveItems(items: Item[]) {
         // TODO
         console.error('DistanceReduction item unimplemented');
         break;
-      case ItemType.Key:
+      case ItemType.Key: {
         const key_progression = getKeyProgress();
         client.room.missingLocations.forEach((location_id) => {
           const location_name = client.package.lookupLocationName(
@@ -132,6 +132,7 @@ function receiveItems(items: Item[]) {
         });
         // TODO: Perform checks with last known location
         break;
+      }
       case ItemType.ScoutingDistance:
         // TODO: Perform scouts with last known location
         break;
@@ -179,6 +180,7 @@ function receiveItems(items: Item[]) {
       case ItemType.Hydrate:
       case ItemType.TakeBreather:
         displayTrap(item);
+        break;
 
       default:
         console.error(`Unknown item type ${item}`);
