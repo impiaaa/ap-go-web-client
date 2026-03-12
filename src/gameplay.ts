@@ -115,6 +115,7 @@ function receiveItems(items: Item[]) {
   items.forEach((item) => {
     switch (item.id as ItemType) {
       case ItemType.DistanceReduction:
+        // TODO
         console.error('DistanceReduction item unimplemented');
         break;
       case ItemType.Key:
@@ -139,12 +140,15 @@ function receiveItems(items: Item[]) {
         break;
 
       case ItemType.ShuffleTrap:
+        // TODO
         console.error('ShuffleTrap item unimplemented');
         break;
       case ItemType.SilenceTrap:
+        // TODO
         console.error('SilenceTrap item unimplemented');
         break;
       case ItemType.FogOfWarTrap:
+        // TODO
         console.error('FogOfWarTrap item unimplemented');
         break;
 
@@ -169,7 +173,7 @@ function receiveItems(items: Item[]) {
       case ItemType.MacguffinG:
       case ItemType.MacguffinO:
       case ItemType.MacguffinExclamation:
-        // TODO: display macguffins on map
+        // TODO: display macguffins as a map control
         break;
 
       case ItemType.Hydrate:

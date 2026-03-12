@@ -1,0 +1,9 @@
+marker icons - checked, locked, question mark or hinted
+current location as circle
+current scout & collect radii
+track current location? how much to take from GeolocateControl, or can we use it instead of navigator.geolocation?
+handle disconnect
+show current key count as a map control
+speed gates
+goals
+better generation
