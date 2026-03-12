@@ -1,8 +1,8 @@
-import maplibregl from 'maplibre-gl';
-import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
-import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
-import { clearPoints, client, home, points, slot_data } from './globals';
-import { game_map, updateMarker } from './map';
+import maplibregl from "maplibre-gl";
+import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
+import type { RandomGenerator } from "pure-rand/types/RandomGenerator";
+import { clearPoints, client, home, points, slot_data } from "./globals";
+import { game_map, updateMarker } from "./map";
 
 export const EARTH_RADIUS_M = 6371008.7714;
 // 1° latitude in meters
@@ -24,10 +24,10 @@ function deg2rad(deg: number) {
 
 export function generate(seed: number) {
   if (!home) {
-    throw 'generate called with no home set';
+    throw "generate called with no home set";
   }
   if (!slot_data) {
-    throw 'generate called while not connected';
+    throw "generate called while not connected";
   }
   const rng = xoroshiro128plus(seed);
   const bounds = new maplibregl.LngLatBounds();

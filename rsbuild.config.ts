@@ -1,18 +1,18 @@
-import { defineConfig } from '@rsbuild/core';
-import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
+import { defineConfig } from "@rsbuild/core";
+import { pluginTypeCheck } from "@rsbuild/plugin-type-check";
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
   source: {
     entry: {
-      index: './src/index.ts',
+      index: "./src/index.ts",
     },
   },
   html: {
-    template: './src/index.html',
+    template: "./src/index.html",
   },
   output: {
-    target: 'web',
+    target: "web",
   },
   plugins: [pluginTypeCheck()],
   tools: {

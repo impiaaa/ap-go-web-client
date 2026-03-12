@@ -1,10 +1,10 @@
-import './index.css';
-import { setUpConnectPage } from './connect';
-import { setUpGameplay } from './gameplay';
-import { DEFAULT_PAGE } from './globals';
-import { setUpHintsPage } from './hints';
-import { setUpLogPage } from './log';
-import { lateSetUpMap } from './map';
+import "./index.css";
+import { setUpConnectPage } from "./connect";
+import { setUpGameplay } from "./gameplay";
+import { DEFAULT_PAGE } from "./globals";
+import { setUpHintsPage } from "./hints";
+import { setUpLogPage } from "./log";
+import { lateSetUpMap } from "./map";
 
 /* Page layout */
 
@@ -12,35 +12,35 @@ function showPage(new_hash: string) {
   let page = document.getElementById(`page-${new_hash}`);
   if (!page) {
     new_hash = DEFAULT_PAGE;
-    window.history.replaceState({}, '', `#${new_hash}`);
+    window.history.replaceState({}, "", `#${new_hash}`);
     page = document.getElementById(`page-${new_hash}`);
     if (!page) {
-      throw 'no default page';
+      throw "no default page";
     }
   }
-  page.style.removeProperty('display');
+  page.style.removeProperty("display");
   document.querySelectorAll(`nav a[href="#${new_hash}"]`).forEach((el) => {
-    el.setAttribute('aria-selected', 'true');
-    el.classList.add('active');
+    el.setAttribute("aria-selected", "true");
+    el.classList.add("active");
   });
-  if (new_hash === 'map') {
+  if (new_hash === "map") {
     lateSetUpMap();
   }
 }
 
-window.addEventListener('hashchange', (ev) => {
+window.addEventListener("hashchange", (ev) => {
   const old_hash = new URL(ev.oldURL).hash.substring(1);
   const new_hash = new URL(ev.newURL).hash.substring(1);
   document
     .getElementById(`page-${old_hash}`)
-    ?.style.setProperty('display', 'none');
+    ?.style.setProperty("display", "none");
   document.querySelectorAll(`nav a[href="#${old_hash}"]`).forEach((el) => {
-    el.setAttribute('aria-selected', 'false');
-    el.classList.remove('active');
+    el.setAttribute("aria-selected", "false");
+    el.classList.remove("active");
   });
   showPage(new_hash);
 });
-window.addEventListener('load', () => {
+window.addEventListener("load", () => {
   showPage(window.location.hash.substring(1));
 });
 

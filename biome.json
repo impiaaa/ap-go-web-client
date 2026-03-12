@@ -16,9 +16,7 @@
     "indentStyle": "space"
   },
   "javascript": {
-    "formatter": {
-      "quoteStyle": "single"
-    }
+    "formatter": {}
   },
   "css": {
     "parser": {

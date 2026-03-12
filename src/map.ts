@@ -1,8 +1,8 @@
-import { Item } from 'archipelago.js';
-import maplibregl, { type LngLatLike } from 'maplibre-gl';
-import { uniformInt } from 'pure-rand/distribution/uniformInt';
-import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
-import { checkLocations, getKeyProgress } from './gameplay';
+import { Item } from "archipelago.js";
+import maplibregl, { type LngLatLike } from "maplibre-gl";
+import { uniformInt } from "pure-rand/distribution/uniformInt";
+import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
+import { checkLocations, getKeyProgress } from "./gameplay";
 import {
   cheat,
   client,
@@ -10,9 +10,9 @@ import {
   points,
   scouted_locations,
   slot_data,
-} from './globals';
-import { styleItemElement, stylePlayerElement } from './log';
-import type { Trip } from './types';
+} from "./globals";
+import { styleItemElement, stylePlayerElement } from "./log";
+import type { Trip } from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -28,17 +28,17 @@ export function clearMarkers() {
 }
 
 export function createMap(container: string) {
-  const darkModeMql = window.matchMedia?.('(prefers-color-scheme: dark)');
+  const darkModeMql = window.matchMedia?.("(prefers-color-scheme: dark)");
   const map = new maplibregl.Map({
     container: container,
     // https://stackoverflow.com/a/57795495
-    style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? 'eclipse' : 'colorful'}/style.json`,
+    style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? "eclipse" : "colorful"}/style.json`,
   });
   window
-    .matchMedia('(prefers-color-scheme: dark)')
-    .addEventListener('change', (event) => {
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", (event) => {
       map.setStyle(
-        `https://tiles.versatiles.org/assets/styles/${event.matches ? 'eclipse' : 'colorful'}/style.json`,
+        `https://tiles.versatiles.org/assets/styles/${event.matches ? "eclipse" : "colorful"}/style.json`,
       );
     });
   return map;
@@ -48,7 +48,7 @@ export function lateSetUpMap() {
   if (game_map) {
     return;
   }
-  game_map = createMap('map');
+  game_map = createMap("map");
   setUpHomeMarker();
 
   if (Object.keys(location_markers).length > 0) {
@@ -77,7 +77,7 @@ export function setUpHomeMarker() {
   if (home_marker) {
     home_marker.setLngLat(home);
   } else {
-    home_marker = new maplibregl.Marker({ color: 'green' });
+    home_marker = new maplibregl.Marker({ color: "green" });
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }
@@ -90,11 +90,11 @@ export function updateCurrentLocationPin(coords: LngLatLike) {
   if (current_location_marker) {
     current_location_marker.setLngLat(coords);
   } else {
-    current_location_marker = new maplibregl.Marker({ color: 'blue' });
+    current_location_marker = new maplibregl.Marker({ color: "blue" });
     current_location_marker.setLngLat(coords);
     current_location_marker.addTo(game_map);
     if (cheat) {
-      current_location_marker.on('dragend', () => {
+      current_location_marker.on("dragend", () => {
         checkLocations(current_location_marker!.getLngLat());
       });
     }
@@ -109,28 +109,28 @@ function getItemColor(
   item: Item | null,
   hinted: boolean,
 ): string {
-  if (key_progression < trip.key_needed) return 'gray';
+  if (key_progression < trip.key_needed) return "gray";
   else if (client.room.checkedLocations.includes(location_id))
-    return 'darkgray';
+    return "darkgray";
   else if (item === null)
-    return 'lightseagreen'; // available but not scouted or hinted
-  else if (item.progression) return 'plum';
-  else if (item.useful) return 'slateblue';
-  else if (item.trap && hinted) return 'salmon';
+    return "lightseagreen"; // available but not scouted or hinted
+  else if (item.progression) return "plum";
+  else if (item.useful) return "slateblue";
+  else if (item.trap && hinted) return "salmon";
   else if (item.trap) {
     // Don't totally give away that a location is a trap.
     // Instead, choose a random other classification, and alter the color slightly.
     const rng = xoroshiro128plus(item.locationId);
     const n = uniformInt(rng, 0, 13);
-    if (n < 1) return '#ddabdd';
-    else if (n < 4) return '#7364cd';
-    else return '#0dffff';
-  } else return 'cyan';
+    if (n < 1) return "#ddabdd";
+    else if (n < 4) return "#7364cd";
+    else return "#0dffff";
+  } else return "cyan";
 }
 
 export function updateMarker(arg: Item | number, hinted: boolean = false) {
   if (!slot_data) {
-    throw 'updateMarker called without being connected';
+    throw "updateMarker called without being connected";
   }
   let item: Item | null;
   let location_name: string;
@@ -139,7 +139,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     item = arg;
     location_name = item.locationName;
     location_id = item.locationId;
-  } else if (typeof arg === 'number') {
+  } else if (typeof arg === "number") {
     location_id = arg;
     if (scouted_locations[location_id]) {
       item = new Item(
@@ -180,10 +180,10 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     marker.setLngLat(point);
   }
   if (item || hinted || checked) {
-    const popup = document.createElement('div');
+    const popup = document.createElement("div");
     popup.appendChild(document.createTextNode(location_name));
     if (key_progression < trip.key_needed) {
-      popup.appendChild(document.createElement('br'));
+      popup.appendChild(document.createElement("br"));
       popup.appendChild(
         document.createTextNode(
           `Requires key ${trip.key_needed} (have ${key_progression})`,
@@ -191,19 +191,19 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
       );
     }
     if ((hinted || checked) && item) {
-      popup.appendChild(document.createElement('br'));
+      popup.appendChild(document.createElement("br"));
 
-      const player_el = document.createElement('span');
+      const player_el = document.createElement("span");
       player_el.appendChild(document.createTextNode(item.receiver.name));
-      player_el.classList.add('player');
+      player_el.classList.add("player");
       stylePlayerElement(player_el, item.receiver);
       popup.appendChild(player_el);
 
-      popup.appendChild(document.createTextNode(' '));
+      popup.appendChild(document.createTextNode(" "));
 
-      const item_el = document.createElement('span');
+      const item_el = document.createElement("span");
       item_el.appendChild(document.createTextNode(item.name));
-      item_el.classList.add('item');
+      item_el.classList.add("item");
       styleItemElement(item_el, item);
       popup.appendChild(item_el);
     }

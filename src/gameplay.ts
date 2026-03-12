@@ -1,14 +1,14 @@
-import type { Item } from 'archipelago.js';
-import { LngLat } from 'maplibre-gl';
+import type { Item } from "archipelago.js";
+import { LngLat } from "maplibre-gl";
 import {
   client,
   points,
   SAVED_GAME_KEY,
   scouted_locations,
   slot_data,
-} from './globals';
-import { updateMarker } from './map';
-import { ItemType } from './types';
+} from "./globals";
+import { updateMarker } from "./map";
+import { ItemType } from "./types";
 
 const SCOUTING_DISTANCE_BASE = 30;
 const SCOUTING_DISTANCE_INCREMENT = 10;
@@ -95,14 +95,14 @@ export function checkLocations(coords: LngLat) {
 }
 
 export function setUpGameplay() {
-  client.items.on('itemsReceived', receiveItems);
+  client.items.on("itemsReceived", receiveItems);
   const trap_dialog = document.getElementById(
-    'trap-dialog',
+    "trap-dialog",
   ) as HTMLDialogElement | null;
-  trap_dialog?.addEventListener('click', () => {
+  trap_dialog?.addEventListener("click", () => {
     trap_dialog.close();
   });
-  client.socket.on('roomUpdate', (ev) => {
+  client.socket.on("roomUpdate", (ev) => {
     if (ev.checked_locations !== undefined) {
       ev.checked_locations.forEach((location_id) => {
         updateMarker(location_id);
@@ -116,7 +116,7 @@ function receiveItems(items: Item[]) {
     switch (item.id as ItemType) {
       case ItemType.DistanceReduction:
         // TODO
-        console.error('DistanceReduction item unimplemented');
+        console.error("DistanceReduction item unimplemented");
         break;
       case ItemType.Key: {
         const key_progression = getKeyProgress();
@@ -142,15 +142,15 @@ function receiveItems(items: Item[]) {
 
       case ItemType.ShuffleTrap:
         // TODO
-        console.error('ShuffleTrap item unimplemented');
+        console.error("ShuffleTrap item unimplemented");
         break;
       case ItemType.SilenceTrap:
         // TODO
-        console.error('SilenceTrap item unimplemented');
+        console.error("SilenceTrap item unimplemented");
         break;
       case ItemType.FogOfWarTrap:
         // TODO
-        console.error('FogOfWarTrap item unimplemented');
+        console.error("FogOfWarTrap item unimplemented");
         break;
 
       case ItemType.PushUpTrap:
@@ -194,13 +194,13 @@ function receiveItems(items: Item[]) {
 
 function displayTrap(item: Item) {
   const trap_dialog = document.getElementById(
-    'trap-dialog',
+    "trap-dialog",
   ) as HTMLDialogElement | null;
   if (!trap_dialog) {
     return;
   }
 
-  const header = trap_dialog.querySelector('h2');
+  const header = trap_dialog.querySelector("h2");
   if (header?.firstChild) {
     (header?.firstChild as Text).data = item.name;
   } else {
@@ -210,29 +210,29 @@ function displayTrap(item: Item) {
   let img_src: string | null = null;
   switch (item.id as ItemType) {
     case ItemType.PushUpTrap:
-      img_src = 'items/push-up.svg';
+      img_src = "items/push-up.svg";
       break;
     case ItemType.SocializingTrap:
-      img_src = 'items/socializing.svg';
+      img_src = "items/socializing.svg";
       break;
     case ItemType.SitUpTrap:
-      img_src = 'items/sit-up.svg';
+      img_src = "items/sit-up.svg";
       break;
     case ItemType.JumpingJackTrap:
-      img_src = 'items/jumping-jack.svg';
+      img_src = "items/jumping-jack.svg";
       break;
     case ItemType.TouchGrassTrap:
-      img_src = 'items/touch-grass.svg';
+      img_src = "items/touch-grass.svg";
       break;
     case ItemType.Hydrate:
-      img_src = 'items/water_bottle.svg';
+      img_src = "items/water_bottle.svg";
       break;
     case ItemType.TakeBreather:
-      img_src = 'items/tree_and_bench_with_backrest.svg';
+      img_src = "items/tree_and_bench_with_backrest.svg";
       break;
   }
   if (img_src) {
-    trap_dialog.querySelector('img')?.setAttribute('src', img_src);
+    trap_dialog.querySelector("img")?.setAttribute("src", img_src);
   }
 
   trap_dialog.showModal();
