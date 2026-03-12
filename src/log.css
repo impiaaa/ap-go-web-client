@@ -4,22 +4,22 @@
 }
 
 .log {
-  overflow-y: scroll;
   flex-grow: 1;
   flex-basis: 0;
+  overflow-y: scroll;
 }
 
 @media (prefers-color-scheme: dark) {
   .log {
-    background-color: black;
     color: white;
+    background-color: black;
   }
 }
 
 @media (prefers-color-scheme: light) {
   .log {
-    background-color: white;
     color: black;
+    background-color: white;
   }
 }
 

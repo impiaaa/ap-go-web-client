@@ -3,11 +3,6 @@ import { pluginTypeCheck } from "@rsbuild/plugin-type-check";
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
-  source: {
-    entry: {
-      index: "./src/index.ts",
-    },
-  },
   html: {
     template: "./src/index.html",
   },
@@ -15,6 +10,11 @@ export default defineConfig({
     target: "web",
   },
   plugins: [pluginTypeCheck()],
+  source: {
+    entry: {
+      index: "./src/index.ts",
+    },
+  },
   tools: {
     rspack(_config) {},
   },

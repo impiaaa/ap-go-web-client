@@ -2,8 +2,8 @@
   overflow: scroll;
 }
 #page-hints table {
-  border-spacing: 0 2px;
   width: 100%;
+  border-spacing: 0 2px;
 }
 @media (prefers-color-scheme: dark) {
   #page-hints thead {

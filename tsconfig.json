@@ -1,24 +1,24 @@
 {
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "lib": ["DOM", "ES2020"],
-    "target": "ES2020",
-    "noEmit": true,
-    "skipLibCheck": true,
-    "useDefineForClassFields": true,
 
     /* modules */
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
-    "verbatimModuleSyntax": true,
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "noUncheckedSideEffectImports": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
 
     /* type checking */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "verbatimModuleSyntax": true
   },
   "include": ["src"]
 }

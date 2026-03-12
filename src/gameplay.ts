@@ -72,18 +72,18 @@ export function checkLocations(coords: LngLat) {
     client.scout(scouts).then((items) => {
       items.forEach((item) => {
         scouted_locations[item.locationId] = {
+          flags: item.flags,
           item: item.id,
           location: item.locationId,
           player: item.receiver.slot,
-          flags: item.flags,
         };
         updateMarker(item);
       });
       localStorage.setItem(
         SAVED_GAME_KEY,
         JSON.stringify({
-          seed: client.room.seedName,
           scouted_locations: scouted_locations,
+          seed: client.room.seedName,
         }),
       );
     });

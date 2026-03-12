@@ -3,25 +3,21 @@
   "assist": {
     "actions": {
       "source": {
-        "organizeImports": "on"
+        "useSortedKeys": "on",
+        "useSortedProperties": "on"
       }
     }
   },
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
+  "css": {
+    "parser": {
+      "cssModules": true
+    }
   },
   "formatter": {
     "indentStyle": "space"
   },
   "javascript": {
     "formatter": {}
-  },
-  "css": {
-    "parser": {
-      "cssModules": true
-    }
   },
   "linter": {
     "enabled": true,
@@ -32,5 +28,10 @@
         "useLiteralEnumMembers": "off"
       }
     }
+  },
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
   }
 }

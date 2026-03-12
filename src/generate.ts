@@ -68,7 +68,7 @@ export function generate(seed: number) {
     game_map.fitBounds(bounds, {
       animate: false,
       // ensure tops and sides of markers are visible
-      padding: { left: 14, right: 14, top: 36, bottom: 0 },
+      padding: { bottom: 0, left: 14, right: 14, top: 36 },
     });
   }
 

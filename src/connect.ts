@@ -295,11 +295,11 @@ function saveConnectInfo() {
   localStorage.setItem(
     PREFS_KEY,
     JSON.stringify({
-      ip: ip.value,
-      port: port.value,
-      player: player.value,
-      password: password.value,
       home: home,
+      ip: ip.value,
+      password: password.value,
+      player: player.value,
+      port: port.value,
     }),
   );
 }
