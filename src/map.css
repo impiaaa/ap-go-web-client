@@ -6,15 +6,31 @@
   height: 100%;
 }
 
+.macguffin-control,
+.keys-control {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
 .macguffin-control {
   padding: 15px;
   font-size: xx-large;
   font-weight: bold;
   color: transparent;
   -webkit-text-stroke: 1px #80baff;
-  background-color: rgba(0, 0, 0, 0.5);
 }
 
 .macguffin-control .received {
   -webkit-text-stroke: 0;
+}
+
+.keys-control {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  padding: 8px;
+}
+
+.keys-control img {
+  width: 24px;
+  height: 24px;
+  margin: 5px;
 }

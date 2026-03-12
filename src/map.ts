@@ -14,7 +14,7 @@ import {
   slot_data,
 } from "./globals";
 import { styleItemElement, stylePlayerElement } from "./log";
-import { type APGoSlotData, Goal, type Trip } from "./types";
+import { type APGoSlotData, Goal, ItemType, type Trip } from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -53,6 +53,7 @@ export function lateSetUpMap() {
   game_map = createMap("map");
   setUpHomeMarker();
   game_map.addControl(new MacguffinDisplayControl());
+  game_map.addControl(new KeyDisplayControl());
 
   if (Object.keys(location_markers).length > 0) {
     game_map.once("loaded", () => {
@@ -194,9 +195,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     if (key_progression < trip.key_needed) {
       popup.appendChild(document.createElement("br"));
       popup.appendChild(
-        document.createTextNode(
-          `Requires key ${trip.key_needed} (have ${key_progression})`,
-        ),
+        document.createTextNode(`Requires key ${trip.key_needed}`),
       );
     }
     if ((hinted || checked) && item) {
@@ -326,5 +325,71 @@ class MacguffinDisplayControl implements maplibregl.IControl {
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "top-left";
+  }
+}
+
+class KeyDisplayControl implements maplibregl.IControl {
+  private _map?: maplibregl.Map;
+  private _container?: HTMLDivElement;
+  private _keys: HTMLImageElement[] = [];
+  onAdd(map: maplibregl.Map): HTMLElement {
+    this._map = map;
+    this._container = document.createElement("div");
+    this._container.className = "keys-control";
+
+    if (slot_data) {
+      this.setUpKeys(slot_data);
+    }
+    client.socket.on("connected", (packet) => {
+      this.setUpKeys(packet.slot_data as APGoSlotData);
+    });
+
+    return this._container;
+  }
+  private setUpKeys(slot_data: APGoSlotData) {
+    this._keys.forEach((el) => {
+      this._container?.removeChild(el);
+    });
+    if (!slot_data) {
+      console.error("Trying to set up KeyDisplayControl with no slot data");
+      return;
+    }
+    const max_keys = Math.max(
+      ...Object.values(slot_data.trips).map((trip) => trip.key_needed),
+    );
+    if (max_keys === 0) {
+      this._map?.removeControl(this);
+      return;
+    }
+    for (let i = 0; i < max_keys; i++) {
+      const el = document.createElement("img");
+      this._container?.appendChild(el);
+      this._keys[i] = el;
+    }
+    client.items.on("itemsReceived", (items) => {
+      if (items.some((item) => item.id === ItemType.Key)) {
+        this.updateKeys();
+      }
+    });
+    this.updateKeys();
+  }
+  private updateKeys() {
+    const key_count = getKeyProgress();
+    this._keys.forEach((el, key) => {
+      const has_key = key < key_count;
+      el.src = has_key ? "key.svg" : "dot.svg";
+      el.alt = `Key ${key + 1}`;
+      if (!has_key) {
+        el.alt += " (missing)";
+      }
+    });
+  }
+  onRemove(_map: maplibregl.Map): void {
+    this._container?.parentNode?.removeChild(this._container);
+    this._keys = [];
+    this._map = undefined;
+  }
+  getDefaultPosition(): maplibregl.ControlPosition {
+    return "bottom-left";
   }
 }
