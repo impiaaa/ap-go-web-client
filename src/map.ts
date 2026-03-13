@@ -1,5 +1,5 @@
 import { Item } from "archipelago.js";
-import maplibregl, { type LngLatLike } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
 import { checkLocations, getKeyProgress } from "./gameplay";
@@ -18,7 +18,6 @@ import { type APGoSlotData, Goal, ItemType, type Trip } from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
-let current_location_marker: maplibregl.Marker | null = null;
 export let location_markers: Record<number, maplibregl.Marker> = {};
 
 export function clearMarkers() {
@@ -54,6 +53,7 @@ export function lateSetUpMap() {
   setUpHomeMarker();
   game_map.addControl(new MacguffinDisplayControl());
   game_map.addControl(new KeyDisplayControl());
+  game_map.addControl(new MyGeolocateControl());
 
   if (Object.keys(location_markers).length > 0) {
     game_map.once("loaded", () => {
@@ -91,25 +91,6 @@ export function setUpHomeMarker() {
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }
-}
-
-export function updateCurrentLocationPin(coords: LngLatLike) {
-  if (!game_map) {
-    return;
-  }
-  if (current_location_marker) {
-    current_location_marker.setLngLat(coords);
-  } else {
-    current_location_marker = new maplibregl.Marker({ color: "blue" });
-    current_location_marker.setLngLat(coords);
-    current_location_marker.addTo(game_map);
-    if (cheat) {
-      current_location_marker.on("dragend", () => {
-        checkLocations(current_location_marker!.getLngLat());
-      });
-    }
-  }
-  current_location_marker.setDraggable(cheat);
 }
 
 function getItemColor(
@@ -391,5 +372,79 @@ class KeyDisplayControl implements maplibregl.IControl {
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "bottom-left";
+  }
+}
+
+class MyGeolocateControl extends maplibregl.GeolocateControl {
+  // We want to copy the MapLibre geolocate control and marker, but:
+  // - Turn tracking on automatically, disable turning off
+  // - Draggable in cheat mode
+  // TODO: scouting and collection radii
+  constructor() {
+    super({
+      showAccuracyCircle: false,
+      showUserLocation: true,
+      trackUserLocation: true,
+    });
+    if (cheat) {
+      this._geolocationWatchID = -1;
+    }
+  }
+  onAdd(map: maplibregl.Map): HTMLElement {
+    map.once("load", this._mySetup.bind(this));
+    return super.onAdd(map);
+  }
+  _mySetup() {
+    this.trigger();
+    if (cheat) {
+      this._onSuccess({
+        coords: {
+          accuracy: 0,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          latitude: home![1] + 0.001,
+          longitude: home![0] + 0.001,
+          speed: null,
+          toJSON: function () {
+            return {
+              accuracy: this.accuracy,
+              altitude: this.altitude,
+              altitudeAccuracy: this.altitudeAccuracy,
+              heading: this.heading,
+              latitude: this.latitude,
+              longitude: this.longitude,
+              speed: this.speed,
+            };
+          },
+        },
+        timestamp: 0,
+        toJSON: function () {
+          return { coords: this.coords, timestamp: this.timestamp };
+        },
+      });
+      this._userLocationDotMarker.setDraggable(true);
+      this._userLocationDotMarker.on("dragend", () => {
+        checkLocations(this._userLocationDotMarker.getLngLat());
+      });
+    }
+  }
+  trigger(): boolean {
+    if (
+      this._setup &&
+      this.options.trackUserLocation &&
+      client &&
+      client.socket.connected &&
+      this._watchState === "ACTIVE_LOCK"
+    ) {
+      // While enabled and connected, don't allow the user to disable tracking
+      return true;
+    }
+    return super.trigger();
+  }
+  _clearWatch() {
+    if (!cheat) {
+      super._clearWatch();
+    }
   }
 }

@@ -6,3 +6,4 @@ handle disconnect
 speed gates
 goals
 better generation
+keep screen turned on when on map tab

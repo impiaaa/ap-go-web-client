@@ -13,7 +13,7 @@ import {
   setSlotData,
 } from "./globals";
 import { addMessages } from "./log";
-import { createMap, setUpHomeMarker, updateCurrentLocationPin } from "./map";
+import { createMap, setUpHomeMarker } from "./map";
 import type { APGoSlotData } from "./types";
 
 const setup_form = document.forms.namedItem("connect-form")!;
@@ -104,9 +104,7 @@ function doLogin(thenShowMap: boolean) {
         window.location.hash = "#map";
       }
 
-      if (cheat && home) {
-        updateCurrentLocationPin([home[0] + 0.001, home[1] + 0.001]);
-      } else {
+      if (!cheat) {
         navigator.geolocation.watchPosition(
           geoLocationUpdate,
           geoLocationError,
@@ -132,7 +130,6 @@ function geoLocationUpdate(location: GeolocationPosition) {
     location.coords.longitude,
     location.coords.latitude,
   );
-  updateCurrentLocationPin(coords);
   checkLocations(coords);
 }
 
