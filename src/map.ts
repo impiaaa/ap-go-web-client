@@ -54,23 +54,15 @@ export function lateSetUpMap() {
   game_map.addControl(new MacguffinDisplayControl());
   game_map.addControl(new KeyDisplayControl());
   game_map.addControl(new MyGeolocateControl());
+  game_map.addControl(new FitMapToPointsControl());
 
-  if (Object.keys(location_markers).length > 0) {
-    game_map.once("loaded", () => {
-      const bounds = new maplibregl.LngLatBounds();
-      for (const marker_name in location_markers) {
-        const marker = location_markers[marker_name];
-        marker.addTo(game_map!);
-        bounds.extend(marker.getLngLat());
-      }
-      game_map!.fitBounds(bounds, {
-        animate: false,
-        // ensure tops and sides of markers are visible
-        padding: { bottom: 0, left: 14, right: 14, top: 36 },
-      });
-    });
-  }
-  // TODO: add a control that fits to marker bounds
+  game_map.on("load", () => {
+    for (const marker_name in location_markers) {
+      const marker = location_markers[marker_name];
+      marker.addTo(game_map!);
+    }
+    fitMapToPoints(false);
+  });
 }
 
 export function setUpHomeMarker() {
@@ -447,4 +439,60 @@ class MyGeolocateControl extends maplibregl.GeolocateControl {
       super._clearWatch();
     }
   }
+}
+
+class FitMapToPointsControl implements maplibregl.IControl {
+  private _container?: HTMLDivElement;
+  private _button?: HTMLButtonElement;
+
+  onAdd(_map: maplibregl.Map) {
+    this._container = document.createElement("div");
+    this._container.classList.add("maplibregl-ctrl");
+    this._container.classList.add("maplibregl-ctrl-group");
+    this._button = document.createElement("button");
+    this._container.appendChild(this._button);
+    const icon = document.createElement("img");
+    icon.src = "ctrl-fit-points.svg";
+    this._button.appendChild(icon);
+    icon.setAttribute("aria-hidden", "true");
+    this._button.type = "button";
+    this._updateTitle();
+    this._button.addEventListener("click", this._onClick);
+    return this._container;
+  }
+
+  _updateTitle() {
+    if (this._button) {
+      const title = this._getTitle();
+      this._button.setAttribute("aria-label", title);
+      this._button.title = title;
+    }
+  }
+
+  _getTitle() {
+    return "Center map";
+  }
+
+  onRemove() {
+    this._container?.parentNode?.removeChild(this._container);
+  }
+
+  _onClick() {
+    fitMapToPoints(true);
+  }
+}
+
+export function fitMapToPoints(animated: boolean) {
+  if (!game_map || !game_map.loaded || !points) {
+    return;
+  }
+  const bounds = new maplibregl.LngLatBounds();
+  for (const trip_name in points) {
+    bounds.extend(points[trip_name]);
+  }
+  game_map.fitBounds(bounds, {
+    animate: animated,
+    // ensure tops and sides of markers are visible
+    padding: { bottom: 0, left: 14, right: 14, top: 36 },
+  });
 }

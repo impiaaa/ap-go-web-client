@@ -1,8 +1,7 @@
-import maplibregl from "maplibre-gl";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
 import type { RandomGenerator } from "pure-rand/types/RandomGenerator";
 import { clearPoints, client, home, points, slot_data } from "./globals";
-import { game_map, updateMarker } from "./map";
+import { fitMapToPoints, updateMarker } from "./map";
 
 export const EARTH_RADIUS_M = 6371008.7714;
 // 1° latitude in meters
@@ -30,7 +29,6 @@ export function generate(seed: number) {
     throw "generate called while not connected";
   }
   const rng = xoroshiro128plus(seed);
-  const bounds = new maplibregl.LngLatBounds();
   clearPoints();
   for (const trip_name in slot_data.trips) {
     const trip = slot_data.trips[trip_name];
@@ -53,7 +51,6 @@ export function generate(seed: number) {
       home[0] + dx / (DEGREE * Math.cos(deg2rad(new_latitude)));
 
     const lnglat: [number, number] = [new_longitude, new_latitude];
-    bounds.extend(lnglat);
     const location_id = client.room.allLocations.find(
       (loc_id) =>
         client.package.lookupLocationName(client.game, loc_id) === trip_name,
@@ -64,13 +61,7 @@ export function generate(seed: number) {
       console.error(`Trip ${trip_name} has no matching location!`);
     }
   }
-  if (game_map) {
-    game_map.fitBounds(bounds, {
-      animate: false,
-      // ensure tops and sides of markers are visible
-      padding: { bottom: 0, left: 14, right: 14, top: 36 },
-    });
-  }
+  fitMapToPoints(false);
 
   client.room.allLocations.forEach((location_id) => {
     updateMarker(location_id);
