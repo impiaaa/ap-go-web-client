@@ -118,6 +118,7 @@ function doLogin(thenShowMap: boolean) {
       port.disabled = false;
       player.disabled = false;
       password.disabled = false;
+      set_home.disabled = false;
       submit.disabled = false;
       if (window.location.hash !== "#connect") {
         window.location.hash = "#connect";
