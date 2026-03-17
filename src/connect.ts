@@ -176,14 +176,22 @@ function setUpSetHomeMap() {
 
   map.getCanvasContainer().appendChild(overlay);
 
+  const set_home_dialog = document.getElementById(
+    "set-home-dialog",
+  ) as HTMLDialogElement;
+
   document.getElementById("save-home")?.addEventListener("click", () => {
     const new_home = map.getCenter().toArray();
     setHome(new_home);
     const set_home = setup_form.querySelector("#set-home") as HTMLButtonElement;
     set_home.classList.remove("invalid");
     setUpHomeMarker();
-    (document.getElementById("set-home-dialog") as HTMLDialogElement).close();
+    set_home_dialog.close();
     saveConnectInfo();
+  });
+
+  set_home_dialog.addEventListener("toggle", (e) => {
+    map.resize(e);
   });
 }
 set_home_button.addEventListener("click", setUpSetHomeMap);

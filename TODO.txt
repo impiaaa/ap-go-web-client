@@ -1,7 +1,7 @@
-marker icons - checked, locked, question mark or hinted
-current scout & collect radii
 handle disconnect
-speed gates
-goals
+goals: One Hard Travel, Allsanity
 better generation
 keep screen turned on when on map tab
+
+marker icons - checked, locked, question mark or hinted
+speed requirements
