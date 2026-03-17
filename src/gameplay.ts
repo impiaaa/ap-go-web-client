@@ -41,7 +41,16 @@ export function getCollectionDistance(): number {
   );
 }
 
+let last_known_location: LngLat | undefined;
+
+function checkLastKnownLocation() {
+  if (last_known_location) {
+    checkLocations(last_known_location);
+  }
+}
+
 export function checkLocations(coords: LngLat) {
+  last_known_location = coords;
   const scoutingDistance = getScoutingDistance();
   const collectionDistance = getCollectionDistance();
   const key_progression = getKeyProgress();
@@ -131,14 +140,12 @@ function receiveItems(items: Item[]) {
             updateMarker(location_id);
           }
         });
-        // TODO: Perform checks with last known location
+        checkLastKnownLocation();
         break;
       }
       case ItemType.ScoutingDistance:
-        // TODO: Perform scouts with last known location
-        break;
       case ItemType.CollectionDistance:
-        // TODO: Perform checks with last known location
+        checkLastKnownLocation();
         break;
 
       case ItemType.ShuffleTrap:
