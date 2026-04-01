@@ -12,9 +12,10 @@ import {
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
+  game_state,
 } from "./globals";
 import { styleItemElement, stylePlayerElement } from "./log";
-import { type APGoSlotData, Goal, ItemType, type Trip } from "./types";
+import { type APGoSlotData, GameState, Goal, ItemType, type Trip } from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -425,8 +426,7 @@ class MyGeolocateControl extends maplibregl.GeolocateControl {
     if (
       this._setup &&
       this.options.trackUserLocation &&
-      client &&
-      client.socket.connected &&
+      game_state === GameState.Tracking &&
       this._watchState === "ACTIVE_LOCK"
     ) {
       // While enabled and connected, don't allow the user to disable tracking

@@ -33,10 +33,13 @@ function doLogin(thenShowMap: boolean) {
   ) as HTMLInputElement;
   const set_home = setup_form.querySelector("#set-home") as HTMLButtonElement;
   const submit = setup_form.querySelector("#submit") as HTMLButtonElement;
+  const msgbox = document.getElementById("connection-message");
 
   if (!home) {
-    document.getElementById("connection-error")!.innerText =
-      "Set a home location";
+    if (msgbox) {
+      msgbox.innerText = "Set a home location";
+      msgbox.classList.add("error");
+    }
     return;
   }
 
@@ -46,6 +49,10 @@ function doLogin(thenShowMap: boolean) {
   password.disabled = true;
   set_home.disabled = true;
   submit.disabled = true;
+  if (msgbox) {
+    msgbox.classList.remove("error");
+    msgbox.innerText = "Connecting…";
+  }
   client
     .login<APGoSlotData>(
       `${ip.value}:${port.value}`,
@@ -94,11 +101,21 @@ function doLogin(thenShowMap: boolean) {
         setScoutedLocations({});
       }
 
+      if (msgbox) {
+        msgbox.classList.remove("error");
+        msgbox.innerText = "Generating…";
+      }
+
       // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
       const seed =
         (Number.parseFloat(client.room.seedName) * (0x100000000 / 1e20)) ^
         client.players.self.slot;
       generate(seed);
+
+      if (msgbox) {
+        msgbox.classList.remove("error");
+        msgbox.innerText = "";
+      }
 
       if (thenShowMap) {
         window.location.hash = "#map";
@@ -113,7 +130,10 @@ function doLogin(thenShowMap: boolean) {
     })
     .catch((reason) => {
       console.error(reason);
-      document.getElementById("connection-error")!.innerText = reason;
+      if (msgbox) {
+        msgbox.innerText = reason;
+        msgbox.classList.add("error");
+      }
       ip.disabled = false;
       port.disabled = false;
       player.disabled = false;

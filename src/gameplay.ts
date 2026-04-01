@@ -12,9 +12,11 @@ import {
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
+  game_state,
+  setGameState,
 } from "./globals";
 import { updateMarker } from "./map";
-import { Goal, ItemType } from "./types";
+import { GameState, Goal, ItemType } from "./types";
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -125,8 +127,7 @@ function receiveItems(items: Item[]) {
   items.forEach((item) => {
     switch (item.id as ItemType) {
       case ItemType.DistanceReduction:
-        // TODO
-        console.error("DistanceReduction item unimplemented");
+        console.error("DistanceReduction unimplemented"); // TODO
         break;
       case ItemType.Key: {
         const key_progression = getKeyProgress();
@@ -149,16 +150,13 @@ function receiveItems(items: Item[]) {
         break;
 
       case ItemType.ShuffleTrap:
-        // TODO
-        console.error("ShuffleTrap item unimplemented");
+        console.error("ShuffleTrap unimplemented"); // TODO
         break;
       case ItemType.SilenceTrap:
-        // TODO
-        console.error("SilenceTrap item unimplemented");
+        console.error("SilenceTrap unimplemented"); // TODO
         break;
       case ItemType.FogOfWarTrap:
-        // TODO
-        console.error("FogOfWarTrap item unimplemented");
+        console.error("FogOfWarTrap unimplemented"); // TODO
         break;
 
       case ItemType.PushUpTrap:
@@ -259,4 +257,106 @@ function displayTrap(item: Item) {
   }
 
   trap_dialog.showModal();
+}
+
+export function moveGameState(new_state: GameState) {
+  switch ([game_state, new_state]) {
+    case [GameState.Disconnected, GameState.Disconnected]:
+    case [GameState.Connecting, GameState.Connecting]:
+    case [GameState.Generating, GameState.Generating]:
+    case [GameState.ReadyNotTracking, GameState.ReadyNotTracking]:
+    case [GameState.Tracking, GameState.Tracking]:
+      // no change
+      break;
+
+    case [GameState.Disconnected, GameState.Generating]:
+    case [GameState.Disconnected, GameState.ReadyNotTracking]:
+    case [GameState.Disconnected, GameState.Tracking]:
+    case [GameState.Connecting, GameState.Tracking]:
+    case [GameState.Generating, GameState.Connecting]:
+    case [GameState.Generating, GameState.Tracking]:
+    case [GameState.ReadyNotTracking, GameState.Generating]:
+    case [GameState.ReadyNotTracking, GameState.Connecting]:
+    case [GameState.Tracking, GameState.Connecting]:
+    case [GameState.Tracking, GameState.Generating]:
+      console.error(`Unexpected state change from ${game_state} to ${new_state}`);
+      break;
+
+    case [GameState.Disconnected, GameState.Connecting]:
+      // from: connection screen
+      // results:
+      //  - connection message
+      //  - disable form
+      //  - start connecting
+      break;
+    case [GameState.Connecting, GameState.Disconnected]:
+      // from: connection screen or socket
+      // results:
+      //  - connection message
+      //  - enable form
+      //  - go to connection screen
+      break;
+    case [GameState.Connecting, GameState.Generating]:
+      // from: connection screen, if no game saved
+      // results:
+      //  - connection message
+      //  - start generation worker
+      break;
+    case [GameState.Connecting, GameState.ReadyNotTracking]:
+      // from: connection screen, if save game loaded
+      // results:
+      //  - enable "disconnect" button
+      //  - if came from user interaction, go to map screen & zoom to markers
+      //  - if on map screen, zoom to markers
+      //  - start tracking
+      client.updateStatus(clientStatuses.ready);
+      break;
+    case [GameState.Generating, GameState.Disconnected]:
+      // from: generation worker (overpass download failure, no applicable points) or socket
+      // results:
+      //  - disconnect
+      //  - connection message
+      //  - enable form
+      //  - go to connection screen
+      break;
+    case [GameState.Generating, GameState.ReadyNotTracking]:
+      // from: generation worker
+      // results:
+      //  - enable "disconnect" button
+      //  - if came from user interaction, go to map screen & zoom to markers
+      //  - if on map screen, zoom to markers
+      //  - start tracking
+      client.updateStatus(clientStatuses.ready);
+      break;
+    case [GameState.ReadyNotTracking, GameState.Disconnected]:
+      // from: socket callback, disconnect button
+      // results:
+      //  - connection message
+      //  - enable form
+      //  - go to connection screen
+      break;
+    case [GameState.ReadyNotTracking, GameState.Tracking]:
+      // from: GPS
+      // results:
+      //  - if on map screen, zoom to player location
+      client.updateStatus(clientStatuses.playing);
+      break;
+    case [GameState.Tracking, GameState.Disconnected]:
+      // from: socket callback, disconnect button
+      // results:
+      //  - connection message
+      //  - enable form
+      //  - go to connection screen
+      break;
+    case [GameState.Tracking, GameState.ReadyNotTracking]:
+      // from: GPS
+      // results:
+      //  - attempt to restart tracking
+      client.updateStatus(clientStatuses.ready);
+      break;
+
+    default:
+      throw `Invalid game state: ${game_state}, ${new_state}`;
+  }
+  setGameState(new_state);
 }

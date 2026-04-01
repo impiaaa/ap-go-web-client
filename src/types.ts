@@ -54,3 +54,11 @@ export enum ItemType {
   Hydrate = ItemIdOffset + 251,
   TakeBreather = ItemIdOffset + 252,
 }
+
+export enum GameState {
+  Disconnected,
+  Connecting,
+  Generating,
+  ReadyNotTracking,
+  Tracking,
+}

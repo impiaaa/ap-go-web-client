@@ -1,5 +1,5 @@
 import { Client, type NetworkItem } from "archipelago.js";
-import { type APGoSlotData, ItemType } from "./types";
+import { type APGoSlotData, GameState, ItemType } from "./types";
 
 export const DATAPACKAGE_KEY = "datapackage_cache";
 export const PREFS_KEY = "connection_info";
@@ -53,4 +53,8 @@ export function setScoutedLocations(
   new_locations: Record<number, NetworkItem>,
 ) {
   scouted_locations = new_locations;
+}
+export let game_state: GameState = GameState.Disconnected;
+export function setGameState(new_state: GameState) {
+  game_state = new_state;
 }
