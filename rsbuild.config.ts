@@ -1,5 +1,6 @@
 import { defineConfig } from "@rsbuild/core";
 import { pluginTypeCheck } from "@rsbuild/plugin-type-check";
+import { pluginWasmPack } from "rsbuild-plugin-wasmpack";
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
@@ -9,7 +10,18 @@ export default defineConfig({
   output: {
     target: "web",
   },
-  plugins: [pluginTypeCheck()],
+  plugins: [
+    pluginTypeCheck(),
+    pluginWasmPack({
+      autoInstallWasmPack: true,
+      crates: [
+        {
+          path: "gen",
+          target: "web",
+        },
+      ],
+    }),
+  ],
   source: {
     entry: {
       index: "./src/index.ts",
