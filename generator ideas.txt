@@ -1,0 +1,34 @@
+1.
+    a. for each trip, choose a random route by making random choices at each intersection
+    b. limit the distance traveled to the desired distance
+    - biased towards denser parts of the network
+2.
+    a. generate isochrones for: minumum distance, each distance tier
+    b. buffer each by check distance
+    c. for each trip, choose a random point within the distance tier polygon, not within the min distance polygon
+    - generating isochrones & buffers potentially expensive
+3.
+    a. for each trip, choose a random point along the network ("lay out" network along number line)
+    b. find route back home
+    c. check if distance appropriate, else reroll
+    - biased towards denser parts of the network
+    - potentially lots of rerolling
+3.
+    a. for each trip, choose a random point along the network
+    b. find route back home
+    c. reroll if shorter than min distance, trim to distance tier
+    - biased towards denser parts of the network
+    - biased away from shorter routes, could still be lots of rerolling
+4.
+    a. for each trip, choose a random point in a circle
+    b. find nearest segment
+    c. check if nearest segment is within check distance, else reroll
+    d. find route back home
+    e. reroll if shorter than min distance, trim to distance tier
+    - potentially lots of rerolls for a sparse network
+5.
+    a. for each trip, choose a random point in a circle
+    b. find nearest segment
+    c. find route back home
+    d. reroll if shorter than min distance, trim to distance tier
+    - biased towards sparse parts & "edges" of the network
