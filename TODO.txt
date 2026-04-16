@@ -1,6 +1,5 @@
 handle disconnect
 goals: One Hard Travel, Allsanity
-better generation
 keep screen turned on when on map tab
 
 marker icons - checked, locked, question mark or hinted

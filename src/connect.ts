@@ -1,5 +1,5 @@
 import maplibregl, { LngLat } from "maplibre-gl";
-import { checkLocations } from "./gameplay";
+import { checkLocations, saveGame } from "./gameplay";
 import { generate } from "./generate";
 import {
   cheat,
@@ -7,13 +7,20 @@ import {
   DATAPACKAGE_KEY,
   home,
   PREFS_KEY,
+  points,
   SAVED_GAME_KEY,
   setHome,
+  setPoints,
   setScoutedLocations,
   setSlotData,
 } from "./globals";
 import { addMessages } from "./log";
-import { createMap, setUpHomeMarker } from "./map";
+import {
+  createMap,
+  fitMapToPoints,
+  setUpHomeMarker,
+  updateMarker,
+} from "./map";
 import type { APGoSlotData } from "./types";
 
 const setup_form = document.forms.namedItem("connect-form")!;
@@ -85,20 +92,42 @@ function doLogin(thenShowMap: boolean) {
       });
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
 
+      const doneGenerating = () => {
+        if (msgbox) {
+          msgbox.classList.remove("error");
+          msgbox.innerText = "";
+        }
+
+        if (thenShowMap) {
+          window.location.hash = "#map";
+          fitMapToPoints(false);
+        }
+
+        if (!cheat) {
+          navigator.geolocation.watchPosition(
+            geoLocationUpdate,
+            geoLocationError,
+          );
+        }
+      };
+
       const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
+      setScoutedLocations({});
       if (saved_game_json) {
         const saved_game = JSON.parse(saved_game_json);
-        if (
-          saved_game &&
-          saved_game.seed === client.room.seedName &&
-          saved_game.scouted_locations
-        ) {
-          setScoutedLocations(saved_game.scouted_locations);
-        } else {
-          setScoutedLocations({});
+        if (saved_game && saved_game.seed === client.room.seedName) {
+          if (saved_game.scouted_locations) {
+            setScoutedLocations(saved_game.scouted_locations);
+          }
+          if (saved_game.points) {
+            setPoints(saved_game.points);
+            for (const location_id in points) {
+              updateMarker(parseInt(location_id, 10));
+            }
+            doneGenerating();
+            return;
+          }
         }
-      } else {
-        setScoutedLocations({});
       }
 
       if (msgbox) {
@@ -106,27 +135,37 @@ function doLogin(thenShowMap: boolean) {
         msgbox.innerText = "Generating…";
       }
 
-      // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
-      const seed =
-        (Number.parseFloat(client.room.seedName) * (0x100000000 / 1e20)) ^
-        client.players.self.slot;
-      generate(seed);
+      generate(client.room.seedName, client.players.self.slot)
+        .then((trip_points) => {
+          if (trip_points === null) {
+            if (msgbox) {
+              msgbox.innerText = "Error during generation";
+              msgbox.classList.add("error");
+            }
+            return;
+          }
+          client.room.allLocations.forEach((location_id) => {
+            const location_name = client.package.lookupLocationName(
+              client.game,
+              location_id,
+            );
+            const trip_point = trip_points.get(location_name);
+            if (trip_point) {
+              points[location_id] = trip_point as [number, number];
+              updateMarker(location_id);
+            }
+          });
 
-      if (msgbox) {
-        msgbox.classList.remove("error");
-        msgbox.innerText = "";
-      }
+          saveGame();
 
-      if (thenShowMap) {
-        window.location.hash = "#map";
-      }
-
-      if (!cheat) {
-        navigator.geolocation.watchPosition(
-          geoLocationUpdate,
-          geoLocationError,
-        );
-      }
+          doneGenerating();
+        })
+        .catch((reason) => {
+          if (msgbox) {
+            msgbox.innerText = `Error when fetching map data: ${reason}`;
+            msgbox.classList.add("error");
+          }
+        });
     })
     .catch((reason) => {
       console.error(reason);

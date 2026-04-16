@@ -6,16 +6,22 @@ import { checkLocations, getKeyProgress } from "./gameplay";
 import {
   cheat,
   client,
+  game_state,
   home,
   LONG_MACGUFFIN_ITEMS,
   points,
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
-  game_state,
 } from "./globals";
 import { styleItemElement, stylePlayerElement } from "./log";
-import { type APGoSlotData, GameState, Goal, ItemType, type Trip } from "./types";
+import {
+  type APGoSlotData,
+  GameState,
+  Goal,
+  ItemType,
+  type Trip,
+} from "./types";
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;

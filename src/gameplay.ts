@@ -4,6 +4,7 @@ import {
   COLLECTION_DISTANCE_BASE,
   COLLECTION_DISTANCE_INCREMENT,
   client,
+  game_state,
   LONG_MACGUFFIN_ITEMS,
   points,
   SAVED_GAME_KEY,
@@ -11,9 +12,8 @@ import {
   SCOUTING_DISTANCE_INCREMENT,
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
-  slot_data,
-  game_state,
   setGameState,
+  slot_data,
 } from "./globals";
 import { updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
@@ -91,19 +91,24 @@ export function checkLocations(coords: LngLat) {
         };
         updateMarker(item);
       });
-      localStorage.setItem(
-        SAVED_GAME_KEY,
-        JSON.stringify({
-          scouted_locations: scouted_locations,
-          seed: client.room.seedName,
-        }),
-      );
+      saveGame();
     });
   }
   if (checks.length > 0) {
     console.log(`Checking locations: ${checks}`);
     client.check(...checks);
   }
+}
+
+export function saveGame() {
+  localStorage.setItem(
+    SAVED_GAME_KEY,
+    JSON.stringify({
+      points: points,
+      scouted_locations: scouted_locations,
+      seed: client.room.seedName,
+    }),
+  );
 }
 
 export function setUpGameplay() {
@@ -279,7 +284,9 @@ export function moveGameState(new_state: GameState) {
     case [GameState.ReadyNotTracking, GameState.Connecting]:
     case [GameState.Tracking, GameState.Connecting]:
     case [GameState.Tracking, GameState.Generating]:
-      console.error(`Unexpected state change from ${game_state} to ${new_state}`);
+      console.error(
+        `Unexpected state change from ${game_state} to ${new_state}`,
+      );
       break;
 
     case [GameState.Disconnected, GameState.Connecting]:

@@ -44,8 +44,8 @@ export function setSlotData(new_slot_data: APGoSlotData) {
 }
 export const client = new Client();
 export let points: Record<number, maplibregl.LngLatLike> = {};
-export function clearPoints() {
-  points = {};
+export function setPoints(new_points: Record<number, maplibregl.LngLatLike>) {
+  points = new_points;
 }
 export const cheat = !!localStorage.getItem("cheat");
 export let scouted_locations: Record<number, NetworkItem> = {};
