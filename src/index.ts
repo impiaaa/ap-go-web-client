@@ -4,11 +4,11 @@ import { setUpGameplay } from "./gameplay";
 import { DEFAULT_PAGE } from "./globals";
 import { setUpHintsPage } from "./hints";
 import { setUpLogPage } from "./log";
-import { lateSetUpMap } from "./map";
+import { hideMapPage, showMapPage } from "./map";
 
 /* Page layout */
 
-function showPage(new_hash: string) {
+function showPage(old_hash: string, new_hash: string) {
   let page = document.getElementById(`page-${new_hash}`);
   if (!page) {
     new_hash = DEFAULT_PAGE;
@@ -23,8 +23,11 @@ function showPage(new_hash: string) {
     el.setAttribute("aria-selected", "true");
     el.classList.add("active");
   });
+  if (old_hash === "map") {
+    hideMapPage();
+  }
   if (new_hash === "map") {
-    lateSetUpMap();
+    showMapPage();
   }
 }
 
@@ -38,10 +41,10 @@ window.addEventListener("hashchange", (ev) => {
     el.setAttribute("aria-selected", "false");
     el.classList.remove("active");
   });
-  showPage(new_hash);
+  showPage(old_hash, new_hash);
 });
 window.addEventListener("load", () => {
-  showPage(window.location.hash.substring(1));
+  showPage("", window.location.hash.substring(1));
 });
 
 /* Connection page */

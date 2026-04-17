@@ -24,7 +24,7 @@ import {
   setPoints,
   slot_data,
 } from "./globals";
-import { clearMarkers, updateMarker } from "./map";
+import { clearMarkers, showMapPage, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
 
 export function getKeyProgress(): number {
@@ -317,6 +317,10 @@ export function moveGameState(new_state: GameState) {
     case GameState.Tracking:
       // from: GPS
       client.updateStatus(clientStatuses.playing);
+      if (window.location.hash === "#map") {
+        // trigger wake lock
+        showMapPage();
+      }
       break;
 
     default:

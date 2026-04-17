@@ -26,6 +26,7 @@ import {
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
 export let location_markers: Record<number, maplibregl.Marker> = {};
+let wake_lock: WakeLockSentinel | null = null;
 
 export function clearMarkers() {
   for (const marker_name in location_markers) {
@@ -52,10 +53,7 @@ export function createMap(container: string) {
   return map;
 }
 
-export function lateSetUpMap() {
-  if (game_map) {
-    return;
-  }
+function lateSetUpMap() {
   game_map = createMap("map");
   setUpHomeMarker();
   game_map.addControl(new MacguffinDisplayControl());
@@ -70,6 +68,39 @@ export function lateSetUpMap() {
     }
     fitMapToPoints(false);
   });
+}
+
+function requestWakeLock() {
+  if (wake_lock) {
+    wake_lock.release().then(() => {
+      wake_lock = null;
+      requestWakeLock();
+    });
+    return;
+  }
+  if (document.visibilityState === "visible") {
+    navigator.wakeLock.request("screen").then((result) => {
+      wake_lock = result;
+      wake_lock.addEventListener("release", requestWakeLock);
+    });
+  }
+}
+
+export function showMapPage() {
+  if (!game_map) {
+    lateSetUpMap();
+  }
+  if (game_state === GameState.Tracking) {
+    requestWakeLock();
+  }
+}
+
+export function hideMapPage() {
+  if (wake_lock) {
+    wake_lock.release().then(() => {
+      wake_lock = null;
+    });
+  }
 }
 
 export function setUpHomeMarker() {
