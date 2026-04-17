@@ -2,6 +2,7 @@ import maplibregl, { LngLat } from "maplibre-gl";
 import { checkLocations, moveGameState, saveGame } from "./gameplay";
 import { generate } from "./generate";
 import {
+  COLLECTION_DISTANCE_BASE,
   cheat,
   client,
   DATAPACKAGE_KEY,
@@ -144,8 +145,15 @@ function doLogin(thenShowMap: boolean) {
           if (saved_game.scouted_locations) {
             setScoutedLocations(saved_game.scouted_locations);
           }
-          if (saved_game.points) {
-            // TODO: Reject if generated with a different home location
+          if (
+            saved_game.points &&
+            saved_game.home &&
+            Array.isArray(saved_game.home) &&
+            saved_game.home.length === 2 &&
+            home &&
+            LngLat.convert(saved_game.home).distanceTo(LngLat.convert(home)) <
+              COLLECTION_DISTANCE_BASE
+          ) {
             setPoints(saved_game.points);
             for (const location_id in points) {
               updateMarker(parseInt(location_id, 10));

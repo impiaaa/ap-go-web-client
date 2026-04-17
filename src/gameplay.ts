@@ -12,6 +12,7 @@ import {
   COLLECTION_DISTANCE_INCREMENT,
   client,
   game_state,
+  home,
   LONG_MACGUFFIN_ITEMS,
   points,
   SAVED_GAME_KEY,
@@ -20,8 +21,8 @@ import {
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   setGameState,
-  slot_data,
   setPoints,
+  slot_data,
 } from "./globals";
 import { clearMarkers, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
@@ -120,6 +121,7 @@ export function saveGame() {
   localStorage.setItem(
     SAVED_GAME_KEY,
     JSON.stringify({
+      home: home,
       points: points,
       scouted_locations: scouted_locations,
       seed: client.room.seedName,
