@@ -105,6 +105,13 @@ export function checkLocations(coords: LngLat) {
   if (checks.length > 0) {
     console.log("Checking locations:", checks);
     client.check(...checks);
+
+    if (
+      client.room.missingLocations.length === 0 &&
+      slot_data?.goal === Goal.Allsanity
+    ) {
+      client.goal();
+    }
   }
 }
 
@@ -206,7 +213,7 @@ function receiveItems(items: Item[]) {
               client.items.received.some((item) => item.id === item_id),
             )
           ) {
-            client.updateStatus(clientStatuses.goal);
+            client.goal();
           }
         }
         break;

@@ -1,4 +1,4 @@
-goals: One Hard Travel, Allsanity
+goals: One Hard Travel
 keep screen turned on when on map tab
 
 marker icons - checked, locked, question mark or hinted
