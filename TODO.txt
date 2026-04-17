@@ -1,6 +1,6 @@
-handle disconnect
 goals: One Hard Travel, Allsanity
 keep screen turned on when on map tab
 
 marker icons - checked, locked, question mark or hinted
 speed requirements
+better favicon + app icon

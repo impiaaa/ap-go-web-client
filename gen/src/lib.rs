@@ -1,4 +1,4 @@
-use ::geo::{ClosestPoint, Coord, LineString};
+use ::geo::{ClosestPoint, Coord, LineString, Point};
 use rand::{Rng, SeedableRng};
 use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, HashSet};
@@ -12,6 +12,7 @@ use crate::geo::Coord3d;
 
 const DISTANCE_LENIENCY: f64 = 0.1;
 const COLLECTION_DISTANCE_BASE: f64 = 20.0;
+const GENERATED_DISTANCE_THRESHOLD_SQ: f64 = COLLECTION_DISTANCE_BASE * COLLECTION_DISTANCE_BASE;
 
 #[wasm_bindgen(start)]
 pub fn my_init_function() {
@@ -177,7 +178,8 @@ pub fn generate(params: &GenerateParams) -> JsValue {
         }
     }
 
-    let tree = RTree::bulk_load(segments);
+    let segments_tree = RTree::bulk_load(segments);
+    let mut points_tree = RTree::<Point>::new();
     let trip_points: js_sys::Map = js_sys::Map::new();
 
     let mut min_dist = params.slot_data().minimum_distance();
@@ -213,17 +215,30 @@ pub fn generate(params: &GenerateParams) -> JsValue {
                 let random_point = ::geo::Point::new(r * ct, r * st);
                 console::log_1(&format!("Random point is {random_point:?}").into());
 
-                let Some(nearest_segment) = tree.nearest_neighbor(&random_point) else {
-                    break;
+                // Don't generate points too close to each other, but at a lower priority than
+                // checking for nearby segments
+                if attempt < MAX_ATTEMPTS / 2
+                    && let Some(nearest_other_point) = points_tree.nearest_neighbor(&random_point)
+                    && random_point.distance_2(nearest_other_point)
+                        < GENERATED_DISTANCE_THRESHOLD_SQ
+                {
+                    continue;
+                }
+
+                let Some(nearest_segment) = segments_tree.nearest_neighbor(&random_point) else {
+                    // empty tree?
+                    return JsValue::null();
                 };
                 let nearest_point_on_segment = match nearest_segment.closest_point(&random_point) {
                     ::geo::Closest::Indeterminate => continue,
                     ::geo::Closest::Intersection(point) => point,
                     ::geo::Closest::SinglePoint(point) => point,
                 };
-                let distance_to_nearest_point =
-                    random_point.distance_2(&nearest_point_on_segment).sqrt();
-                if distance_to_nearest_point < COLLECTION_DISTANCE_BASE || attempt >= MAX_ATTEMPTS {
+                let distance_to_nearest_point_sq =
+                    random_point.distance_2(&nearest_point_on_segment);
+                if distance_to_nearest_point_sq < GENERATED_DISTANCE_THRESHOLD_SQ
+                    || attempt >= MAX_ATTEMPTS
+                {
                     let selected_point = if attempt < MAX_ATTEMPTS {
                         random_point
                     } else {
@@ -233,6 +248,7 @@ pub fn generate(params: &GenerateParams) -> JsValue {
                         );
                         nearest_point_on_segment
                     };
+                    points_tree.insert(selected_point);
                     // TODO: Route from here to home:
                     // - Snap home point to network, include that distance in route length
                     // - Reroll if point isn't routable or if route is shorter than min_dist

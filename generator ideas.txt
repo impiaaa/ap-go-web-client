@@ -38,5 +38,3 @@
     a. run Dijkstra's algorithm starting from home location
     b. follow network until reaching each distance tier
     c. at this point the queue of "discovered" nodes are just outside of the distance, so the potential points at this distance are along the edges going to those nodes
-
-for all: consider rerolling if a point is too close to another (e.g. check distance)
