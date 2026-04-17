@@ -1,8 +1,8 @@
-import { Item } from "archipelago.js";
+import { type ConnectedPacket, Item } from "archipelago.js";
 import maplibregl from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
-import { checkLocations, getKeyProgress } from "./gameplay";
+import { checkLocations, getKeyProgress, moveGameState } from "./gameplay";
 import {
   cheat,
   client,
@@ -245,11 +245,12 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     if (slot_data) {
       this.setUpLetters(slot_data);
     }
-    client.socket.on("connected", (packet) => {
-      this.setUpLetters(packet.slot_data as APGoSlotData);
-    });
+    client.socket.on("connected", this.onConnected.bind(this));
 
     return this._container;
+  }
+  private onConnected(packet: ConnectedPacket) {
+    this.setUpLetters(packet.slot_data as APGoSlotData);
   }
   private setUpLetters(slot_data: APGoSlotData) {
     this._letters.forEach((el) => {
@@ -302,6 +303,7 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     this._container?.parentNode?.removeChild(this._container);
     this._letters = [];
     this._map = undefined;
+    client.socket.off("connected", this.onConnected.bind(this));
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "top-left";
@@ -320,11 +322,12 @@ class KeyDisplayControl implements maplibregl.IControl {
     if (slot_data) {
       this.setUpKeys(slot_data);
     }
-    client.socket.on("connected", (packet) => {
-      this.setUpKeys(packet.slot_data as APGoSlotData);
-    });
+    client.socket.on("connected", this.onConnected.bind(this));
 
     return this._container;
+  }
+  private onConnected(packet: ConnectedPacket) {
+    this.setUpKeys(packet.slot_data as APGoSlotData);
   }
   private setUpKeys(slot_data: APGoSlotData) {
     this._keys.forEach((el) => {
@@ -368,6 +371,7 @@ class KeyDisplayControl implements maplibregl.IControl {
     this._container?.parentNode?.removeChild(this._container);
     this._keys = [];
     this._map = undefined;
+    client.socket.off("connected", this.onConnected.bind(this));
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "bottom-left";
@@ -426,6 +430,7 @@ class MyGeolocateControl extends maplibregl.GeolocateControl {
       this._userLocationDotMarker.on("dragend", () => {
         checkLocations(this._userLocationDotMarker.getLngLat());
       });
+      moveGameState(GameState.Tracking);
     }
   }
   trigger(): boolean {

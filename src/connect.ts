@@ -1,10 +1,11 @@
 import maplibregl, { LngLat } from "maplibre-gl";
-import { checkLocations, saveGame } from "./gameplay";
+import { checkLocations, moveGameState, saveGame } from "./gameplay";
 import { generate } from "./generate";
 import {
   cheat,
   client,
   DATAPACKAGE_KEY,
+  game_state,
   home,
   PREFS_KEY,
   points,
@@ -21,14 +22,48 @@ import {
   setUpHomeMarker,
   updateMarker,
 } from "./map";
-import type { APGoSlotData } from "./types";
+import { type APGoSlotData, GameState } from "./types";
 
 const setup_form = document.forms.namedItem("connect-form")!;
-const set_home_button = document.getElementById("set-home")!;
+const set_home_button = document.getElementById(
+  "set-home",
+) as HTMLButtonElement;
+const msgbox = document.getElementById("connection-message")!;
+let watch_id = -1;
 
 function onSubmit(ev: SubmitEvent) {
   ev.preventDefault();
   doLogin(true);
+}
+
+export function setFormDisabled(disabled: boolean) {
+  (setup_form.elements.namedItem("ip") as HTMLInputElement).disabled = disabled;
+  (setup_form.elements.namedItem("port") as HTMLInputElement).disabled =
+    disabled;
+  (setup_form.elements.namedItem("player") as HTMLInputElement).disabled =
+    disabled;
+  (setup_form.elements.namedItem("password") as HTMLInputElement).disabled =
+    disabled;
+  set_home_button.disabled = disabled;
+  (setup_form.querySelector("#submit") as HTMLButtonElement).disabled =
+    disabled;
+}
+
+export function setConnectionMessage(message: string) {
+  msgbox.classList.remove("error");
+  msgbox.innerText = message;
+}
+
+export function setConnectionError(message: string) {
+  msgbox.innerText = message;
+  msgbox.classList.add("error");
+}
+
+export function stopTracking() {
+  if (watch_id >= 0) {
+    navigator.geolocation.clearWatch(watch_id);
+    watch_id = -1;
+  }
 }
 
 function doLogin(thenShowMap: boolean) {
@@ -38,28 +73,14 @@ function doLogin(thenShowMap: boolean) {
   const password = setup_form.elements.namedItem(
     "password",
   ) as HTMLInputElement;
-  const set_home = setup_form.querySelector("#set-home") as HTMLButtonElement;
-  const submit = setup_form.querySelector("#submit") as HTMLButtonElement;
-  const msgbox = document.getElementById("connection-message");
 
   if (!home) {
-    if (msgbox) {
-      msgbox.innerText = "Set a home location";
-      msgbox.classList.add("error");
-    }
+    setConnectionError("Set a home location");
     return;
   }
 
-  ip.disabled = true;
-  port.disabled = true;
-  player.disabled = true;
-  password.disabled = true;
-  set_home.disabled = true;
-  submit.disabled = true;
-  if (msgbox) {
-    msgbox.classList.remove("error");
-    msgbox.innerText = "Connecting…";
-  }
+  moveGameState(GameState.Connecting);
+
   client
     .login<APGoSlotData>(
       `${ip.value}:${port.value}`,
@@ -75,13 +96,6 @@ function doLogin(thenShowMap: boolean) {
       );
       setSlotData(new_slot_info);
 
-      ip.disabled = false;
-      port.disabled = false;
-      player.disabled = false;
-      password.disabled = false;
-      set_home.disabled = false;
-      submit.disabled = false;
-
       const text_log = document.getElementById("text-log")!;
       text_log.childNodes.forEach((c) => {
         text_log.removeChild(c);
@@ -93,10 +107,8 @@ function doLogin(thenShowMap: boolean) {
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
 
       const doneGenerating = () => {
-        if (msgbox) {
-          msgbox.classList.remove("error");
-          msgbox.innerText = "";
-        }
+        moveGameState(GameState.ReadyNotTracking);
+        setConnectionMessage("");
 
         if (thenShowMap) {
           window.location.hash = "#map";
@@ -104,7 +116,7 @@ function doLogin(thenShowMap: boolean) {
         }
 
         if (!cheat) {
-          navigator.geolocation.watchPosition(
+          watch_id = navigator.geolocation.watchPosition(
             geoLocationUpdate,
             geoLocationError,
           );
@@ -120,6 +132,7 @@ function doLogin(thenShowMap: boolean) {
             setScoutedLocations(saved_game.scouted_locations);
           }
           if (saved_game.points) {
+            // TODO: Reject if generated with a different home location
             setPoints(saved_game.points);
             for (const location_id in points) {
               updateMarker(parseInt(location_id, 10));
@@ -130,18 +143,13 @@ function doLogin(thenShowMap: boolean) {
         }
       }
 
-      if (msgbox) {
-        msgbox.classList.remove("error");
-        msgbox.innerText = "Generating…";
-      }
+      moveGameState(GameState.Generating);
 
       generate(client.room.seedName, client.players.self.slot)
         .then((trip_points) => {
           if (trip_points === null) {
-            if (msgbox) {
-              msgbox.innerText = "Error during generation";
-              msgbox.classList.add("error");
-            }
+            setConnectionError("Error during generation");
+            client.socket.disconnect();
             return;
           }
           client.room.allLocations.forEach((location_id) => {
@@ -161,31 +169,21 @@ function doLogin(thenShowMap: boolean) {
           doneGenerating();
         })
         .catch((reason) => {
-          if (msgbox) {
-            msgbox.innerText = `Error when fetching map data: ${reason}`;
-            msgbox.classList.add("error");
-          }
+          setConnectionError(`Error when fetching map data: ${reason}`);
+          client.socket.disconnect();
         });
     })
     .catch((reason) => {
       console.error(reason);
-      if (msgbox) {
-        msgbox.innerText = reason;
-        msgbox.classList.add("error");
-      }
-      ip.disabled = false;
-      port.disabled = false;
-      player.disabled = false;
-      password.disabled = false;
-      set_home.disabled = false;
-      submit.disabled = false;
-      if (window.location.hash !== "#connect") {
-        window.location.hash = "#connect";
-      }
+      setConnectionError(reason);
+      moveGameState(GameState.Disconnected);
     });
 }
 
 function geoLocationUpdate(location: GeolocationPosition) {
+  if (game_state === GameState.ReadyNotTracking) {
+    moveGameState(GameState.Tracking);
+  }
   const coords = new LngLat(
     location.coords.longitude,
     location.coords.latitude,
@@ -206,6 +204,13 @@ function geoLocationError(error: GeolocationPositionError) {
       location.reload();
     }
   }
+  // TODO: attempt to restart tracking
+  // - what error code is when the app is backgrounded & comes back?
+  //   do we just stop getting updates, so need our own timeout?
+  // - check what MapLibre does
+  // - after N retries, disconnect
+  moveGameState(GameState.ReadyNotTracking);
+  setConnectionMessage("Lost tracking");
 }
 
 function setUpSetHomeMap() {
@@ -267,6 +272,12 @@ export function setUpConnectPage() {
   if (datapackage_str) {
     client.package.importPackage(JSON.parse(datapackage_str));
   }
+
+  client.socket.on("disconnected", () => {
+    // TODO: attempt to reconnect
+    setConnectionError("Disconnected");
+    moveGameState(GameState.Disconnected);
+  });
 
   const ip = setup_form.elements.namedItem("ip") as HTMLInputElement;
   const port = setup_form.elements.namedItem("port") as HTMLInputElement;

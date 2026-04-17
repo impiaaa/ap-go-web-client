@@ -1,5 +1,6 @@
 import { clientStatuses, type Item } from "archipelago.js";
 import { LngLat } from "maplibre-gl";
+import { setConnectionMessage, setFormDisabled, stopTracking } from "./connect";
 import {
   COLLECTION_DISTANCE_BASE,
   COLLECTION_DISTANCE_INCREMENT,
@@ -80,7 +81,7 @@ export function checkLocations(coords: LngLat) {
   }
 
   if (scouts.length > 0) {
-    console.log(`Scouting locations: ${scouts}`);
+    console.log("Scouting locations:", scouts);
     client.scout(scouts).then((items) => {
       items.forEach((item) => {
         scouted_locations[item.locationId] = {
@@ -95,7 +96,7 @@ export function checkLocations(coords: LngLat) {
     });
   }
   if (checks.length > 0) {
-    console.log(`Checking locations: ${checks}`);
+    console.log("Checking locations:", checks);
     client.check(...checks);
   }
 }
@@ -265,101 +266,34 @@ function displayTrap(item: Item) {
 }
 
 export function moveGameState(new_state: GameState) {
-  switch ([game_state, new_state]) {
-    case [GameState.Disconnected, GameState.Disconnected]:
-    case [GameState.Connecting, GameState.Connecting]:
-    case [GameState.Generating, GameState.Generating]:
-    case [GameState.ReadyNotTracking, GameState.ReadyNotTracking]:
-    case [GameState.Tracking, GameState.Tracking]:
-      // no change
+  console.log("Moving to game state:", new_state);
+  switch (new_state) {
+    case GameState.Disconnected:
+      // from: connection screen connection error, socket callback
+      // TODO: disconnect button
+      setFormDisabled(false);
+      if (window.location.hash !== "#connect") {
+        window.location.hash = "#connect";
+      }
+      stopTracking();
       break;
-
-    case [GameState.Disconnected, GameState.Generating]:
-    case [GameState.Disconnected, GameState.ReadyNotTracking]:
-    case [GameState.Disconnected, GameState.Tracking]:
-    case [GameState.Connecting, GameState.Tracking]:
-    case [GameState.Generating, GameState.Connecting]:
-    case [GameState.Generating, GameState.Tracking]:
-    case [GameState.ReadyNotTracking, GameState.Generating]:
-    case [GameState.ReadyNotTracking, GameState.Connecting]:
-    case [GameState.Tracking, GameState.Connecting]:
-    case [GameState.Tracking, GameState.Generating]:
-      console.error(
-        `Unexpected state change from ${game_state} to ${new_state}`,
-      );
-      break;
-
-    case [GameState.Disconnected, GameState.Connecting]:
+    case GameState.Connecting:
       // from: connection screen
-      // results:
-      //  - connection message
-      //  - disable form
-      //  - start connecting
+      setFormDisabled(true);
+      setConnectionMessage("Connecting…");
       break;
-    case [GameState.Connecting, GameState.Disconnected]:
-      // from: connection screen or socket
-      // results:
-      //  - connection message
-      //  - enable form
-      //  - go to connection screen
-      break;
-    case [GameState.Connecting, GameState.Generating]:
+    case GameState.Generating:
       // from: connection screen, if no game saved
-      // results:
-      //  - connection message
-      //  - start generation worker
+      setConnectionMessage("Generating…");
       break;
-    case [GameState.Connecting, GameState.ReadyNotTracking]:
-      // from: connection screen, if save game loaded
-      // results:
-      //  - enable "disconnect" button
-      //  - if came from user interaction, go to map screen & zoom to markers
-      //  - if on map screen, zoom to markers
-      //  - start tracking
+    case GameState.ReadyNotTracking:
+      // from: connection screen
       client.updateStatus(clientStatuses.ready);
+      // TODO: enable "disconnect" button
       break;
-    case [GameState.Generating, GameState.Disconnected]:
-      // from: generation worker (overpass download failure, no applicable points) or socket
-      // results:
-      //  - disconnect
-      //  - connection message
-      //  - enable form
-      //  - go to connection screen
-      break;
-    case [GameState.Generating, GameState.ReadyNotTracking]:
-      // from: generation worker
-      // results:
-      //  - enable "disconnect" button
-      //  - if came from user interaction, go to map screen & zoom to markers
-      //  - if on map screen, zoom to markers
-      //  - start tracking
-      client.updateStatus(clientStatuses.ready);
-      break;
-    case [GameState.ReadyNotTracking, GameState.Disconnected]:
-      // from: socket callback, disconnect button
-      // results:
-      //  - connection message
-      //  - enable form
-      //  - go to connection screen
-      break;
-    case [GameState.ReadyNotTracking, GameState.Tracking]:
+    case GameState.Tracking:
       // from: GPS
-      // results:
-      //  - if on map screen, zoom to player location
       client.updateStatus(clientStatuses.playing);
-      break;
-    case [GameState.Tracking, GameState.Disconnected]:
-      // from: socket callback, disconnect button
-      // results:
-      //  - connection message
-      //  - enable form
-      //  - go to connection screen
-      break;
-    case [GameState.Tracking, GameState.ReadyNotTracking]:
-      // from: GPS
-      // results:
-      //  - attempt to restart tracking
-      client.updateStatus(clientStatuses.ready);
       break;
 
     default:
