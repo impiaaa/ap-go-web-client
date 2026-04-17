@@ -28,12 +28,19 @@ const setup_form = document.forms.namedItem("connect-form")!;
 const set_home_button = document.getElementById(
   "set-home",
 ) as HTMLButtonElement;
+const connect_button = document.getElementById("connect") as HTMLButtonElement;
 const msgbox = document.getElementById("connection-message")!;
 let watch_id = -1;
+let last_disconnect_was_user_initiated = false;
 
 function onSubmit(ev: SubmitEvent) {
   ev.preventDefault();
-  doLogin(true);
+  if (client.socket.connected) {
+    last_disconnect_was_user_initiated = true;
+    client.socket.disconnect();
+  } else {
+    doLogin(true);
+  }
 }
 
 export function setFormDisabled(disabled: boolean) {
@@ -45,8 +52,14 @@ export function setFormDisabled(disabled: boolean) {
   (setup_form.elements.namedItem("password") as HTMLInputElement).disabled =
     disabled;
   set_home_button.disabled = disabled;
-  (setup_form.querySelector("#submit") as HTMLButtonElement).disabled =
-    disabled;
+}
+
+export function setConnectDisabled(disabled: boolean) {
+  connect_button.disabled = disabled;
+}
+
+export function setConnectText(textIsConnect: boolean) {
+  connect_button.innerText = textIsConnect ? "Connect" : "Disconnect";
 }
 
 export function setConnectionMessage(message: string) {
@@ -261,6 +274,7 @@ function setUpSetHomeMap() {
 set_home_button.addEventListener("click", setUpSetHomeMap);
 
 export function setUpConnectPage() {
+  setConnectText(true);
   setup_form.addEventListener("submit", onSubmit);
   set_home_button.addEventListener("click", () => {
     (
@@ -274,8 +288,11 @@ export function setUpConnectPage() {
   }
 
   client.socket.on("disconnected", () => {
-    // TODO: attempt to reconnect
-    setConnectionError("Disconnected");
+    if (!last_disconnect_was_user_initiated) {
+      // TODO: attempt to reconnect
+      setConnectionError("Disconnected");
+    }
+    last_disconnect_was_user_initiated = false;
     moveGameState(GameState.Disconnected);
   });
 

@@ -70,6 +70,8 @@ export function lateSetUpMap() {
     }
     fitMapToPoints(false);
   });
+
+  client.socket.on("disconnected", clearMarkers);
 }
 
 export function setUpHomeMarker() {

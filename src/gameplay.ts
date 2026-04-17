@@ -1,6 +1,12 @@
 import { clientStatuses, type Item } from "archipelago.js";
 import { LngLat } from "maplibre-gl";
-import { setConnectionMessage, setFormDisabled, stopTracking } from "./connect";
+import {
+  setConnectDisabled,
+  setConnectionMessage,
+  setConnectText,
+  setFormDisabled,
+  stopTracking,
+} from "./connect";
 import {
   COLLECTION_DISTANCE_BASE,
   COLLECTION_DISTANCE_INCREMENT,
@@ -60,6 +66,7 @@ export function checkLocations(coords: LngLat) {
   const scouts: number[] = [];
   const checks: number[] = [];
 
+  // TODO: consider using an acceleration structure (rust rtree?)
   for (const location_id_str in points) {
     const location_id = parseInt(location_id_str, 10);
     const point = points[location_id];
@@ -270,8 +277,9 @@ export function moveGameState(new_state: GameState) {
   switch (new_state) {
     case GameState.Disconnected:
       // from: connection screen connection error, socket callback
-      // TODO: disconnect button
       setFormDisabled(false);
+      setConnectDisabled(false);
+      setConnectText(true);
       if (window.location.hash !== "#connect") {
         window.location.hash = "#connect";
       }
@@ -280,6 +288,8 @@ export function moveGameState(new_state: GameState) {
     case GameState.Connecting:
       // from: connection screen
       setFormDisabled(true);
+      setConnectDisabled(true);
+      setConnectText(true);
       setConnectionMessage("Connecting…");
       break;
     case GameState.Generating:
@@ -289,7 +299,8 @@ export function moveGameState(new_state: GameState) {
     case GameState.ReadyNotTracking:
       // from: connection screen
       client.updateStatus(clientStatuses.ready);
-      // TODO: enable "disconnect" button
+      setConnectDisabled(false);
+      setConnectText(false);
       break;
     case GameState.Tracking:
       // from: GPS

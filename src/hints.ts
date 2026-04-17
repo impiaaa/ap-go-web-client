@@ -50,4 +50,7 @@ export function setUpHintsPage() {
   client.items.on("hintsInitialized", (hints) => hints.forEach(addHint));
   client.items.on("hintReceived", addHint);
   // TODO: hintFound. how to find the right row?
+  client.socket.on("disconnected", () => {
+    hint_table.getElementsByTagName("tbody")[0].replaceChildren();
+  });
 }
