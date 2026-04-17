@@ -21,8 +21,9 @@ import {
   scouted_locations,
   setGameState,
   slot_data,
+  setPoints,
 } from "./globals";
-import { updateMarker } from "./map";
+import { clearMarkers, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
 
 export function getKeyProgress(): number {
@@ -291,6 +292,8 @@ export function moveGameState(new_state: GameState) {
         window.location.hash = "#connect";
       }
       stopTracking();
+      setPoints([]);
+      clearMarkers();
       break;
     case GameState.Connecting:
       // from: connection screen
