@@ -26,9 +26,17 @@
     d. find route back home
     e. reroll if shorter than min distance, trim to distance tier
     - potentially lots of rerolls for a sparse network
+    - trimming results in slight bias towards outer edges
 5.
     a. for each trip, choose a random point in a circle
     b. find nearest segment
     c. find route back home
     d. reroll if shorter than min distance, trim to distance tier
     - biased towards sparse parts & "edges" of the network
+    - trimming results in slight bias towards outer edges
+6.
+    a. run Dijkstra's algorithm starting from home location
+    b. follow network until reaching each distance tier
+    c. at this point the queue of "discovered" nodes are just outside of the distance, so the potential points at this distance are along the edges going to those nodes
+
+for all: consider rerolling if a point is too close to another (e.g. check distance)
