@@ -29,7 +29,6 @@
 
 #page-log form {
   display: grid;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* the official text client uses these named colors for special things in logs */
