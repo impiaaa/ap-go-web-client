@@ -52,6 +52,14 @@ nav ul {
   -webkit-user-select: none;
   user-select: none;
   list-style: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@supports (-webkit-touch-callout: none) {
+  /* For some reason safe-area-inset-bottom isn't working on my phone */
+  nav ul {
+    padding-bottom: max(34px, env(safe-area-inset-bottom));
+  }
 }
 
 nav ul li {
