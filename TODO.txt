@@ -2,4 +2,3 @@ goals: One Hard Travel
 
 marker icons - checked, locked, question mark or hinted
 speed requirements
-better favicon + app icon

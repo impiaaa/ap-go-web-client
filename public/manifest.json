@@ -1,5 +1,26 @@
 {
+  "background_color": "#000920",
   "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "any",
+      "src": "map-ap-icon-circled.svg",
+      "type": "image/svg"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "any",
+      "src": "map-ap-icon-circled.svg",
+      "type": "image/svg"
+    },
+    {
+      "purpose": "monochrome",
+      "sizes": "any",
+      "src": "map-ap-icon-monochrome.svg",
+      "type": "image/svg"
+    }
+  ],
   "start_url": "index.html#connect",
   "theme_color": "lightsteelblue"
 }
