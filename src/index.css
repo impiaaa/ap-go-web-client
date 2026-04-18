@@ -47,12 +47,12 @@ nav ul {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   padding: 0;
+  padding-bottom: env(safe-area-inset-bottom);
   margin: 0;
   font-size: large;
   -webkit-user-select: none;
   user-select: none;
   list-style: none;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @supports (-webkit-touch-callout: none) {

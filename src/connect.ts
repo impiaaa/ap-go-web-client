@@ -180,7 +180,7 @@ function doLogin(thenShowMap: boolean) {
             );
             const trip_point = trip_points.get(location_name);
             if (trip_point) {
-              points[location_id] = trip_point as [number, number];
+              points[`${location_id}`] = trip_point as [number, number];
               updateMarker(location_id);
             }
           });

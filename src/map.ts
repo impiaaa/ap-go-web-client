@@ -64,7 +64,9 @@ function lateSetUpMap() {
   game_map.on("load", () => {
     for (const marker_name in location_markers) {
       const marker = location_markers[marker_name];
-      marker.addTo(game_map!);
+      if (marker.getLngLat()) {
+        marker.addTo(game_map!);
+      }
     }
     fitMapToPoints(false);
   });
@@ -532,9 +534,11 @@ export function fitMapToPoints(animated: boolean) {
   for (const trip_name in points) {
     bounds.extend(points[trip_name]);
   }
-  game_map.fitBounds(bounds, {
-    animate: animated,
-    // ensure tops and sides of markers are visible
-    padding: { bottom: 0, left: 14, right: 14, top: 36 },
-  });
+  if (!bounds.isEmpty()) {
+    game_map.fitBounds(bounds, {
+      animate: animated,
+      // ensure tops and sides of markers are visible
+      padding: { bottom: 0, left: 14, right: 14, top: 36 },
+    });
+  }
 }

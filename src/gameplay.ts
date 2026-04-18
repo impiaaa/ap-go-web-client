@@ -294,7 +294,7 @@ export function moveGameState(new_state: GameState) {
         window.location.hash = "#connect";
       }
       stopTracking();
-      setPoints([]);
+      setPoints({});
       clearMarkers();
       break;
     case GameState.Connecting:

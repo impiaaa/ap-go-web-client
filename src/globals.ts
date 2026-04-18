@@ -43,8 +43,8 @@ export function setSlotData(new_slot_data: APGoSlotData) {
   slot_data = new_slot_data;
 }
 export const client = new Client();
-export let points: Record<number, maplibregl.LngLatLike> = {};
-export function setPoints(new_points: Record<number, maplibregl.LngLatLike>) {
+export let points: Record<string, maplibregl.LngLatLike> = {};
+export function setPoints(new_points: Record<string, maplibregl.LngLatLike>) {
   points = new_points;
 }
 export const cheat = !!localStorage.getItem("cheat");
