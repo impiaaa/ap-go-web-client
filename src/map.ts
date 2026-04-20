@@ -119,7 +119,7 @@ export function setUpHomeMarker() {
   if (home_marker) {
     home_marker.setLngLat(home);
   } else {
-    home_marker = new maplibregl.Marker({ color: "green" });
+    home_marker = new maplibregl.Marker({ color: "gold" });
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }
@@ -134,21 +134,21 @@ function getItemColor(
 ): string {
   if (key_progression < trip.key_needed) return "gray";
   else if (client.room.checkedLocations.includes(location_id))
-    return "darkgray";
+    return "black";
   else if (item === null)
-    return "lightseagreen"; // available but not scouted or hinted
-  else if (item.progression) return "plum";
-  else if (item.useful) return "slateblue";
-  else if (item.trap && hinted) return "salmon";
+    return "green"; // available but not scouted or hinted
+  else if (item.progression) return "purple";
+  else if (item.useful) return "blue";
+  else if (item.trap && hinted) return "red";
   else if (item.trap) {
     // Don't totally give away that a location is a trap.
     // Instead, choose a random other classification, and alter the color slightly.
     const rng = xoroshiro128plus(item.locationId);
     const n = uniformInt(rng, 0, 13);
-    if (n < 1) return "#ddabdd";
-    else if (n < 4) return "#7364cd";
-    else return "#0dffff";
-  } else return "cyan";
+    if (n < 1) return "#802080";
+    else if (n < 4) return "#4040ff";
+    else return "#34ced1";
+  } else return "darkturquoise";
 }
 
 export function updateMarker(arg: Item | number, hinted: boolean = false) {
