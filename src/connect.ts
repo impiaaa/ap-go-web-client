@@ -32,12 +32,12 @@ const set_home_button = document.getElementById(
 const connect_button = document.getElementById("connect") as HTMLButtonElement;
 const msgbox = document.getElementById("connection-message")!;
 let watch_id = -1;
-let last_disconnect_was_user_initiated = false;
+let last_disconnect_was_intentional = false;
 
 function onSubmit(ev: SubmitEvent) {
   ev.preventDefault();
   if (client.socket.connected) {
-    last_disconnect_was_user_initiated = true;
+    last_disconnect_was_intentional = true;
     client.socket.disconnect();
   } else {
     doLogin(true);
@@ -170,6 +170,7 @@ function doLogin(thenShowMap: boolean) {
         .then((trip_points) => {
           if (trip_points === null) {
             setConnectionError("Error during generation");
+            last_disconnect_was_intentional = true;
             client.socket.disconnect();
             return;
           }
@@ -191,12 +192,14 @@ function doLogin(thenShowMap: boolean) {
         })
         .catch((reason) => {
           setConnectionError(`Error when fetching map data: ${reason}`);
+          last_disconnect_was_intentional = true;
           client.socket.disconnect();
         });
     })
     .catch((reason) => {
       console.error(reason);
       setConnectionError(reason);
+      last_disconnect_was_intentional = true;
       moveGameState(GameState.Disconnected);
     });
 }
@@ -296,11 +299,11 @@ export function setUpConnectPage() {
   }
 
   client.socket.on("disconnected", () => {
-    if (!last_disconnect_was_user_initiated) {
+    if (!last_disconnect_was_intentional) {
       // TODO: attempt to reconnect
       setConnectionError("Disconnected");
     }
-    last_disconnect_was_user_initiated = false;
+    last_disconnect_was_intentional = false;
     moveGameState(GameState.Disconnected);
   });
 
