@@ -14,7 +14,14 @@ import {
   scouted_locations,
   slot_data,
 } from "./globals";
+import icons_caution_svg from "./icons/caution.svg?raw";
+import icons_checkmark_svg from "./icons/checkmark.svg?raw";
+import icons_exclamation_mark_svg from "./icons/exclamation_mark.svg?raw";
+import icons_home_svg from "./icons/home.svg?raw";
+import icons_locked_lock_svg from "./icons/locked_lock.svg?raw";
+import icons_question_mark_svg from "./icons/question_mark.svg?raw";
 import { styleItemElement, stylePlayerElement } from "./log";
+import marker_svg from "./marker.svg?raw";
 import {
   type APGoSlotData,
   GameState,
@@ -22,6 +29,27 @@ import {
   ItemType,
   type Trip,
 } from "./types";
+
+const icon_parser = new DOMParser();
+const marker_svg_doc = icon_parser.parseFromString(marker_svg, "image/svg+xml");
+
+const icons: Record<string, Document> = {
+  caution: icon_parser.parseFromString(icons_caution_svg, "image/svg+xml"),
+  checkmark: icon_parser.parseFromString(icons_checkmark_svg, "image/svg+xml"),
+  exclamation_mark: icon_parser.parseFromString(
+    icons_exclamation_mark_svg,
+    "image/svg+xml",
+  ),
+  home: icon_parser.parseFromString(icons_home_svg, "image/svg+xml"),
+  locked_lock: icon_parser.parseFromString(
+    icons_locked_lock_svg,
+    "image/svg+xml",
+  ),
+  question_mark: icon_parser.parseFromString(
+    icons_question_mark_svg,
+    "image/svg+xml",
+  ),
+};
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
@@ -105,6 +133,34 @@ export function hideMapPage() {
   }
 }
 
+function getMarkerElement(color: string, icon_name: string | null) {
+  const svg_doc = marker_svg_doc.cloneNode(true) as Document;
+  svg_doc.getElementById("background")?.setAttribute("fill", color);
+  const svg_el = svg_doc.firstElementChild!;
+  if (icon_name) {
+    const icon_svg = icons[icon_name].firstElementChild;
+    const icon_path = icon_svg?.firstElementChild?.cloneNode(true) as
+      | Element
+      | undefined;
+    if (icon_path) {
+      icon_path.setAttribute("fill", "#fff");
+      icon_path.setAttribute("transform", "translate(6, 6)");
+      svg_el.appendChild(icon_path);
+    }
+  } else {
+    //<circle fill="#000" opacity="0.25" cx="13.5" cy="13.5" r="5.5"></circle>
+    const icon_circle = svg_doc.createElement("circle");
+    icon_circle.setAttribute("fill", "#fff");
+    icon_circle.setAttribute("cx", "13.5");
+    icon_circle.setAttribute("cy", "13.5");
+    icon_circle.setAttribute("r", "5.5");
+    svg_el.appendChild(icon_circle);
+  }
+  const el = document.createElement("div");
+  el.appendChild(svg_el);
+  return el;
+}
+
 export function setUpHomeMarker() {
   if (!home) {
     return;
@@ -119,36 +175,42 @@ export function setUpHomeMarker() {
   if (home_marker) {
     home_marker.setLngLat(home);
   } else {
-    home_marker = new maplibregl.Marker({ color: "gold" });
+    home_marker = new maplibregl.Marker({
+      element: getMarkerElement("gold", "home"),
+      offset: [0, -14],
+    });
     home_marker.setLngLat(home);
     home_marker.addTo(game_map);
   }
 }
 
-function getItemColor(
+function getItemMarker(
   location_id: number,
   trip: Trip,
   key_progression: number,
   item: Item | null,
   hinted: boolean,
-): string {
-  if (key_progression < trip.key_needed) return "gray";
+): HTMLDivElement {
+  if (key_progression < trip.key_needed)
+    return getMarkerElement("gray", "locked_lock");
   else if (client.room.checkedLocations.includes(location_id))
-    return "black";
+    return getMarkerElement("black", "checkmark");
   else if (item === null)
-    return "green"; // available but not scouted or hinted
-  else if (item.progression) return "purple";
-  else if (item.useful) return "blue";
-  else if (item.trap && hinted) return "red";
+    // available but not scouted or hinted
+    return getMarkerElement("green", "question_mark");
+  else if (item.progression)
+    return getMarkerElement("purple", "exclamation_mark");
+  else if (item.useful) return getMarkerElement("blue", null);
+  else if (item.trap && hinted) return getMarkerElement("red", "caution");
   else if (item.trap) {
     // Don't totally give away that a location is a trap.
     // Instead, choose a random other classification, and alter the color slightly.
     const rng = xoroshiro128plus(item.locationId);
     const n = uniformInt(rng, 0, 13);
-    if (n < 1) return "#802080";
-    else if (n < 4) return "#4040ff";
-    else return "#34ced1";
-  } else return "darkturquoise";
+    if (n < 1) return getMarkerElement("#802080", "exclamation_mark");
+    else if (n < 4) return getMarkerElement("#4040ff", null);
+    else return getMarkerElement("#34ced1", null);
+  } else return getMarkerElement("darkturquoise", null);
 }
 
 export function updateMarker(arg: Item | number, hinted: boolean = false) {
@@ -183,22 +245,24 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
       (hint) => hint.item.locationId === location_id,
     );
   }
-  let point = points[location_id];
-  if (location_markers[location_id]) {
-    if (point === undefined) {
-      point = location_markers[location_id].getLngLat();
-    }
-    location_markers[location_id].remove();
-  }
   const trip = slot_data.trips[location_name];
   if (!trip) {
     throw `Unknown trip ${location_name}`;
   }
   const key_progression = getKeyProgress();
+  let point = points[location_id];
+  const icon = getItemMarker(location_id, trip, key_progression, item, hinted);
+  let marker: maplibregl.Marker;
+  if (location_markers[location_id]) {
+    if (point === undefined) {
+      point = location_markers[location_id].getLngLat();
+    }
+    marker = location_markers[location_id];
+    marker.getElement().replaceWith(icon);
+  } else {
+    marker = new maplibregl.Marker({ element: icon, offset: [0, -14] });
+  }
   const checked = client.room.checkedLocations.includes(location_id);
-  const marker = new maplibregl.Marker({
-    color: getItemColor(location_id, trip, key_progression, item, hinted),
-  });
   if (point !== undefined) {
     marker.setLngLat(point);
   }
