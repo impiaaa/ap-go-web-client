@@ -1,3 +1,4 @@
+import type { GenerateResults } from "@pkgs/gen/gen";
 import { home, slot_data } from "./globals";
 
 const query = `
@@ -84,38 +85,36 @@ export function generate(seed_name: string, slot: number) {
     `${slot_data.maximum_distance},${home[1]},${home[0]}`,
   );
   const req = new XMLHttpRequest();
-  const ret = new Promise<null | Map<string, Array<number>>>(
-    (resolve, reject) => {
-      req.addEventListener("load", () => {
-        if (req.responseText[0] === "{") {
-          const res = JSON.parse(req.responseText);
-          const worker = new Worker(new URL("./worker.ts", import.meta.url));
-          worker.onmessage = (event) => {
-            resolve(event.data);
-          };
-          worker.postMessage({
-            home: home,
-            osm: res,
-            seed_name: seed_name,
-            slot: slot,
-            slot_data: slot_data,
-          });
-        } else {
-          reject(`Overpass error: ${req.responseText}`);
-        }
-      });
-      req.addEventListener("abort", () => {
-        reject("Request aborted");
-      });
-      req.addEventListener("error", () => {
-        reject(
-          req.status === 200
-            ? "Unknown network error"
-            : `HTTP error ${req.status}: ${req.statusText}`,
-        );
-      });
-    },
-  );
+  const ret = new Promise<GenerateResults>((resolve, reject) => {
+    req.addEventListener("load", () => {
+      if (req.responseText[0] === "{") {
+        const res = JSON.parse(req.responseText);
+        const worker = new Worker(new URL("./worker.ts", import.meta.url));
+        worker.onmessage = (event) => {
+          resolve(event.data);
+        };
+        worker.postMessage({
+          home: home,
+          osm: res,
+          seed_name: seed_name,
+          slot: slot,
+          slot_data: slot_data,
+        });
+      } else {
+        reject(`Overpass error: ${req.responseText}`);
+      }
+    });
+    req.addEventListener("abort", () => {
+      reject("Request aborted");
+    });
+    req.addEventListener("error", () => {
+      reject(
+        req.status === 200
+          ? "Unknown network error"
+          : `HTTP error ${req.status}: ${req.statusText}`,
+      );
+    });
+  });
   req.open("POST", overpass_server, true);
   req.send(`data=${encodeURIComponent(my_query)}`);
   return ret;

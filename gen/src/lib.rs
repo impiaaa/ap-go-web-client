@@ -92,7 +92,29 @@ pub enum Goal {
 }
 
 #[wasm_bindgen]
-pub fn generate(params: &GenerateParams) -> JsValue {
+#[derive(Clone)]
+pub struct Internal {
+    pub(crate) points_rtree: Option<RTree<Point>>,
+    pub(crate) segments_rtree: Option<RTree<LineString>>,
+}
+
+#[wasm_bindgen(getter_with_clone)]
+pub struct GenerateResults {
+    pub success: bool,
+    pub trip_points: js_sys::Map<JsValue, js_sys::Array<js_sys::Number>>,
+    pub internal: Internal,
+}
+
+#[wasm_bindgen]
+pub fn generate(params: &GenerateParams) -> GenerateResults {
+    let mut results = GenerateResults {
+        success: false,
+        trip_points: js_sys::Map::new_typed(),
+        internal: Internal {
+            points_rtree: None,
+            segments_rtree: None,
+        },
+    };
     let Ok(seed) = params
         .seed_name()
         .parse::<u128>()
@@ -102,13 +124,13 @@ pub fn generate(params: &GenerateParams) -> JsValue {
         // have different sets of trips
         .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot() as u64))
     else {
-        return JsValue::null();
+        return results;
     };
     let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
     let home: Coord = if params.home().len() == 2 {
         (params.home()[0], params.home()[1]).into()
     } else {
-        return JsValue::null();
+        return results;
     };
     let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
     let geo_mat = ecef_mat.transposed();
@@ -180,7 +202,6 @@ pub fn generate(params: &GenerateParams) -> JsValue {
 
     let segments_tree = RTree::bulk_load(segments);
     let mut points_tree = RTree::<Point>::new();
-    let trip_points: js_sys::Map = js_sys::Map::new();
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
@@ -227,7 +248,7 @@ pub fn generate(params: &GenerateParams) -> JsValue {
 
                 let Some(nearest_segment) = segments_tree.nearest_neighbor(&random_point) else {
                     // empty tree?
-                    return JsValue::null();
+                    return results;
                 };
                 let nearest_point_on_segment = match nearest_segment.closest_point(&random_point) {
                     ::geo::Closest::Indeterminate => continue,
@@ -259,10 +280,11 @@ pub fn generate(params: &GenerateParams) -> JsValue {
                         z: 0.0,
                     };
                     let geo_coord = enu_to_geo(enu_coord, ref_ecef, geo_mat);
-                    let arr = js_sys::Array::new_with_length(2);
-                    arr.set(0, JsValue::from_f64(geo_coord.x));
-                    arr.set(1, JsValue::from_f64(geo_coord.y));
-                    trip_points.set(&trip_name, &arr);
+                    let arr: js_sys::Array<js_sys::Number> =
+                        js_sys::Array::new_with_length_typed(2);
+                    arr.set(0, geo_coord.x.into());
+                    arr.set(1, geo_coord.y.into());
+                    results.trip_points.set(&trip_name, &arr);
                     break;
                 }
                 attempt += 1;
@@ -270,5 +292,9 @@ pub fn generate(params: &GenerateParams) -> JsValue {
         }
     }
 
-    trip_points.into()
+    results.internal.segments_rtree = Some(segments_tree);
+    results.internal.points_rtree = Some(points_tree);
+    results.success = true;
+
+    results
 }

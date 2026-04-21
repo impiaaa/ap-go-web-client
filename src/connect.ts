@@ -167,8 +167,8 @@ function doLogin(thenShowMap: boolean) {
       moveGameState(GameState.Generating);
 
       generate(client.room.seedName, client.players.self.slot)
-        .then((trip_points) => {
-          if (trip_points === null) {
+        .then((generate_results) => {
+          if (!generate_results.success) {
             setConnectionError("Error during generation");
             last_disconnect_was_intentional = true;
             client.socket.disconnect();
@@ -179,7 +179,7 @@ function doLogin(thenShowMap: boolean) {
               client.game,
               location_id,
             );
-            const trip_point = trip_points.get(location_name);
+            const trip_point = generate_results.trip_points.get(location_name);
             if (trip_point) {
               points[`${location_id}`] = trip_point as [number, number];
               updateMarker(location_id);
