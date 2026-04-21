@@ -86,7 +86,8 @@ nav li a {
 }
 
 @media (prefers-color-scheme: dark) {
-  nav li a, nav li a:visited {
+  nav li a,
+  nav li a:visited {
     color: white;
     background-color: #031736;
   }
@@ -97,7 +98,8 @@ nav li a {
 }
 
 @media (prefers-color-scheme: light) {
-  nav li a, nav li a:visited {
+  nav li a,
+  nav li a:visited {
     color: black;
     background-color: #c9ddfc;
   }
