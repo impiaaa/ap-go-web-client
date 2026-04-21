@@ -1,3 +1,8 @@
+section#page-connect {
+  display: flex;
+  flex-direction: column;
+}
+
 .gridform {
   display: grid;
   gap: 5px;
@@ -36,4 +41,13 @@ button.invalid {
   .crosshair {
     background-color: black;
   }
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.license {
+  font-size: small;
+  text-align: right;
 }

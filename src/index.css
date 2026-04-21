@@ -36,6 +36,18 @@ body {
   margin: 0;
 }
 
+a {
+  color: #3390ff;
+}
+
+a:visited {
+  color: #2465b3;
+}
+
+*:disabled {
+  color: gray;
+}
+
 @media (pointer: coarse) {
   input,
   button {
@@ -74,7 +86,7 @@ nav li a {
 }
 
 @media (prefers-color-scheme: dark) {
-  nav li a {
+  nav li a, nav li a:visited {
     color: white;
     background-color: #031736;
   }
@@ -85,7 +97,7 @@ nav li a {
 }
 
 @media (prefers-color-scheme: light) {
-  nav li a {
+  nav li a, nav li a:visited {
     color: black;
     background-color: #c9ddfc;
   }
