@@ -20,6 +20,7 @@ import icons_exclamation_mark_svg from "./icons/exclamation_mark.svg?raw";
 import icons_home_svg from "./icons/home.svg?raw";
 import icons_locked_lock_svg from "./icons/locked_lock.svg?raw";
 import icons_question_mark_svg from "./icons/question_mark.svg?raw";
+import icons_star_svg from "./icons/star.svg?raw";
 import { styleItemElement, stylePlayerElement } from "./log";
 import marker_svg from "./marker.svg?raw";
 import {
@@ -49,6 +50,7 @@ const icons: Record<string, Document> = {
     icons_question_mark_svg,
     "image/svg+xml",
   ),
+  star: icon_parser.parseFromString(icons_star_svg, "image/svg+xml"),
 };
 
 export let game_map: maplibregl.Map | null = null;
@@ -196,18 +198,18 @@ function getItemMarker(
   else if (item === null)
     // available but not scouted or hinted
     return getMarkerElement("green", "question_mark");
-  else if (item.progression)
-    return getMarkerElement("purple", "exclamation_mark");
-  else if (item.useful) return getMarkerElement("blue", null);
+  else if (item.progression) return getMarkerElement("purple", "star");
+  else if (item.useful) return getMarkerElement("blue", "exclamation_mark");
   else if (item.trap && hinted) return getMarkerElement("crimson", "caution");
   else if (item.trap) {
     // Don't totally give away that a location is a trap.
     // Instead, choose a random other classification, and alter the color slightly.
     const rng = xoroshiro128plus(item.locationId);
     const n = uniformInt(rng, 0, 13);
-    if (n < 1) return getMarkerElement("#802080", "exclamation_mark", true);
-    else if (n < 4) return getMarkerElement("#4040ff", null);
-    else return getMarkerElement("#34ced1", null);
+    if (n < 1) return getMarkerElement("#802080", "star", true);
+    else if (n < 4)
+      return getMarkerElement("#4040ff", "exclamation_mark", true);
+    else return getMarkerElement("#34ced1", null, true);
   } else return getMarkerElement("darkturquoise", null);
 }
 
