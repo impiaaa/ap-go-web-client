@@ -1,2 +1,5 @@
 Original Archipelago imagery © 2022 by Krista Corkos and Christopher Wilson is licensed under Attribution-NonCommercial 4.0 International. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc/4.0/
 Earth, map, and pins icons © Fonticons, Inc. are licensed under Attribution 4.0 International. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/
+lawn, tree_and_bench, water_bottle, bicycle_rental, lock, and kerb-unspecified are from Temaki, and is CC0
+caution, home are from Maki and are CC0
+checkmark and star are from Pinhead Map Icons and are public domain
