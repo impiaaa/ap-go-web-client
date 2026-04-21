@@ -252,16 +252,13 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
   const key_progression = getKeyProgress();
   let point = points[location_id];
   const icon = getItemMarker(location_id, trip, key_progression, item, hinted);
-  let marker: maplibregl.Marker;
   if (location_markers[location_id]) {
     if (point === undefined) {
       point = location_markers[location_id].getLngLat();
     }
-    marker = location_markers[location_id];
-    marker.getElement().replaceWith(icon);
-  } else {
-    marker = new maplibregl.Marker({ element: icon, offset: [0, -14] });
+    location_markers[location_id].remove();
   }
+  const marker = new maplibregl.Marker({ element: icon, offset: [0, -14] });
   const checked = client.room.checkedLocations.includes(location_id);
   if (point !== undefined) {
     marker.setLngLat(point);
@@ -292,7 +289,31 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
       styleItemElement(item_el, item);
       popup.appendChild(item_el);
     }
-    marker.setPopup(new maplibregl.Popup().setDOMContent(popup));
+    const markerHeight = 41 - 5.8 / 2;
+    const markerRadius = 13.5;
+    const linearOffset = Math.abs(markerRadius) / Math.SQRT2;
+    const offset: maplibregl.Offset = {
+      bottom: [0, -markerHeight],
+      "bottom-left": [
+        linearOffset,
+        (markerHeight - markerRadius + linearOffset) * -1,
+      ],
+      "bottom-right": [
+        -linearOffset,
+        (markerHeight - markerRadius + linearOffset) * -1,
+      ],
+      center: [0, 0],
+      left: [markerRadius, (markerHeight - markerRadius) * -1],
+      right: [-markerRadius, (markerHeight - markerRadius) * -1],
+      top: [0, 0],
+      "top-left": [0, 0],
+      "top-right": [0, 0],
+    };
+    marker.setPopup(
+      new maplibregl.Popup({
+        offset: offset,
+      }).setDOMContent(popup),
+    );
   }
   if (game_map && point) {
     marker.addTo(game_map);
