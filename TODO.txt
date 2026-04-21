@@ -1,5 +1,4 @@
 goals: One Hard Travel
 
-marker icons - checked, locked, question mark or hinted
 speed requirements
 for debugging, redirect console.log etc to AP log window
