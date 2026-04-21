@@ -1,3 +1,4 @@
+import type { Internal } from "@pkgs/gen/gen";
 import { Client, type NetworkItem } from "archipelago.js";
 import { type APGoSlotData, GameState, ItemType } from "./types";
 
@@ -43,18 +44,17 @@ export function setSlotData(new_slot_data: APGoSlotData) {
   slot_data = new_slot_data;
 }
 export const client = new Client();
-export let points: Record<string, maplibregl.LngLatLike> = {};
-export function setPoints(new_points: Record<string, maplibregl.LngLatLike>) {
+export let points = new Map<number, [number, number]>();
+export function setPoints(new_points: Map<number, [number, number]>) {
   points = new_points;
 }
 export const cheat = !!localStorage.getItem("cheat");
-export let scouted_locations: Record<number, NetworkItem> = {};
-export function setScoutedLocations(
-  new_locations: Record<number, NetworkItem>,
-) {
-  scouted_locations = new_locations;
-}
+export const scouted_locations = new Map<number, NetworkItem>();
 export let game_state: GameState = GameState.Disconnected;
 export function setGameState(new_state: GameState) {
   game_state = new_state;
+}
+export let generator_internal: Internal | null = null;
+export function setGeneratorInternal(new_data: Internal) {
+  generator_internal = new_data;
 }

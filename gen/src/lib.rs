@@ -1,5 +1,6 @@
 use ::geo::{ClosestPoint, Coord, LineString, Point};
 use rand::{Rng, SeedableRng};
+use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, HashSet};
 use std::panic;
@@ -8,7 +9,7 @@ use web_sys::{console, js_sys};
 mod geo;
 use geo::{enu_to_geo, geo_ref_ecef_mat, geo_to_enu};
 
-use crate::geo::Coord3d;
+use crate::geo::{AffineTransform3d, Coord3d};
 
 const DISTANCE_LENIENCY: f64 = 0.1;
 const COLLECTION_DISTANCE_BASE: f64 = 20.0;
@@ -60,6 +61,8 @@ extern "C" {
     pub fn slot(this: &GenerateParams) -> f64;
     #[wasm_bindgen(structural, method, getter)]
     pub fn slot_data(this: &GenerateParams) -> APGoSlotData;
+    #[wasm_bindgen(structural, method, getter)]
+    pub fn locations(this: &GenerateParams) -> js_sys::Map<js_sys::Number, js_sys::JsString>;
 
     pub type APGoSlotData;
     #[wasm_bindgen(method, getter)]
@@ -94,14 +97,16 @@ pub enum Goal {
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct Internal {
-    pub(crate) points_rtree: Option<RTree<Point>>,
+    pub(crate) points_rtree: Option<RTree<GeomWithData<Point, i64>>>,
     pub(crate) segments_rtree: Option<RTree<LineString>>,
+    pub(crate) ref_ecef: Option<Coord3d>,
+    pub(crate) ecef_mat: Option<AffineTransform3d>,
 }
 
 #[wasm_bindgen(getter_with_clone)]
 pub struct GenerateResults {
     pub success: bool,
-    pub trip_points: js_sys::Map<JsValue, js_sys::Array<js_sys::Number>>,
+    pub trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>,
     pub internal: Internal,
 }
 
@@ -113,6 +118,8 @@ pub fn generate(params: &GenerateParams) -> GenerateResults {
         internal: Internal {
             points_rtree: None,
             segments_rtree: None,
+            ref_ecef: None,
+            ecef_mat: None,
         },
     };
     let Ok(seed) = params
@@ -201,100 +208,178 @@ pub fn generate(params: &GenerateParams) -> GenerateResults {
     }
 
     let segments_tree = RTree::bulk_load(segments);
-    let mut points_tree = RTree::<Point>::new();
+    let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
         min_dist = params.slot_data().maximum_distance() * (1.0 - DISTANCE_LENIENCY);
     }
 
-    if let Ok(trip_names) = js_sys::Reflect::own_keys(&params.slot_data().trips()) {
-        for trip_name in trip_names {
-            let trip: Trip = js_sys::Reflect::get(&params.slot_data().trips(), &trip_name)
-                .unwrap()
-                .unchecked_into();
+    params.locations().for_each(&mut |trip_name, location_id| {
+        let trip: Trip = js_sys::Reflect::get(&params.slot_data().trips(), &trip_name)
+            .unwrap()
+            .unchecked_into();
 
-            let mut max_dist =
-                (params.slot_data().maximum_distance() / 10.0) * trip.distance_tier();
-            if max_dist < params.slot_data().minimum_distance() {
-                max_dist = params.slot_data().minimum_distance() * (1.0 + DISTANCE_LENIENCY);
-            }
-
-            let mut attempt = 1;
-            const MAX_ATTEMPTS: i32 = 256;
-            loop {
-                console::log_1(
-                    &format!(
-                        "Attempt {attempt}: Generating random point with radius between {min_dist} and {max_dist}"
-                    )
-                    .into(),
-                );
-
-                let r = (max_dist - min_dist) * rng.r#gen::<f64>().sqrt() + min_dist;
-                let theta = rng.r#gen::<f64>() * std::f64::consts::TAU;
-                let (st, ct) = theta.sin_cos();
-                let random_point = ::geo::Point::new(r * ct, r * st);
-                console::log_1(&format!("Random point is {random_point:?}").into());
-
-                // Don't generate points too close to each other, but at a lower priority than
-                // checking for nearby segments
-                if attempt < MAX_ATTEMPTS / 2
-                    && let Some(nearest_other_point) = points_tree.nearest_neighbor(&random_point)
-                    && random_point.distance_2(nearest_other_point)
-                        < GENERATED_DISTANCE_THRESHOLD_SQ
-                {
-                    continue;
-                }
-
-                let Some(nearest_segment) = segments_tree.nearest_neighbor(&random_point) else {
-                    // empty tree?
-                    return results;
-                };
-                let nearest_point_on_segment = match nearest_segment.closest_point(&random_point) {
-                    ::geo::Closest::Indeterminate => continue,
-                    ::geo::Closest::Intersection(point) => point,
-                    ::geo::Closest::SinglePoint(point) => point,
-                };
-                let distance_to_nearest_point_sq =
-                    random_point.distance_2(&nearest_point_on_segment);
-                if distance_to_nearest_point_sq < GENERATED_DISTANCE_THRESHOLD_SQ
-                    || attempt >= MAX_ATTEMPTS
-                {
-                    let selected_point = if attempt < MAX_ATTEMPTS {
-                        random_point
-                    } else {
-                        console::log_1(
-                            &format!("Out of attempts, snapping to {nearest_point_on_segment:?}")
-                                .into(),
-                        );
-                        nearest_point_on_segment
-                    };
-                    points_tree.insert(selected_point);
-                    // TODO: Route from here to home:
-                    // - Snap home point to network, include that distance in route length
-                    // - Reroll if point isn't routable or if route is shorter than min_dist
-                    // - Trim route to selected distance, use that new end point
-                    let enu_coord = Coord3d {
-                        x: selected_point.x(),
-                        y: selected_point.y(),
-                        z: 0.0,
-                    };
-                    let geo_coord = enu_to_geo(enu_coord, ref_ecef, geo_mat);
-                    let arr: js_sys::Array<js_sys::Number> =
-                        js_sys::Array::new_with_length_typed(2);
-                    arr.set(0, geo_coord.x.into());
-                    arr.set(1, geo_coord.y.into());
-                    results.trip_points.set(&trip_name, &arr);
-                    break;
-                }
-                attempt += 1;
-            }
+        let mut max_dist =
+            (params.slot_data().maximum_distance() / 10.0) * trip.distance_tier();
+        if max_dist < params.slot_data().minimum_distance() {
+            max_dist = params.slot_data().minimum_distance() * (1.0 + DISTANCE_LENIENCY);
         }
-    }
+
+        let mut attempt = 1;
+        const MAX_ATTEMPTS: i32 = 256;
+        loop {
+            console::log_1(
+                &format!(
+                    "Attempt {attempt}: Generating random point with radius between {min_dist} and {max_dist}"
+                )
+                .into(),
+            );
+
+            let r = (max_dist - min_dist) * rng.r#gen::<f64>().sqrt() + min_dist;
+            let theta = rng.r#gen::<f64>() * std::f64::consts::TAU;
+            let (st, ct) = theta.sin_cos();
+            let random_point = ::geo::Point::new(r * ct, r * st);
+            console::log_1(&format!("Random point is {random_point:?}").into());
+
+            // Don't generate points too close to each other, but at a lower priority than
+            // checking for nearby segments
+            if attempt < MAX_ATTEMPTS / 2
+                && let Some(nearest_other_point) = points_tree.nearest_neighbor(&random_point)
+                && random_point.distance_2(nearest_other_point.geom())
+                    < GENERATED_DISTANCE_THRESHOLD_SQ
+            {
+                continue;
+            }
+
+            let Some(nearest_segment) = segments_tree.nearest_neighbor(&random_point) else {
+                // empty tree?
+                return;
+            };
+            let nearest_point_on_segment = match nearest_segment.closest_point(&random_point) {
+                ::geo::Closest::Indeterminate => continue,
+                ::geo::Closest::Intersection(point) => point,
+                ::geo::Closest::SinglePoint(point) => point,
+            };
+            let distance_to_nearest_point_sq =
+                random_point.distance_2(&nearest_point_on_segment);
+            if distance_to_nearest_point_sq < GENERATED_DISTANCE_THRESHOLD_SQ
+                || attempt >= MAX_ATTEMPTS
+            {
+                let selected_point = if attempt < MAX_ATTEMPTS {
+                    random_point
+                } else {
+                    console::log_1(
+                        &format!("Out of attempts, snapping to {nearest_point_on_segment:?}")
+                            .into(),
+                    );
+                    nearest_point_on_segment
+                };
+                points_tree.insert(GeomWithData::new(
+                    selected_point,
+                    location_id.as_f64().unwrap() as i64,
+                ));
+                // TODO: Route from here to home:
+                // - Snap home point to network, include that distance in route length
+                // - Reroll if point isn't routable or if route is shorter than min_dist
+                // - Trim route to selected distance, use that new end point
+                let enu_coord = Coord3d {
+                    x: selected_point.x(),
+                    y: selected_point.y(),
+                    z: 0.0,
+                };
+                let geo_coord = enu_to_geo(enu_coord, ref_ecef, geo_mat);
+                let arr: js_sys::Array<js_sys::Number> =
+                    js_sys::Array::new_with_length_typed(2);
+                arr.set(0, geo_coord.x.into());
+                arr.set(1, geo_coord.y.into());
+                results.trip_points.set(&location_id, &arr);
+                break;
+            }
+            attempt += 1;
+        }
+    });
 
     results.internal.segments_rtree = Some(segments_tree);
     results.internal.points_rtree = Some(points_tree);
     results.success = true;
 
     results
+}
+
+#[wasm_bindgen]
+pub fn set_up_with_saved_points(
+    home_vec: Vec<f64>,
+    points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>,
+) -> Internal {
+    let home: Coord = (home_vec[0], home_vec[1]).into();
+    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
+
+    let points_tree = RTree::<GeomWithData<Point, i64>>::bulk_load(
+        points
+            .keys()
+            .into_iter()
+            .flatten()
+            .map(|location_id| {
+                let v = points.get(&location_id);
+                let enu_coord = geo_to_enu(
+                    (v.get(0).as_f64().unwrap(), v.get(1).as_f64().unwrap()).into(),
+                    ref_ecef,
+                    ecef_mat,
+                );
+                GeomWithData::new(
+                    (enu_coord.x, enu_coord.y).into(),
+                    location_id.as_f64().unwrap() as i64,
+                )
+            })
+            .collect(),
+    );
+
+    Internal {
+        points_rtree: Some(points_tree),
+        segments_rtree: None,
+        ref_ecef: Some(ref_ecef),
+        ecef_mat: Some(ecef_mat),
+    }
+}
+
+fn _points_in_radius(
+    internal: &Internal,
+    point_arr: js_sys::Array<js_sys::Number>,
+    distance: f64,
+) -> Result<Vec<i64>, ()> {
+    let coord_geo: Coord = (
+        point_arr.get(0).as_f64().ok_or(())?,
+        point_arr.get(1).as_f64().ok_or(())?,
+    )
+        .into();
+    let coord_enu = geo_to_enu(
+        coord_geo,
+        internal.ref_ecef.ok_or(())?,
+        internal.ecef_mat.ok_or(())?,
+    );
+    let point_enu: Point = (coord_enu.x, coord_enu.y).into();
+    if let Some(points_tree) = &internal.points_rtree {
+        Ok(points_tree
+            .locate_within_distance(point_enu, distance * distance)
+            .map(|p| p.data)
+            .collect())
+    } else {
+        Err(())
+    }
+}
+
+#[wasm_bindgen]
+pub fn points_in_radius(
+    internal: &Internal,
+    point_arr: js_sys::Array<js_sys::Number>,
+    distance: f64,
+) -> JsValue {
+    if let Ok(res) = _points_in_radius(internal, point_arr, distance) {
+        let ret: js_sys::Array<JsValue> =
+            res.iter().map(|i| JsValue::from_f64(*i as f64)).collect();
+        ret.into()
+    } else {
+        JsValue::null()
+    }
 }

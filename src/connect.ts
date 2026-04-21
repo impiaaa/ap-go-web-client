@@ -1,3 +1,4 @@
+import init from "@pkgs/gen";
 import maplibregl, { LngLat } from "maplibre-gl";
 import { checkLocations, moveGameState, saveGame } from "./gameplay";
 import { generate } from "./generate";
@@ -11,9 +12,10 @@ import {
   PREFS_KEY,
   points,
   SAVED_GAME_KEY,
+  scouted_locations,
+  setGeneratorInternal,
   setHome,
   setPoints,
-  setScoutedLocations,
   setSlotData,
 } from "./globals";
 import { addMessages } from "./log";
@@ -138,12 +140,18 @@ function doLogin(thenShowMap: boolean) {
       };
 
       const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
-      setScoutedLocations({});
+      scouted_locations.clear();
       if (saved_game_json) {
         const saved_game = JSON.parse(saved_game_json);
         if (saved_game && saved_game.seed === client.room.seedName) {
           if (saved_game.scouted_locations) {
-            setScoutedLocations(saved_game.scouted_locations);
+            scouted_locations.clear();
+            for (const location_id_str in saved_game.scouted_locations) {
+              scouted_locations.set(
+                parseInt(location_id_str, 10),
+                saved_game.scouted_locations[location_id_str],
+              );
+            }
           }
           if (
             saved_game.points &&
@@ -154,10 +162,16 @@ function doLogin(thenShowMap: boolean) {
             LngLat.convert(saved_game.home).distanceTo(LngLat.convert(home)) <
               COLLECTION_DISTANCE_BASE
           ) {
-            setPoints(saved_game.points);
-            for (const location_id in points) {
-              updateMarker(parseInt(location_id, 10));
+            points.clear();
+            for (const location_id_str in saved_game.points) {
+              points.set(
+                parseInt(location_id_str, 10),
+                saved_game.points[location_id_str],
+              );
             }
+            points.forEach((_, location_id) => {
+              updateMarker(location_id);
+            });
             doneGenerating();
             return;
           }
@@ -174,17 +188,11 @@ function doLogin(thenShowMap: boolean) {
             client.socket.disconnect();
             return;
           }
+          setPoints(generate_results.trip_points);
           client.room.allLocations.forEach((location_id) => {
-            const location_name = client.package.lookupLocationName(
-              client.game,
-              location_id,
-            );
-            const trip_point = generate_results.trip_points.get(location_name);
-            if (trip_point) {
-              points[`${location_id}`] = trip_point as [number, number];
-              updateMarker(location_id);
-            }
+            updateMarker(location_id);
           });
+          setGeneratorInternal(generate_results.internal);
 
           saveGame();
 
@@ -285,6 +293,7 @@ function setUpSetHomeMap() {
 set_home_button.addEventListener("click", setUpSetHomeMap);
 
 export function setUpConnectPage() {
+  init();
   setConnectText(true);
   setup_form.addEventListener("submit", onSubmit);
   set_home_button.addEventListener("click", () => {

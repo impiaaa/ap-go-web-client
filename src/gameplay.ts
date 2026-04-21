@@ -1,5 +1,6 @@
+import { points_in_radius, set_up_with_saved_points } from "@pkgs/gen/gen";
 import { clientStatuses, type Item } from "archipelago.js";
-import { LngLat } from "maplibre-gl";
+import type { LngLat } from "maplibre-gl";
 import {
   setConnectDisabled,
   setConnectionMessage,
@@ -12,6 +13,7 @@ import {
   COLLECTION_DISTANCE_INCREMENT,
   client,
   game_state,
+  generator_internal,
   home,
   LONG_MACGUFFIN_ITEMS,
   points,
@@ -21,7 +23,7 @@ import {
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   setGameState,
-  setPoints,
+  setGeneratorInternal,
   slot_data,
 } from "./globals";
 import { clearMarkers, showMapPage, updateMarker } from "./map";
@@ -61,50 +63,64 @@ function checkLastKnownLocation() {
 }
 
 export function checkLocations(coords: LngLat) {
+  if (!home) {
+    return;
+  }
   last_known_location = coords;
   const scoutingDistance = getScoutingDistance();
   const collectionDistance = getCollectionDistance();
   const key_progression = getKeyProgress();
-  const scouts: number[] = [];
-  const checks: number[] = [];
 
-  // TODO: consider using an acceleration structure (rust rtree?)
-  for (const location_id_str in points) {
-    const location_id = parseInt(location_id_str, 10);
-    const point = points[location_id];
-    const dist = LngLat.convert(point).distanceTo(coords);
-    if (dist < scoutingDistance && !scouted_locations[location_id]) {
-      scouts.push(location_id);
-    }
-    if (dist < collectionDistance) {
-      const location_name = client.package.lookupLocationName(
-        client.game,
-        location_id,
-      );
-      const trip = slot_data?.trips[location_name];
-      const checked = client.room.checkedLocations.includes(location_id);
-      if (!checked && trip && key_progression >= trip.key_needed) {
-        checks.push(location_id);
-      }
-    }
+  if (!generator_internal) {
+    setGeneratorInternal(
+      set_up_with_saved_points(new Float64Array(home), points),
+    );
   }
 
-  if (scouts.length > 0) {
+  let scouts: undefined | null | Array<number> = points_in_radius(
+    generator_internal!,
+    coords.toArray(),
+    scoutingDistance,
+  );
+  if (scouts === null) {
+    console.error("Error getting scouting locations");
+  }
+  scouts = scouts?.filter((location_id) => !scouted_locations.has(location_id));
+
+  let checks: undefined | null | Array<number> = points_in_radius(
+    generator_internal!,
+    coords.toArray(),
+    collectionDistance,
+  );
+  if (checks === null) {
+    console.error("Error getting check locations");
+  }
+  checks = checks?.filter((location_id) => {
+    const location_name = client.package.lookupLocationName(
+      client.game,
+      location_id,
+    );
+    const trip = slot_data?.trips[location_name];
+    const checked = client.room.checkedLocations.includes(location_id);
+    return !checked && trip && key_progression >= trip.key_needed;
+  });
+
+  if (scouts && scouts.length > 0) {
     console.log("Scouting locations:", scouts);
     client.scout(scouts).then((items) => {
       items.forEach((item) => {
-        scouted_locations[item.locationId] = {
+        scouted_locations.set(item.locationId, {
           flags: item.flags,
           item: item.id,
           location: item.locationId,
           player: item.receiver.slot,
-        };
+        });
         updateMarker(item);
       });
       saveGame();
     });
   }
-  if (checks.length > 0) {
+  if (checks && checks.length > 0) {
     console.log("Checking locations:", checks);
     client.check(...checks);
 
@@ -122,8 +138,8 @@ export function saveGame() {
     SAVED_GAME_KEY,
     JSON.stringify({
       home: home,
-      points: points,
-      scouted_locations: scouted_locations,
+      points: Object.fromEntries(points),
+      scouted_locations: Object.fromEntries(scouted_locations),
       seed: client.room.seedName,
     }),
   );
@@ -294,7 +310,7 @@ export function moveGameState(new_state: GameState) {
         window.location.hash = "#connect";
       }
       stopTracking();
-      setPoints({});
+      points.clear();
       clearMarkers();
       break;
     case GameState.Connecting:

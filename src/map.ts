@@ -55,15 +55,14 @@ const icons: Record<string, Document> = {
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
-export let location_markers: Record<number, maplibregl.Marker> = {};
+export const location_markers = new Map<number, maplibregl.Marker>();
 let wake_lock: WakeLockSentinel | null = null;
 
 export function clearMarkers() {
-  for (const marker_name in location_markers) {
-    const marker = location_markers[marker_name];
+  location_markers.forEach((marker) => {
     marker.remove();
-  }
-  location_markers = {};
+  });
+  location_markers.clear();
 }
 
 export function createMap(container: string) {
@@ -92,12 +91,11 @@ function lateSetUpMap() {
   game_map.addControl(new FitMapToPointsControl());
 
   game_map.on("load", () => {
-    for (const marker_name in location_markers) {
-      const marker = location_markers[marker_name];
+    location_markers.forEach((marker) => {
       if (marker.getLngLat()) {
         marker.addTo(game_map!);
       }
-    }
+    });
     fitMapToPoints(false);
   });
 }
@@ -226,12 +224,13 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     location_id = item.locationId;
   } else if (typeof arg === "number") {
     location_id = arg;
-    if (scouted_locations[location_id]) {
+    const scouted_location = scouted_locations.get(location_id);
+    if (scouted_location) {
       item = new Item(
         client,
-        scouted_locations[location_id],
+        scouted_location,
         client.players.self,
-        client.players.findPlayer(scouted_locations[location_id].player)!,
+        client.players.findPlayer(scouted_location.player)!,
       );
     } else {
       item = null;
@@ -250,13 +249,14 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     throw `Unknown trip ${location_name}`;
   }
   const key_progression = getKeyProgress();
-  let point = points[location_id];
+  let point = points.get(location_id);
   const icon = getItemMarker(location_id, trip, key_progression, item, hinted);
-  if (location_markers[location_id]) {
+  const existing_marker = location_markers.get(location_id);
+  if (existing_marker) {
     if (point === undefined) {
-      point = location_markers[location_id].getLngLat();
+      point = existing_marker.getLngLat().toArray();
     }
-    location_markers[location_id].remove();
+    existing_marker.remove();
   }
   const marker = new maplibregl.Marker({ element: icon, offset: [0, -14] });
   const checked = client.room.checkedLocations.includes(location_id);
@@ -318,7 +318,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
   if (game_map && point) {
     marker.addTo(game_map);
   }
-  location_markers[location_id] = marker;
+  location_markers.set(location_id, marker);
 }
 
 // Source - https://stackoverflow.com/a/2450976
@@ -546,9 +546,13 @@ class MyGeolocateControl extends maplibregl.GeolocateControl {
       });
       this._userLocationDotMarker.setDraggable(true);
       this._userLocationDotMarker.on("dragend", () => {
-        checkLocations(this._userLocationDotMarker.getLngLat());
+        if (game_state === GameState.ReadyNotTracking) {
+          moveGameState(GameState.Tracking);
+        }
+        if (game_state === GameState.Tracking) {
+          checkLocations(this._userLocationDotMarker.getLngLat());
+        }
       });
-      moveGameState(GameState.Tracking);
     }
   }
   trigger(): boolean {
@@ -616,9 +620,9 @@ export function fitMapToPoints(animated: boolean) {
     return;
   }
   const bounds = new maplibregl.LngLatBounds();
-  for (const trip_name in points) {
-    bounds.extend(points[trip_name]);
-  }
+  points.forEach((point) => {
+    bounds.extend(point);
+  });
   if (!bounds.isEmpty()) {
     game_map.fitBounds(bounds, {
       animate: animated,

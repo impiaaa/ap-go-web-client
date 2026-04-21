@@ -34,3 +34,18 @@
   height: 24px;
   margin: 5px;
 }
+
+/* override text colors in popups since popups always have a light background */
+/* copied from light scheme in log.css */
+.maplibregl-popup .player {
+  color: darkgoldenrod;
+}
+.maplibregl-popup .player.self {
+  color: mediumorchid;
+}
+.maplibregl-popup .item {
+  color: darkturquoise;
+}
+.maplibregl-popup .item.progression {
+  color: #391899;
+}
