@@ -3,9 +3,12 @@ import { client } from "./globals";
 import { styleItemElement, stylePlayerElement } from "./log";
 import { updateMarker } from "./map";
 
-const hint_table = document.getElementById("hint-table")!;
+const hint_table = document
+  .getElementById("hint-table")!
+  .getElementsByTagName("tbody")[0];
 function addHint(hint: Hint) {
   const row = document.createElement("tr");
+  row.setAttribute("id", `${hint.item.sender.slot}-${hint.item.locationId}`);
 
   const receiver = document.createElement("td");
   receiver.classList.add("player");
@@ -36,6 +39,7 @@ function addHint(hint: Hint) {
   row.appendChild(entrance);
 
   const status = document.createElement("td");
+  status.setAttribute("class", "hint-status");
   status.appendChild(document.createTextNode(hint.found ? "✓" : "✗"));
   row.appendChild(status);
 
@@ -49,8 +53,18 @@ function addHint(hint: Hint) {
 export function setUpHintsPage() {
   client.items.on("hintsInitialized", (hints) => hints.forEach(addHint));
   client.items.on("hintReceived", addHint);
-  // TODO: hintFound. how to find the right row?
+  client.items.on("hintFound", (hint) => {
+    const status = document
+      .evaluate(
+        `tr[@id="${hint.item.sender.slot}-${hint.item.locationId}"]/td[@class="hint-status"]`,
+        hint_table,
+      )
+      .iterateNext() as HTMLElement | null;
+    if (status) {
+      status.innerText = "✓";
+    }
+  });
   client.socket.on("disconnected", () => {
-    hint_table.getElementsByTagName("tbody")[0].replaceChildren();
+    hint_table.replaceChildren();
   });
 }
