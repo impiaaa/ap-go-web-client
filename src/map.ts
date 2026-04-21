@@ -133,10 +133,13 @@ export function hideMapPage() {
   }
 }
 
-function getMarkerElement(color: string, icon_name: string | null) {
+function getMarkerElement(
+  color: string,
+  icon_name: string | null,
+  trap: boolean = false,
+) {
   const svg_doc = marker_svg_doc.cloneNode(true) as Document;
   svg_doc.getElementById("background")?.setAttribute("fill", color);
-  const svg_el = svg_doc.firstElementChild!;
   if (icon_name) {
     const icon_svg = icons[icon_name].firstElementChild;
     const icon_path = icon_svg?.firstElementChild?.cloneNode(true) as
@@ -144,20 +147,15 @@ function getMarkerElement(color: string, icon_name: string | null) {
       | undefined;
     if (icon_path) {
       icon_path.setAttribute("fill", "#fff");
-      icon_path.setAttribute("transform", "translate(6, 6)");
-      svg_el.appendChild(icon_path);
+      icon_path.setAttribute(
+        "transform",
+        `translate(6, 6) ${trap ? "rotate(180, 7.5, 7.5)" : ""}`,
+      );
+      svg_doc.getElementById("icon")?.replaceWith(icon_path);
     }
-  } else {
-    //<circle fill="#000" opacity="0.25" cx="13.5" cy="13.5" r="5.5"></circle>
-    const icon_circle = svg_doc.createElement("circle");
-    icon_circle.setAttribute("fill", "#fff");
-    icon_circle.setAttribute("cx", "13.5");
-    icon_circle.setAttribute("cy", "13.5");
-    icon_circle.setAttribute("r", "5.5");
-    svg_el.appendChild(icon_circle);
   }
   const el = document.createElement("div");
-  el.appendChild(svg_el);
+  el.appendChild(svg_doc.firstElementChild!);
   return el;
 }
 
@@ -176,7 +174,7 @@ export function setUpHomeMarker() {
     home_marker.setLngLat(home);
   } else {
     home_marker = new maplibregl.Marker({
-      element: getMarkerElement("gold", "home"),
+      element: getMarkerElement("goldenrod", "home"),
       offset: [0, -14],
     });
     home_marker.setLngLat(home);
@@ -201,13 +199,13 @@ function getItemMarker(
   else if (item.progression)
     return getMarkerElement("purple", "exclamation_mark");
   else if (item.useful) return getMarkerElement("blue", null);
-  else if (item.trap && hinted) return getMarkerElement("red", "caution");
+  else if (item.trap && hinted) return getMarkerElement("crimson", "caution");
   else if (item.trap) {
     // Don't totally give away that a location is a trap.
     // Instead, choose a random other classification, and alter the color slightly.
     const rng = xoroshiro128plus(item.locationId);
     const n = uniformInt(rng, 0, 13);
-    if (n < 1) return getMarkerElement("#802080", "exclamation_mark");
+    if (n < 1) return getMarkerElement("#802080", "exclamation_mark", true);
     else if (n < 4) return getMarkerElement("#4040ff", null);
     else return getMarkerElement("#34ced1", null);
   } else return getMarkerElement("darkturquoise", null);
