@@ -1,5 +1,4 @@
-import type { GenerateResults } from "@pkgs/gen/gen";
-import { home, slot_data } from "./globals";
+import { client, home, slot_data } from "./globals";
 
 const query = `
 [out:json][timeout:180];
@@ -85,7 +84,7 @@ export function generate(seed_name: string, slot: number) {
     `${slot_data.maximum_distance},${home[1]},${home[0]}`,
   );
   const req = new XMLHttpRequest();
-  const ret = new Promise<GenerateResults>((resolve, reject) => {
+  const ret = new Promise<Map<number, Array<number>>>((resolve, reject) => {
     req.addEventListener("load", () => {
       if (req.responseText[0] === "{") {
         const res = JSON.parse(req.responseText);
@@ -95,6 +94,12 @@ export function generate(seed_name: string, slot: number) {
         };
         worker.postMessage({
           home: home,
+          locations: new Map<number, string>(
+            client.room.allLocations.map((location_id) => [
+              location_id,
+              client.package.lookupLocationName(client.game, location_id),
+            ]),
+          ),
           osm: res,
           seed_name: seed_name,
           slot: slot,

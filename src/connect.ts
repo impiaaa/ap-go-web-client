@@ -13,7 +13,6 @@ import {
   points,
   SAVED_GAME_KEY,
   scouted_locations,
-  setGeneratorInternal,
   setHome,
   setPoints,
   setSlotData,
@@ -180,19 +179,21 @@ function doLogin(thenShowMap: boolean) {
 
       moveGameState(GameState.Generating);
 
+      // TODO: Consider creating the RTree(s) in the main thread, since they
+      // need to be in the main thread's memory in order to be used for querying
+      // anyway
       generate(client.room.seedName, client.players.self.slot)
         .then((generate_results) => {
-          if (!generate_results.success) {
-            setConnectionError("Error during generation");
+          if (!generate_results) {
+            setConnectionError(`Error during generation: ${generate_results}`);
             last_disconnect_was_intentional = true;
             client.socket.disconnect();
             return;
           }
-          setPoints(generate_results.trip_points);
+          setPoints(generate_results as Map<number, [number, number]>);
           client.room.allLocations.forEach((location_id) => {
             updateMarker(location_id);
           });
-          setGeneratorInternal(generate_results.internal);
 
           saveGame();
 

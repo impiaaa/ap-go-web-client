@@ -54,6 +54,8 @@ extern "C" {
     #[wasm_bindgen(structural, method, getter)]
     pub fn home(this: &GenerateParams) -> Vec<f64>;
     #[wasm_bindgen(structural, method, getter)]
+    pub fn locations(this: &GenerateParams) -> js_sys::Map<js_sys::Number, js_sys::JsString>;
+    #[wasm_bindgen(structural, method, getter)]
     pub fn osm(this: &GenerateParams) -> OverpassResponse;
     #[wasm_bindgen(structural, method, getter)]
     pub fn seed_name(this: &GenerateParams) -> String;
@@ -61,8 +63,6 @@ extern "C" {
     pub fn slot(this: &GenerateParams) -> f64;
     #[wasm_bindgen(structural, method, getter)]
     pub fn slot_data(this: &GenerateParams) -> APGoSlotData;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn locations(this: &GenerateParams) -> js_sys::Map<js_sys::Number, js_sys::JsString>;
 
     pub type APGoSlotData;
     #[wasm_bindgen(method, getter)]
@@ -98,30 +98,14 @@ pub enum Goal {
 #[derive(Clone)]
 pub struct Internal {
     pub(crate) points_rtree: Option<RTree<GeomWithData<Point, i64>>>,
-    pub(crate) segments_rtree: Option<RTree<LineString>>,
     pub(crate) ref_ecef: Option<Coord3d>,
     pub(crate) ecef_mat: Option<AffineTransform3d>,
 }
 
-#[wasm_bindgen(getter_with_clone)]
-pub struct GenerateResults {
-    pub success: bool,
-    pub trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>,
-    pub internal: Internal,
-}
-
 #[wasm_bindgen]
-pub fn generate(params: &GenerateParams) -> GenerateResults {
-    let mut results = GenerateResults {
-        success: false,
-        trip_points: js_sys::Map::new_typed(),
-        internal: Internal {
-            points_rtree: None,
-            segments_rtree: None,
-            ref_ecef: None,
-            ecef_mat: None,
-        },
-    };
+pub fn generate(
+    params: &GenerateParams,
+) -> Result<js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>, &'static str> {
     let Ok(seed) = params
         .seed_name()
         .parse::<u128>()
@@ -131,13 +115,13 @@ pub fn generate(params: &GenerateParams) -> GenerateResults {
         // have different sets of trips
         .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot() as u64))
     else {
-        return results;
+        return Err("Couldn't parse seed");
     };
     let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
     let home: Coord = if params.home().len() == 2 {
         (params.home()[0], params.home()[1]).into()
     } else {
-        return results;
+        return Err("Couldn't parse home");
     };
     let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
     let geo_mat = ecef_mat.transposed();
@@ -208,7 +192,13 @@ pub fn generate(params: &GenerateParams) -> GenerateResults {
     }
 
     let segments_tree = RTree::bulk_load(segments);
+    if segments_tree.size() == 0 {
+        return Err("No segments");
+    }
+
     let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
+    let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
+        js_sys::Map::new_typed();
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
@@ -293,18 +283,14 @@ pub fn generate(params: &GenerateParams) -> GenerateResults {
                     js_sys::Array::new_with_length_typed(2);
                 arr.set(0, geo_coord.x.into());
                 arr.set(1, geo_coord.y.into());
-                results.trip_points.set(&location_id, &arr);
+                trip_points.set(&location_id, &arr);
                 break;
             }
             attempt += 1;
         }
     });
 
-    results.internal.segments_rtree = Some(segments_tree);
-    results.internal.points_rtree = Some(points_tree);
-    results.success = true;
-
-    results
+    Ok(trip_points)
 }
 
 #[wasm_bindgen]
@@ -337,7 +323,6 @@ pub fn set_up_with_saved_points(
 
     Internal {
         points_rtree: Some(points_tree),
-        segments_rtree: None,
         ref_ecef: Some(ref_ecef),
         ecef_mat: Some(ecef_mat),
     }
