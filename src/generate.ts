@@ -1,15 +1,13 @@
+import { LngLat, LngLatBounds } from "maplibre-gl";
 import { client, home, slot_data } from "./globals";
 
-const query = `
-[out:json][timeout:180];
+const query = `[out:json][timeout:180][maxsize:{{maxsize}}][bbox:{{bbox}}];
 (
   (
-    way[amenity=parking](around:{{around}});
     way[highway=footway](around:{{around}});
     way[highway=living_street](around:{{around}});
     way[highway=path](around:{{around}});
     way[highway=pedestrian](around:{{around}});
-    way[highway=pier](around:{{around}});
     way[highway=platform](around:{{around}});
     way[highway=primary](around:{{around}});
     way[highway=primary_link](around:{{around}});
@@ -40,6 +38,7 @@ const query = `
     way[foot=private](around:{{around}});
     way[foot=delivery](around:{{around}});
     way[foot=use_sidepath](around:{{around}});
+    way[sidewalk=separate](around:{{around}});
   );
 );
 (
@@ -49,24 +48,8 @@ const query = `
   way[highway][foot=permissive](around:{{around}});
 );
 (
-  (
-    ._;
-  	>;
-  );
-  -
-  (
-    (
-      node[barrier=yes](around:{{around}});
-      node[barrier=wall](around:{{around}});
-      node[barrier=fence](around:{{around}});
-    );
-    -
-    (
-      node[barrier][foot=designated](around:{{around}});
-      node[barrier][foot=yes](around:{{around}});
-      node[barrier][foot=permissive](around:{{around}});
-    );
-  );
+  ._;
+  >;
 );
 out skel qt;`;
 const overpass_server = "https://overpass.private.coffee/api/interpreter";
@@ -79,10 +62,32 @@ export function generate(seed_name: string, slot: number) {
     throw "generate called while not connected";
   }
 
-  const my_query = query.replaceAll(
-    "{{around}}",
-    `${slot_data.maximum_distance},${home[1]},${home[0]}`,
+  // Query optimization: BBox searches are faster than within-radius.
+  const bbox = LngLatBounds.fromLngLat(
+    LngLat.convert(home),
+    slot_data.maximum_distance,
   );
+  // Query optimization: We can get our query to be prioritized better by estimating how much memory
+  // it will require. In my experimenting, 7338127 bytes are required to run the default query with
+  // radius=5585m around Giza, apparently the densest city in the world. That radius makes an area
+  // of ~9.8e7m², so ~0.075 bytes/m². Then add a fudge factor of 1.5x to approximate the memory
+  // required per area.
+  const maxsize = Math.round(
+    slot_data.maximum_distance *
+      slot_data.maximum_distance *
+      Math.PI *
+      0.11232599,
+  );
+  const my_query = query
+    .replaceAll(
+      "{{around}}",
+      `${slot_data.maximum_distance},${home[1]},${home[0]}`,
+    )
+    .replaceAll(
+      "{{bbox}}",
+      `${bbox.getSouth()},${bbox.getWest()},${bbox.getNorth()},${bbox.getEast()}`,
+    )
+    .replaceAll("{{maxsize}}", `${maxsize}`);
   const req = new XMLHttpRequest();
   const ret = new Promise<Map<number, Array<number>>>((resolve, reject) => {
     req.addEventListener("load", () => {
