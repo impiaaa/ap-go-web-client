@@ -68,15 +68,14 @@ export function generate(seed_name: string, slot: number) {
     slot_data.maximum_distance,
   );
   // Query optimization: We can get our query to be prioritized better by estimating how much memory
-  // it will require. In my experimenting, 7338127 bytes are required to run the default query with
-  // radius=5585m around Giza, apparently the densest city in the world. That radius makes an area
-  // of ~9.8e7m², so ~0.075 bytes/m². Then add a fudge factor of 1.5x to approximate the memory
-  // required per area.
+  // it will require. In my experimenting, 890112 bytes are required to run the default query with
+  // radius=1000m in Manhattan, a road-dense city. That radius makes an area of ~3.14e6m², so ~0.283
+  // bytes/m². Then add a fudge factor of 1.5x to approximate the memory required per area.
   const maxsize = Math.round(
     slot_data.maximum_distance *
       slot_data.maximum_distance *
       Math.PI *
-      0.11232599,
+      0.424997174,
   );
   const my_query = query
     .replaceAll(
