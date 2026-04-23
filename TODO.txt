@@ -2,4 +2,3 @@ goals: One Hard Travel
 
 speed requirements
 for debugging, redirect console.log etc to AP log window
-add user agent to overpass request

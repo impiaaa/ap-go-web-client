@@ -501,6 +501,8 @@ class MyGeolocateControl extends maplibregl.GeolocateControl {
   // - Turn tracking on automatically, disable turning off
   // - Draggable in cheat mode
   // TODO: scouting and collection radii
+  // - needs to be a circle layer
+  // - maybe generate in rust, in ENU space
   constructor() {
     super({
       showAccuracyCircle: false,

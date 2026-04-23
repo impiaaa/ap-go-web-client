@@ -179,9 +179,6 @@ function doLogin(thenShowMap: boolean) {
 
       moveGameState(GameState.Generating);
 
-      // TODO: Consider creating the RTree(s) in the main thread, since they
-      // need to be in the main thread's memory in order to be used for querying
-      // anyway
       generate(client.room.seedName, client.players.self.slot)
         .then((generate_results) => {
           if (!generate_results) {
@@ -363,7 +360,11 @@ export function setUpConnectPage() {
         setHome(home_json as [number, number]);
       }
 
-      if (setup_form.checkValidity() && home) {
+      if (
+        setup_form.checkValidity() &&
+        home &&
+        localStorage.getItem(SAVED_GAME_KEY)
+      ) {
         doLogin(false);
       } else {
         window.location.hash = "#connect";

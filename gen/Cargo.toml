@@ -11,6 +11,6 @@ console_error_panic_hook = { version = "0.1.6" }
 geo = { version = "0.32", default-features = false }
 getrandom = { version = "0.2.17", default-features = false, features = ["js"] }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
-rstar = "0.12.2"
+rstar = { version = "0.12.2", default-features = false }
 wasm-bindgen = { version = "0.2", default-features = false }
-web-sys = { version = "0.3.94", features = ["console"] }
+web-sys = { version = "0.3.94", default-features = false, features = ["console"] }
