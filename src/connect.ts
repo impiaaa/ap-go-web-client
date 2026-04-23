@@ -144,7 +144,6 @@ function doLogin(thenShowMap: boolean) {
         const saved_game = JSON.parse(saved_game_json);
         if (saved_game && saved_game.seed === client.room.seedName) {
           if (saved_game.scouted_locations) {
-            scouted_locations.clear();
             for (const location_id_str in saved_game.scouted_locations) {
               scouted_locations.set(
                 parseInt(location_id_str, 10),
@@ -181,7 +180,7 @@ function doLogin(thenShowMap: boolean) {
 
       generate(client.room.seedName, client.players.self.slot)
         .then((generate_results) => {
-          if (!generate_results) {
+          if (typeof generate_results === "string") {
             setConnectionError(`Error during generation: ${generate_results}`);
             last_disconnect_was_intentional = true;
             client.socket.disconnect();

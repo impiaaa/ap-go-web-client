@@ -89,42 +89,44 @@ export function generate(seed_name: string, slot: number) {
     )
     .replaceAll("{{maxsize}}", `${maxsize}`);
   const req = new XMLHttpRequest();
-  const ret = new Promise<Map<number, Array<number>>>((resolve, reject) => {
-    req.addEventListener("load", () => {
-      if (req.responseText[0] === "{") {
-        const res = JSON.parse(req.responseText);
-        const worker = new Worker(new URL("./worker.ts", import.meta.url));
-        worker.onmessage = (event) => {
-          resolve(event.data);
-        };
-        worker.postMessage({
-          home: home,
-          locations: new Map<number, string>(
-            client.room.allLocations.map((location_id) => [
-              location_id,
-              client.package.lookupLocationName(client.game, location_id),
-            ]),
-          ),
-          osm: res,
-          seed_name: seed_name,
-          slot: slot,
-          slot_data: slot_data,
-        });
-      } else {
-        reject(`Overpass error: ${req.responseText}`);
-      }
-    });
-    req.addEventListener("abort", () => {
-      reject("Request aborted");
-    });
-    req.addEventListener("error", () => {
-      reject(
-        req.status === 200
-          ? "Unknown network error"
-          : `HTTP error ${req.status}: ${req.statusText}`,
-      );
-    });
-  });
+  const ret = new Promise<Map<number, Array<number>> | string>(
+    (resolve, reject) => {
+      req.addEventListener("load", () => {
+        if (req.responseText[0] === "{") {
+          const res = JSON.parse(req.responseText);
+          const worker = new Worker(new URL("./worker.ts", import.meta.url));
+          worker.onmessage = (event) => {
+            resolve(event.data);
+          };
+          worker.postMessage({
+            home: home,
+            locations: new Map<number, string>(
+              client.room.allLocations.map((location_id) => [
+                location_id,
+                client.package.lookupLocationName(client.game, location_id),
+              ]),
+            ),
+            osm: res,
+            seed_name: seed_name,
+            slot: slot,
+            slot_data: slot_data,
+          });
+        } else {
+          reject(`Overpass error: ${req.responseText}`);
+        }
+      });
+      req.addEventListener("abort", () => {
+        reject("Request aborted");
+      });
+      req.addEventListener("error", () => {
+        reject(
+          req.status === 200
+            ? "Unknown network error"
+            : `HTTP error ${req.status}: ${req.statusText}`,
+        );
+      });
+    },
+  );
   req.open("POST", overpass_server, true);
   req.send(`data=${encodeURIComponent(my_query)}`);
   return ret;
