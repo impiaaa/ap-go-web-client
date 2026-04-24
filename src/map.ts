@@ -4,6 +4,7 @@ import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
 import { checkLocations, getKeyProgress, moveGameState } from "./gameplay";
 import {
+  COLLECTION_DISTANCE_BASE,
   cheat,
   client,
   game_state,
@@ -57,6 +58,7 @@ export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
 export const location_markers = new Map<number, maplibregl.Marker>();
 let wake_lock: WakeLockSentinel | null = null;
+let geolocate_control: MyGeolocateControl | null = null;
 
 export function clearMarkers() {
   location_markers.forEach((marker) => {
@@ -87,7 +89,8 @@ function lateSetUpMap() {
   setUpHomeMarker();
   game_map.addControl(new MacguffinDisplayControl());
   game_map.addControl(new KeyDisplayControl());
-  game_map.addControl(new MyGeolocateControl());
+  geolocate_control = new MyGeolocateControl();
+  game_map.addControl(geolocate_control);
   game_map.addControl(new FitMapToPointsControl());
 
   game_map.on("load", () => {
@@ -98,6 +101,14 @@ function lateSetUpMap() {
     });
     fitMapToPoints(false);
   });
+}
+
+export function updateMapLocation(position: GeolocationPosition) {
+  geolocate_control?.onSuccess(position);
+}
+
+export function updateMapLocationError(error: GeolocationPositionError) {
+  geolocate_control?.onError(error);
 }
 
 function requestWakeLock() {
@@ -496,33 +507,285 @@ class KeyDisplayControl implements maplibregl.IControl {
   }
 }
 
-class MyGeolocateControl extends maplibregl.GeolocateControl {
-  // We want to copy the MapLibre geolocate control and marker, but:
-  // - Turn tracking on automatically, disable turning off
+class MyGeolocateControl
+  extends maplibregl.Evented
+  implements maplibregl.IControl
+{
+  // Simplified version of the MapLibre geolocate control.
+  // - Receives location updates from game, only toggle between tracking/not
   // - Draggable in cheat mode
   // TODO: scouting and collection radii
   // - needs to be a circle layer
   // - maybe generate in rust, in ENU space
-  constructor() {
-    super({
-      showAccuracyCircle: false,
-      showUserLocation: true,
-      trackUserLocation: true,
-    });
-    if (cheat) {
-      this._geolocationWatchID = -1;
+  _map: maplibregl.Map | undefined;
+  _container: HTMLElement | undefined;
+  _dotElement: HTMLElement | undefined;
+  _geolocateButton: HTMLButtonElement | undefined;
+  _watchState:
+    | "OFF"
+    | "ACTIVE_LOCK"
+    | "WAITING_ACTIVE"
+    | "WAITING_BACKGROUND"
+    | "ACTIVE_ERROR"
+    | "BACKGROUND"
+    | "BACKGROUND_ERROR" = "OFF";
+  _lastKnownPosition: GeolocationPosition | undefined;
+  _userLocationDotMarker: maplibregl.Marker | undefined;
+  _setup: boolean = false; // set to true once the control has been setup
+
+  onAdd(map: maplibregl.Map): HTMLElement {
+    this._map = map;
+    this._container = document.createElement("div");
+    this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+    this._setupUI();
+    return this._container!;
+  }
+
+  onRemove() {
+    // clear the markers from the map
+    this._userLocationDotMarker?.remove();
+
+    this._container?.remove();
+    if (this._map) {
+      this._map.off("movestart", this._onMoveStart);
+      this._map = undefined;
+    }
+
+    client.socket.off("connected", this._onSocketConnected.bind(this));
+    client.socket.off("disconnected", this._onSocketDisconnected.bind(this));
+  }
+
+  _isOutOfMapMaxBounds(position: GeolocationPosition) {
+    if (!this._map) {
+      return true;
+    }
+    const bounds = this._map.getMaxBounds();
+    const coordinates = position.coords;
+
+    return (
+      bounds &&
+      (coordinates.longitude < bounds.getWest() ||
+        coordinates.longitude > bounds.getEast() ||
+        coordinates.latitude < bounds.getSouth() ||
+        coordinates.latitude > bounds.getNorth())
+    );
+  }
+
+  _setErrorState() {
+    switch (this._watchState) {
+      case "WAITING_ACTIVE":
+      case "ACTIVE_LOCK":
+        this._moveToState("ACTIVE_ERROR");
+        break;
+      case "BACKGROUND":
+      case "WAITING_BACKGROUND":
+        this._moveToState("BACKGROUND_ERROR");
+        break;
+      case "ACTIVE_ERROR":
+      case "BACKGROUND_ERROR":
+        // already in error state
+        break;
+      case "OFF":
+        // when not activated, watchState is 'OFF'
+        // no error state transition is needed
+        break;
+      default:
+        throw new Error(`Unexpected watchState ${this._watchState}`);
     }
   }
-  onAdd(map: maplibregl.Map): HTMLElement {
-    map.once("load", this._mySetup.bind(this));
-    return super.onAdd(map);
-  }
-  _mySetup() {
-    this.trigger();
+
+  onSuccess = (position: GeolocationPosition) => {
+    if (!this._map) {
+      // control has since been removed
+      return;
+    }
+
+    if (this._isOutOfMapMaxBounds(position)) {
+      this._setErrorState();
+
+      return;
+    }
+    // keep a record of the position so that if the state is BACKGROUND and the user
+    // clicks the button, we can move to ACTIVE_LOCK immediately without waiting for
+    // watchPosition to trigger _onSuccess
+    this._lastKnownPosition = position;
+
+    switch (this._watchState) {
+      case "WAITING_ACTIVE":
+      case "ACTIVE_LOCK":
+      case "ACTIVE_ERROR":
+        this._moveToState("ACTIVE_LOCK");
+        break;
+      case "WAITING_BACKGROUND":
+      case "BACKGROUND":
+      case "BACKGROUND_ERROR":
+      case "OFF":
+        this._moveToState("BACKGROUND");
+        break;
+      default:
+        throw new Error(`Unexpected watchState ${this._watchState}`);
+    }
+
+    // if showUserLocation and the watch state isn't off then update the marker location
+    this._updateMarker(position);
+
+    // if in normal mode (not watch mode), or if in watch mode and the state is active watch
+    // then update the camera
+    if (this._watchState === "ACTIVE_LOCK") {
+      this._updateCamera(position);
+    }
+
+    this._dotElement?.classList.remove("maplibregl-user-location-dot-stale");
+  };
+
+  _updateCamera = (position: GeolocationPosition) => {
+    if (!this._map) {
+      return;
+    }
+    const center = new maplibregl.LngLat(
+      position.coords.longitude,
+      position.coords.latitude,
+    );
+    const radius = position.coords.accuracy;
+    const bearing = this._map.getBearing();
+    const options = { bearing, maxZoom: 15 };
+    const newBounds = maplibregl.LngLatBounds.fromLngLat(center, radius);
+
+    this._map.fitBounds(newBounds, options, {
+      geolocateSource: true, // tag this camera change so it won't cause the control to change to background state
+    });
+  };
+
+  _updateMarker = (position: GeolocationPosition) => {
+    if (this._map)
+      this._userLocationDotMarker
+        ?.setLngLat(
+          new maplibregl.LngLat(
+            position.coords.longitude,
+            position.coords.latitude,
+          ),
+        )
+        .addTo(this._map);
+  };
+
+  onError = (error: GeolocationPositionError) => {
+    if (!this._map) {
+      // control has since been removed
+      return;
+    }
+
+    if (error.code === 1) {
+      // PERMISSION_DENIED
+      this._moveToState("OFF");
+      if (this._geolocateButton) {
+        this._geolocateButton.disabled = true;
+        const title = this._map._getUIString(
+          "GeolocateControl.LocationNotAvailable",
+        );
+        this._geolocateButton.title = title;
+        this._geolocateButton.setAttribute("aria-label", title);
+      }
+    } else {
+      this._setErrorState();
+    }
+
+    if (this._watchState !== "OFF") {
+      this._dotElement?.classList.add("maplibregl-user-location-dot-stale");
+    }
+  };
+
+  _onMoveStart = (event: {
+    geolocateSource: undefined | boolean;
+    0: undefined | ResizeObserverEntry;
+  }) => {
+    if (!this._map) return;
+    const fromResize = event?.[0] instanceof ResizeObserverEntry;
+    if (!event.geolocateSource && !fromResize && !this._map.isZooming()) {
+      if (this._watchState === "ACTIVE_LOCK") {
+        this._moveToState("BACKGROUND");
+      } else if (this._watchState === "WAITING_ACTIVE") {
+        this._moveToState("WAITING_BACKGROUND");
+      }
+    }
+  };
+
+  _setupUI = () => {
+    // the control could have been removed before reaching here
+    if (!this._map) {
+      return;
+    }
+
+    this._container?.addEventListener("contextmenu", (e: MouseEvent) => {
+      e.preventDefault();
+    });
+    this._geolocateButton = document.createElement("button");
+    this._geolocateButton.classList.add("maplibregl-ctrl-geolocate");
+    this._container?.appendChild(this._geolocateButton);
+    const icon = document.createElement("span");
+    icon.classList.add("maplibregl-ctrl-icon");
+    this._geolocateButton.appendChild(icon);
+    icon.setAttribute("aria-hidden", "true");
+    this._geolocateButton.type = "button";
+    this._geolocateButton.disabled = true;
+
+    // this method is called asynchronously during onAdd
+    if (!this._map) {
+      // control has since been removed
+      return;
+    }
+
+    if (this._geolocateButton) {
+      const title = this._map._getUIString("GeolocateControl.FindMyLocation");
+      this._geolocateButton.disabled = false;
+      this._geolocateButton.title = title;
+      this._geolocateButton.setAttribute("aria-label", title);
+      this._geolocateButton.setAttribute("aria-pressed", "false");
+    }
+
+    this._dotElement = document.createElement("div");
+    this._dotElement.classList.add("maplibregl-user-location-dot");
+
+    this._userLocationDotMarker = new maplibregl.Marker({
+      element: this._dotElement,
+    });
     if (cheat) {
-      this._onSuccess({
+      this._userLocationDotMarker.setDraggable(true);
+      this._userLocationDotMarker.on("dragend", () => {
+        if (game_state === GameState.ReadyNotTracking) {
+          moveGameState(GameState.Tracking);
+        }
+        if (game_state === GameState.Tracking) {
+          checkLocations(this._userLocationDotMarker!.getLngLat());
+        }
+      });
+    }
+
+    client.socket.on("connected", this._onSocketConnected.bind(this));
+    client.socket.on("disconnected", this._onSocketDisconnected.bind(this));
+    if (client.socket.connected) {
+      this._onSocketConnected();
+    }
+
+    this._geolocateButton?.addEventListener("click", () => this.trigger());
+
+    this._setup = true;
+
+    // when the camera is changed (and it's not as a result of the Geolocation Control) change
+    // the watch mode to background watch, so that the marker is updated but not the camera.
+    this._map.on("movestart", this._onMoveStart);
+  };
+
+  _onSocketConnected() {
+    if (this._lastKnownPosition) {
+      this._updateMarker(this._lastKnownPosition);
+      this._moveToState("BACKGROUND");
+    } else {
+      this._moveToState("WAITING_BACKGROUND");
+    }
+    if (cheat) {
+      this.onSuccess({
         coords: {
-          accuracy: 0,
+          accuracy: COLLECTION_DISTANCE_BASE,
           altitude: null,
           altitudeAccuracy: null,
           heading: null,
@@ -546,33 +809,133 @@ class MyGeolocateControl extends maplibregl.GeolocateControl {
           return { coords: this.coords, timestamp: this.timestamp };
         },
       });
-      this._userLocationDotMarker.setDraggable(true);
-      this._userLocationDotMarker.on("dragend", () => {
-        if (game_state === GameState.ReadyNotTracking) {
-          moveGameState(GameState.Tracking);
-        }
-        if (game_state === GameState.Tracking) {
-          checkLocations(this._userLocationDotMarker.getLngLat());
-        }
-      });
     }
   }
+
+  _onSocketDisconnected() {
+    this._moveToState("OFF");
+  }
+
+  _moveToState(newState: typeof this._watchState) {
+    switch (this._watchState) {
+      case "ACTIVE_LOCK":
+        this._geolocateButton?.classList.remove(
+          "maplibregl-ctrl-geolocate-active",
+        );
+        break;
+      case "WAITING_ACTIVE":
+        this._geolocateButton?.classList.remove(
+          "maplibregl-ctrl-geolocate-waiting",
+          "maplibregl-ctrl-geolocate-active",
+        );
+        break;
+      case "WAITING_BACKGROUND":
+        this._geolocateButton?.classList.remove(
+          "maplibregl-ctrl-geolocate-waiting",
+          "maplibregl-ctrl-geolocate-background",
+        );
+        break;
+      case "ACTIVE_ERROR":
+        this._geolocateButton?.classList.remove(
+          "maplibregl-ctrl-geolocate-active-error",
+          "maplibregl-ctrl-geolocate-waiting",
+        );
+        break;
+      case "BACKGROUND":
+        this._geolocateButton?.classList.remove(
+          "maplibregl-ctrl-geolocate-background",
+        );
+        break;
+      case "BACKGROUND_ERROR":
+        this._geolocateButton?.classList.remove(
+          "maplibregl-ctrl-geolocate-background-error",
+          "maplibregl-ctrl-geolocate-waiting",
+        );
+        break;
+    }
+    switch (newState) {
+      case "OFF":
+        this._geolocateButton?.setAttribute("aria-pressed", "false");
+        this._userLocationDotMarker?.remove();
+        break;
+      case "ACTIVE_LOCK":
+        this._geolocateButton?.classList.add(
+          "maplibregl-ctrl-geolocate-active",
+        );
+        break;
+      case "WAITING_ACTIVE":
+        this._geolocateButton?.classList.add(
+          "maplibregl-ctrl-geolocate-waiting",
+          "maplibregl-ctrl-geolocate-active",
+        );
+        break;
+      case "WAITING_BACKGROUND":
+        this._geolocateButton?.classList.add(
+          "maplibregl-ctrl-geolocate-waiting",
+          "maplibregl-ctrl-geolocate-background",
+        );
+        break;
+      case "ACTIVE_ERROR":
+        this._geolocateButton?.classList.add(
+          "maplibregl-ctrl-geolocate-active-error",
+          "maplibregl-ctrl-geolocate-waiting",
+        );
+        this._userLocationDotMarker?.remove();
+        break;
+      case "BACKGROUND":
+        this._geolocateButton?.classList.add(
+          "maplibregl-ctrl-geolocate-background",
+        );
+        break;
+      case "BACKGROUND_ERROR":
+        this._geolocateButton?.classList.add(
+          "maplibregl-ctrl-geolocate-background-error",
+          "maplibregl-ctrl-geolocate-waiting",
+        );
+        this._userLocationDotMarker?.remove();
+        break;
+    }
+    if (newState !== "OFF") {
+      this._geolocateButton?.setAttribute("aria-pressed", "true");
+    }
+    this._watchState = newState;
+  }
+
   trigger(): boolean {
-    if (
-      this._setup &&
-      this.options.trackUserLocation &&
-      game_state === GameState.Tracking &&
-      this._watchState === "ACTIVE_LOCK"
-    ) {
-      // While enabled and connected, don't allow the user to disable tracking
-      return true;
+    if (!this._setup) {
+      console.warn("Geolocate control triggered before added to a map");
+      return false;
     }
-    return super.trigger();
-  }
-  _clearWatch() {
-    if (!cheat) {
-      super._clearWatch();
+    if (game_state !== GameState.Tracking) {
+      return false;
     }
+    // update watchState and do any outgoing state cleanup
+    switch (this._watchState) {
+      case "ACTIVE_LOCK":
+        this._moveToState("BACKGROUND");
+        break;
+      case "WAITING_ACTIVE":
+        this._moveToState("WAITING_BACKGROUND");
+        break;
+      case "WAITING_BACKGROUND":
+        this._moveToState("WAITING_ACTIVE");
+        break;
+      case "ACTIVE_ERROR":
+        this._moveToState("BACKGROUND_ERROR");
+        break;
+      case "BACKGROUND":
+        this._moveToState("ACTIVE_LOCK");
+        // set camera to last known location
+        if (this._lastKnownPosition)
+          this._updateCamera(this._lastKnownPosition);
+        break;
+      case "BACKGROUND_ERROR":
+        this._moveToState("ACTIVE_ERROR");
+        break;
+      default:
+        throw new Error(`Unexpected watchState ${this._watchState}`);
+    }
+    return true;
   }
 }
 

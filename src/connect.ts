@@ -22,6 +22,8 @@ import {
   createMap,
   fitMapToPoints,
   setUpHomeMarker,
+  updateMapLocation,
+  updateMapLocationError,
   updateMarker,
 } from "./map";
 import { type APGoSlotData, GameState } from "./types";
@@ -213,11 +215,10 @@ function geoLocationUpdate(location: GeolocationPosition) {
   if (game_state === GameState.ReadyNotTracking) {
     moveGameState(GameState.Tracking);
   }
-  const coords = new LngLat(
-    location.coords.longitude,
-    location.coords.latitude,
+  checkLocations(
+    new LngLat(location.coords.longitude, location.coords.latitude),
   );
-  checkLocations(coords);
+  updateMapLocation(location);
 }
 
 function geoLocationError(error: GeolocationPositionError) {
@@ -240,6 +241,7 @@ function geoLocationError(error: GeolocationPositionError) {
   // - after N retries, disconnect
   moveGameState(GameState.ReadyNotTracking);
   setConnectionMessage("Lost tracking");
+  updateMapLocationError(error);
 }
 
 function setUpSetHomeMap() {

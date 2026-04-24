@@ -190,12 +190,15 @@ function receiveItems(items: Item[]) {
 
       case ItemType.ShuffleTrap:
         console.error("ShuffleTrap unimplemented"); // TODO
+        // "Moves some locations around the map, or swaps some locations with each other."
         break;
       case ItemType.SilenceTrap:
         console.error("SilenceTrap unimplemented"); // TODO
+        // "Lowers your phone's media volume (your music, if applicable)"
         break;
       case ItemType.FogOfWarTrap:
         console.error("FogOfWarTrap unimplemented"); // TODO
+        // "Temporarily hides part of the map"
         break;
 
       case ItemType.PushUpTrap:
