@@ -26,7 +26,7 @@ import {
   setGeneratorInternal,
   slot_data,
 } from "./globals";
-import { clearMarkers, showMapPage, updateMarker } from "./map";
+import { clearMarkers, hideMapPage, showMapPage, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
 
 export function getKeyProgress(): number {
@@ -337,13 +337,17 @@ export function moveGameState(new_state: GameState) {
       // from: GPS
       client.updateStatus(clientStatuses.playing);
       if (window.location.hash === "#map") {
-        // trigger wake lock
+        // acquire wake lock
         showMapPage();
       }
       break;
 
     default:
       throw `Invalid game state: ${game_state}, ${new_state}`;
+  }
+  if (new_state !== GameState.Tracking && window.location.hash === "#map") {
+    // release wake lock
+    hideMapPage();
   }
   setGameState(new_state);
 }

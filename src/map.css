@@ -16,7 +16,7 @@
   font-size: xx-large;
   font-weight: bold;
   color: transparent;
-  -webkit-text-stroke: 1px #80baff;
+  -webkit-text-stroke: 1px lightsteelblue;
 }
 
 .macguffin-control .received {

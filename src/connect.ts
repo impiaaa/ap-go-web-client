@@ -360,25 +360,8 @@ export function setUpConnectPage() {
       ) {
         setHome(home_json as [number, number]);
       }
-
-      if (
-        setup_form.checkValidity() &&
-        home &&
-        localStorage.getItem(SAVED_GAME_KEY)
-      ) {
-        doLogin(false);
-      } else {
-        window.location.hash = "#connect";
-      }
     } else {
       localStorage.removeItem(PREFS_KEY);
-      if (window.location.hash !== "#connect") {
-        window.location.hash = "#connect";
-      }
-    }
-  } else {
-    if (window.location.hash !== "#connect") {
-      window.location.hash = "#connect";
     }
   }
 
