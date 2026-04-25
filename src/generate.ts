@@ -127,6 +127,7 @@ export function generate(seed_name: string, slot: number) {
     },
   );
   req.open("POST", overpass_server, true);
+  console.log("Sending Overpass request");
   req.send(`data=${encodeURIComponent(my_query)}`);
   return ret;
 }

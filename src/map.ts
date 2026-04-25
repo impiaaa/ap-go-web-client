@@ -1,8 +1,14 @@
 import { type ConnectedPacket, Item } from "archipelago.js";
-import maplibregl from "maplibre-gl";
+import maplibregl, { GeoJSONSource } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
-import { checkLocations, getKeyProgress, moveGameState } from "./gameplay";
+import {
+  checkLocations,
+  getCollectionDistance,
+  getKeyProgress,
+  getScoutingDistance,
+  moveGameState,
+} from "./gameplay";
 import {
   COLLECTION_DISTANCE_BASE,
   cheat,
@@ -14,6 +20,7 @@ import {
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
+  generator_internal,
 } from "./globals";
 import icons_caution_svg from "./icons/caution.svg?raw";
 import icons_checkmark_svg from "./icons/checkmark.svg?raw";
@@ -31,6 +38,7 @@ import {
   ItemType,
   type Trip,
 } from "./types";
+import { make_circle } from "@pkgs/gen/gen";
 
 const icon_parser = new DOMParser();
 const marker_svg_doc = icon_parser.parseFromString(marker_svg, "image/svg+xml");
@@ -84,6 +92,14 @@ export function createMap(container: string) {
   return map;
 }
 
+function makePolygonGeojson(points: GeoJSON.Position[]): GeoJSON.GeoJSON {
+  return {
+    geometry: { coordinates: [points], type: "Polygon" },
+    properties: {},
+    type: "Feature",
+  };
+}
+
 function lateSetUpMap() {
   game_map = createMap("map");
   setUpHomeMarker();
@@ -100,11 +116,88 @@ function lateSetUpMap() {
       }
     });
     fitMapToPoints(false);
+
+    const darkModeMql = window.matchMedia?.("(prefers-color-scheme: dark)");
+    game_map!.addSource("collection_circle", {
+      data: makePolygonGeojson([]),
+      type: "geojson",
+    });
+    game_map!.addLayer({
+      id: "collection_circle",
+      paint: {
+        "line-color": darkModeMql?.matches ? "white" : "black",
+        "line-opacity": 0.8,
+        "line-width": 1,
+      },
+      source: "collection_circle",
+      type: "line",
+    });
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", (event) => {
+        game_map!
+          .getLayer("collection_circle")
+          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
+      });
+    game_map!.addSource("scouting_circle", {
+      data: makePolygonGeojson([]),
+      type: "geojson",
+    });
+    game_map!.addLayer({
+      id: "scouting_circle",
+      paint: {
+        "line-color": darkModeMql?.matches ? "white" : "black",
+        "line-opacity": 0.4,
+        "line-width": 1,
+      },
+      source: "scouting_circle",
+      type: "line",
+    });
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", (event) => {
+        game_map!
+          .getLayer("scouting_circle")
+          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
+      });
   });
+}
+
+function updateCircles(lng: number, lat: number) {
+  if (game_map && generator_internal) {
+    const center = new Float64Array([lng, lat]);
+    const resolution = BigInt(64);
+    // TODO: generate points array in-place to avaoid reallocating
+    game_map
+      .getSource<GeoJSONSource>("collection_circle")
+      ?.setData(
+        makePolygonGeojson(
+          make_circle(
+            generator_internal,
+            center,
+            getCollectionDistance(),
+            resolution,
+          ),
+        ),
+      );
+    game_map
+      .getSource<GeoJSONSource>("scouting_circle")
+      ?.setData(
+        makePolygonGeojson(
+          make_circle(
+            generator_internal,
+            center,
+            getScoutingDistance(),
+            resolution,
+          ),
+        ),
+      );
+  }
 }
 
 export function updateMapLocation(position: GeolocationPosition) {
   geolocate_control?.onSuccess(position);
+  updateCircles(position.coords.longitude, position.coords.latitude);
 }
 
 export function updateMapLocationError(error: GeolocationPositionError) {
@@ -514,9 +607,6 @@ class MyGeolocateControl
   // Simplified version of the MapLibre geolocate control.
   // - Receives location updates from game, only toggle between tracking/not
   // - Draggable in cheat mode
-  // TODO: scouting and collection radii
-  // - needs to be a circle layer
-  // - maybe generate in rust, in ENU space
   _map: maplibregl.Map | undefined;
   _container: HTMLElement | undefined;
   _dotElement: HTMLElement | undefined;
@@ -755,7 +845,9 @@ class MyGeolocateControl
           moveGameState(GameState.Tracking);
         }
         if (game_state === GameState.Tracking) {
-          checkLocations(this._userLocationDotMarker!.getLngLat());
+          const center = this._userLocationDotMarker!.getLngLat();
+          checkLocations(center);
+          updateCircles(center.lng, center.lat);
         }
       });
     }
