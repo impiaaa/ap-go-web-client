@@ -274,7 +274,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
   if (point !== undefined) {
     marker.setLngLat(point);
   }
-  if (item || hinted || checked) {
+  {
     const popup = document.createElement("div");
     popup.appendChild(document.createTextNode(location_name));
     if (key_progression < trip.key_needed) {
