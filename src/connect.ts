@@ -8,12 +8,11 @@ import {
   client,
   DATAPACKAGE_KEY,
   game_state,
-  home,
   PREFS_KEY,
   points,
+  prefs,
   SAVED_GAME_KEY,
   scouted_locations,
-  setHome,
   setPoints,
   setSlotData,
 } from "./globals";
@@ -31,6 +30,9 @@ import { type APGoSlotData, GameState } from "./types";
 const setup_form = document.forms.namedItem("connect-form")!;
 const set_home_button = document.getElementById(
   "set-home",
+) as HTMLButtonElement;
+const open_advanced_settings_button = document.getElementById(
+  "open-advanced-settings",
 ) as HTMLButtonElement;
 const connect_button = document.getElementById("connect") as HTMLButtonElement;
 const msgbox = document.getElementById("connection-message")!;
@@ -56,6 +58,7 @@ export function setFormDisabled(disabled: boolean) {
   (setup_form.elements.namedItem("password") as HTMLInputElement).disabled =
     disabled;
   set_home_button.disabled = disabled;
+  open_advanced_settings_button.disabled = disabled;
 }
 
 export function setConnectDisabled(disabled: boolean) {
@@ -91,7 +94,7 @@ function doLogin(thenShowMap: boolean) {
     "password",
   ) as HTMLInputElement;
 
-  if (!home) {
+  if (!prefs.home) {
     setConnectionError("Set a home location");
     return;
   }
@@ -158,9 +161,10 @@ function doLogin(thenShowMap: boolean) {
             saved_game.home &&
             Array.isArray(saved_game.home) &&
             saved_game.home.length === 2 &&
-            home &&
-            LngLat.convert(saved_game.home).distanceTo(LngLat.convert(home)) <
-              COLLECTION_DISTANCE_BASE
+            prefs.home &&
+            LngLat.convert(saved_game.home).distanceTo(
+              LngLat.convert(prefs.home),
+            ) < COLLECTION_DISTANCE_BASE
           ) {
             points.clear();
             for (const location_id_str in saved_game.points) {
@@ -247,9 +251,9 @@ function geoLocationError(error: GeolocationPositionError) {
 function setUpSetHomeMap() {
   set_home_button.removeEventListener("click", setUpSetHomeMap);
   const map = createMap("set-home-map");
-  if (home) {
+  if (prefs.home) {
     map.setZoom(9);
-    map.setCenter(home);
+    map.setCenter(prefs.home);
   }
   map.addControl(new maplibregl.GeolocateControl({}));
 
@@ -277,9 +281,8 @@ function setUpSetHomeMap() {
 
   document.getElementById("save-home")?.addEventListener("click", () => {
     const new_home = map.getCenter().toArray();
-    setHome(new_home);
-    const set_home = setup_form.querySelector("#set-home") as HTMLButtonElement;
-    set_home.classList.remove("invalid");
+    prefs.home = new_home;
+    set_home_button.classList.remove("invalid");
     setUpHomeMarker();
     set_home_dialog.close();
     saveConnectInfo();
@@ -289,15 +292,22 @@ function setUpSetHomeMap() {
     map.resize(e);
   });
 }
-set_home_button.addEventListener("click", setUpSetHomeMap);
 
 export function setUpConnectPage() {
   init();
   setConnectText(true);
   setup_form.addEventListener("submit", onSubmit);
+  set_home_button.addEventListener("click", setUpSetHomeMap);
   set_home_button.addEventListener("click", () => {
     (
       document.getElementById("set-home-dialog") as HTMLDialogElement
+    ).showModal();
+  });
+  open_advanced_settings_button.addEventListener("click", () => {
+    (document.getElementById("overpass-server") as HTMLInputElement).value =
+      prefs.overpass_server;
+    (
+      document.getElementById("advanced-settings-dialog") as HTMLDialogElement
     ).showModal();
   });
 
@@ -358,16 +368,39 @@ export function setUpConnectPage() {
         typeof home_json[0] === "number" &&
         typeof home_json[1] === "number"
       ) {
-        setHome(home_json as [number, number]);
+        prefs.home = home_json as [number, number];
+      }
+
+      const overpass_server_json = prefs_json.overpass_server;
+      if (typeof overpass_server_json === "string") {
+        prefs.overpass_server = overpass_server_json;
       }
     } else {
       localStorage.removeItem(PREFS_KEY);
     }
   }
 
-  const set_home = setup_form.querySelector("#set-home") as HTMLButtonElement;
-  if (!home) {
-    set_home.classList.add("invalid");
+  (
+    document.getElementById("save-advanced-settings") as HTMLButtonElement
+  ).addEventListener("click", (ev) => {
+    if (
+      (
+        document.getElementById("advanced-settings-form") as HTMLFormElement
+      ).checkValidity()
+    ) {
+      ev.preventDefault();
+      prefs.overpass_server = (
+        document.getElementById("overpass-server") as HTMLInputElement
+      ).value;
+      saveConnectInfo();
+      (
+        document.getElementById("advanced-settings-dialog") as HTMLDialogElement
+      ).close();
+    }
+  });
+
+  if (!prefs.home) {
+    set_home_button.classList.add("invalid");
   }
 
   ip.addEventListener("change", () => {
@@ -394,8 +427,9 @@ function saveConnectInfo() {
   localStorage.setItem(
     PREFS_KEY,
     JSON.stringify({
-      home: home,
+      home: prefs.home,
       ip: ip.value,
+      overpass_server: prefs.overpass_server,
       password: password.value,
       player: player.value,
       port: port.value,

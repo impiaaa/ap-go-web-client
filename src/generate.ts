@@ -1,61 +1,61 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
-import { client, home, slot_data } from "./globals";
+import { client, prefs, slot_data } from "./globals";
 
+// TODO: timeout is also used in prioritization
 const query = `[out:json][timeout:180][maxsize:{{maxsize}}][bbox:{{bbox}}];
 (
   (
-    way[highway=footway](around:{{around}});
-    way[highway=living_street](around:{{around}});
-    way[highway=path](around:{{around}});
-    way[highway=pedestrian](around:{{around}});
-    way[highway=platform](around:{{around}});
-    way[highway=primary](around:{{around}});
-    way[highway=primary_link](around:{{around}});
-    way[highway=residential](around:{{around}});
-    way[highway=secondary](around:{{around}});
-    way[highway=secondary_link](around:{{around}});
-    way[highway=service](around:{{around}});
-    way[highway=steps](around:{{around}});
-    way[highway=tertiary](around:{{around}});
-    way[highway=tertiary_link](around:{{around}});
-    way[highway=track](around:{{around}});
-    way[highway=unclassified](around:{{around}});
-    way[leisure=track](around:{{around}});
-    way[man_made=pier](around:{{around}});
-    way[railway=platform](around:{{around}});
+    way[highway=footway](around:{{maximum_distance}},{{center}});
+    way[highway=living_street](around:{{maximum_distance}},{{center}});
+    way[highway=path](around:{{maximum_distance}},{{center}});
+    way[highway=pedestrian](around:{{maximum_distance}},{{center}});
+    way[highway=platform](around:{{maximum_distance}},{{center}});
+    way[highway=primary](around:{{maximum_distance}},{{center}});
+    way[highway=primary_link](around:{{maximum_distance}},{{center}});
+    way[highway=residential](around:{{maximum_distance}},{{center}});
+    way[highway=secondary](around:{{maximum_distance}},{{center}});
+    way[highway=secondary_link](around:{{maximum_distance}},{{center}});
+    way[highway=service](around:{{maximum_distance}},{{center}});
+    way[highway=steps](around:{{maximum_distance}},{{center}});
+    way[highway=tertiary](around:{{maximum_distance}},{{center}});
+    way[highway=tertiary_link](around:{{maximum_distance}},{{center}});
+    way[highway=track](around:{{maximum_distance}},{{center}});
+    way[highway=unclassified](around:{{maximum_distance}},{{center}});
+    way[leisure=track](around:{{maximum_distance}},{{center}});
+    way[man_made=pier](around:{{maximum_distance}},{{center}});
+    way[railway=platform](around:{{maximum_distance}},{{center}});
   );
   -
   (
-    way[access=no](around:{{around}});
-    way[access=agricultural](around:{{around}});
-    way[access=forestry](around:{{around}});
-    way[access=private](around:{{around}});
-    way[access=delivery](around:{{around}});
-    way[access=use_sidepath](around:{{around}});
-    way[foot=no](around:{{around}});
-    way[foot=agricultural](around:{{around}});
-    way[foot=forestry](around:{{around}});
-    way[foot=private](around:{{around}});
-    way[foot=delivery](around:{{around}});
-    way[foot=use_sidepath](around:{{around}});
-    way[sidewalk=separate](around:{{around}});
+    way[access=no](around:{{maximum_distance}},{{center}});
+    way[access=agricultural](around:{{maximum_distance}},{{center}});
+    way[access=forestry](around:{{maximum_distance}},{{center}});
+    way[access=private](around:{{maximum_distance}},{{center}});
+    way[access=delivery](around:{{maximum_distance}},{{center}});
+    way[access=use_sidepath](around:{{maximum_distance}},{{center}});
+    way[foot=no](around:{{maximum_distance}},{{center}});
+    way[foot=agricultural](around:{{maximum_distance}},{{center}});
+    way[foot=forestry](around:{{maximum_distance}},{{center}});
+    way[foot=private](around:{{maximum_distance}},{{center}});
+    way[foot=delivery](around:{{maximum_distance}},{{center}});
+    way[foot=use_sidepath](around:{{maximum_distance}},{{center}});
+    way[sidewalk=separate](around:{{maximum_distance}},{{center}});
   );
 );
 (
   ._;
-  way[highway][foot=designated](around:{{around}});
-  way[highway][foot=yes](around:{{around}});
-  way[highway][foot=permissive](around:{{around}});
+  way[highway][foot=designated](around:{{maximum_distance}},{{center}});
+  way[highway][foot=yes](around:{{maximum_distance}},{{center}});
+  way[highway][foot=permissive](around:{{maximum_distance}},{{center}});
 );
 (
   ._;
   >;
 );
 out skel qt;`;
-const overpass_server = "https://overpass.private.coffee/api/interpreter";
 
 export function generate(seed_name: string, slot: number) {
-  if (!home) {
+  if (!prefs.home) {
     throw "generate called with no home set";
   }
   if (!slot_data) {
@@ -64,7 +64,7 @@ export function generate(seed_name: string, slot: number) {
 
   // Query optimization: BBox searches are faster than within-radius.
   const bbox = LngLatBounds.fromLngLat(
-    LngLat.convert(home),
+    LngLat.convert(prefs.home),
     slot_data.maximum_distance,
   );
   // Query optimization: We can get our query to be prioritized better by estimating how much memory
@@ -78,10 +78,8 @@ export function generate(seed_name: string, slot: number) {
       0.424997174,
   );
   const my_query = query
-    .replaceAll(
-      "{{around}}",
-      `${slot_data.maximum_distance},${home[1]},${home[0]}`,
-    )
+    .replaceAll("{{maximum_distance}}", `${slot_data.maximum_distance}`)
+    .replaceAll("{{center}}", `${prefs.home[1]},${prefs.home[0]}`)
     .replaceAll(
       "{{bbox}}",
       `${bbox.getSouth()},${bbox.getWest()},${bbox.getNorth()},${bbox.getEast()}`,
@@ -98,7 +96,7 @@ export function generate(seed_name: string, slot: number) {
             resolve(event.data);
           };
           worker.postMessage({
-            home: home,
+            home: prefs.home,
             locations: new Map<number, string>(
               client.room.allLocations.map((location_id) => [
                 location_id,
@@ -126,7 +124,7 @@ export function generate(seed_name: string, slot: number) {
       });
     },
   );
-  req.open("POST", overpass_server, true);
+  req.open("POST", prefs.overpass_server, true);
   console.log("Sending Overpass request");
   req.send(`data=${encodeURIComponent(my_query)}`);
   return ret;

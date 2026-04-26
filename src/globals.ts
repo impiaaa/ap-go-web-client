@@ -35,10 +35,11 @@ export const LONG_MACGUFFIN_ITEMS = [
   ItemType.MacguffinExclamation,
 ];
 
-export let home: [number, number] | null = null;
-export function setHome(new_home: [number, number]) {
-  home = new_home;
-}
+export const prefs: { home: [number, number] | null; overpass_server: string } =
+  {
+    home: null,
+    overpass_server: "https://overpass.private.coffee/api/interpreter",
+  };
 export let slot_data: APGoSlotData | null = null;
 export function setSlotData(new_slot_data: APGoSlotData) {
   slot_data = new_slot_data;

@@ -14,9 +14,9 @@ import {
   client,
   game_state,
   generator_internal,
-  home,
   LONG_MACGUFFIN_ITEMS,
   points,
+  prefs,
   SAVED_GAME_KEY,
   SCOUTING_DISTANCE_BASE,
   SCOUTING_DISTANCE_INCREMENT,
@@ -63,7 +63,7 @@ function checkLastKnownLocation() {
 }
 
 export function checkLocations(coords: LngLat) {
-  if (!home) {
+  if (!prefs.home) {
     return;
   }
   last_known_location = coords;
@@ -73,7 +73,7 @@ export function checkLocations(coords: LngLat) {
 
   if (!generator_internal) {
     setGeneratorInternal(
-      set_up_with_saved_points(new Float64Array(home), points),
+      set_up_with_saved_points(new Float64Array(prefs.home), points),
     );
   }
 
@@ -137,7 +137,7 @@ export function saveGame() {
   localStorage.setItem(
     SAVED_GAME_KEY,
     JSON.stringify({
-      home: home,
+      home: prefs.home,
       points: Object.fromEntries(points),
       scouted_locations: Object.fromEntries(scouted_locations),
       seed: client.room.seedName,

@@ -3,6 +3,10 @@ section#page-connect {
   flex-direction: column;
 }
 
+h1 {
+  margin: 0;
+}
+
 .gridform {
   display: grid;
   gap: 5px;

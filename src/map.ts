@@ -1,5 +1,6 @@
+import { make_circle } from "@pkgs/gen/gen";
 import { type ConnectedPacket, Item } from "archipelago.js";
-import maplibregl, { GeoJSONSource } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
 import {
@@ -14,13 +15,13 @@ import {
   cheat,
   client,
   game_state,
-  home,
+  generator_internal,
   LONG_MACGUFFIN_ITEMS,
   points,
+  prefs,
   SHORT_MACGUFFIN_ITEMS,
   scouted_locations,
   slot_data,
-  generator_internal,
 } from "./globals";
 import icons_caution_svg from "./icons/caution.svg?raw";
 import icons_checkmark_svg from "./icons/checkmark.svg?raw";
@@ -38,7 +39,6 @@ import {
   ItemType,
   type Trip,
 } from "./types";
-import { make_circle } from "@pkgs/gen/gen";
 
 const icon_parser = new DOMParser();
 const marker_svg_doc = icon_parser.parseFromString(marker_svg, "image/svg+xml");
@@ -264,7 +264,7 @@ function getMarkerElement(
 }
 
 export function setUpHomeMarker() {
-  if (!home) {
+  if (!prefs.home) {
     return;
   }
   if (!game_map) {
@@ -275,13 +275,13 @@ export function setUpHomeMarker() {
     return;
   }
   if (home_marker) {
-    home_marker.setLngLat(home);
+    home_marker.setLngLat(prefs.home);
   } else {
     home_marker = new maplibregl.Marker({
       element: getMarkerElement("goldenrod", "home"),
       offset: [0, -14],
     });
-    home_marker.setLngLat(home);
+    home_marker.setLngLat(prefs.home);
     home_marker.addTo(game_map);
   }
 }
@@ -881,8 +881,8 @@ class MyGeolocateControl
           altitude: null,
           altitudeAccuracy: null,
           heading: null,
-          latitude: home![1] + 0.001,
-          longitude: home![0] + 0.001,
+          latitude: prefs.home![1] + 0.001,
+          longitude: prefs.home![0] + 0.001,
           speed: null,
           toJSON: function () {
             return {

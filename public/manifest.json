@@ -1,5 +1,6 @@
 {
   "background_color": "#000920",
+  "categories": ["games", "travel"],
   "display": "standalone",
   "icons": [
     {
