@@ -2,3 +2,12 @@ goals: One Hard Travel
 
 speed requirements
 for debugging, redirect console.log etc to AP log window
+
+bugs:
+- reconnecting makes circles disappear
+- reconnecting makes traps reappear
+- map screen still dims
+- key and progression don't disappear from boxes on map screen when disconnecting
+- progression on map screen doesn't update when connecting
+- sometimes hints don't update map
+- collected locations should show the item they had in their map pin popup
