@@ -11,10 +11,10 @@
             <h1>Archipela-GO!</h1>
             <h2>Connect to server</h2>
             <form class="gridform" id="connect-form">
-                <label for="ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
+                <label for="ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" maxlength="255" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
                 <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
                 <label for="player">Player Name</label><input autocapitalize="off" autocorrect="off" id="player" maxlength="16" name="player" required spellcheck="false">
-                <label for="password">Password</label><input id="password" name="password" type="password">
+                <label for="password">Password</label><input id="password" maxlength="255" name="password" type="password">
                 <button id="set-home" type="button" aria-haspopup="dialog">Set Home Location…</button>
                 <button id="open-advanced-settings" type="button" aria-haspopup="dialog">Advanced Settings…</button>
                 <button id="connect" type="submit"></button>
@@ -44,7 +44,7 @@
                         <option>https://ethiopia.overpass.openplaceguide.org/api/interpreter</option>
                     </datalist>
                     <label for="overpass-query">Overpass Query</label>
-                    <textarea autocapitalize="off" autocomplete="off" autocorrect="off" id="overpass-query" name="overpass-query" spellcheck="false" wrap="off"></textarea>
+                    <textarea autocapitalize="off" autocomplete="off" autocorrect="off" id="overpass-query" maxlength="262144" name="overpass-query" spellcheck="false" wrap="off"></textarea>
                     <button id="save-advanced-settings">Save</button>
                 </form>
             </dialog>

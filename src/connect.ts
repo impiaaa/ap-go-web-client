@@ -111,10 +111,35 @@ function doLogin(thenShowMap: boolean) {
     )
     .then((new_slot_info) => {
       console.log("Connected!");
-      localStorage.setItem(
-        DATAPACKAGE_KEY,
-        JSON.stringify(client.package.exportPackage()),
-      );
+
+      // Cache the AP data package in localStorage.
+      // The AP data package includes a mapping between item ID and item name, and between location
+      // ID and location name, for every game in the current AP world. It's a lot of data, which
+      // means it's good to cache it and not redownload it on every connection, but it also means we
+      // have to be careful with storing it. Browser localStorage is limited to 5MiB. It's possible
+      // that a very large AP world, with many different games each with many different locations
+      // and items, would have a data package that exceeds this limit when encoded in UTF-16 JSON.
+      // Since it is only a cache, then in that case, it is better to not store it and to redownload
+      // each time, so that the user's connection preferences and current game don't get lost
+      // instead.
+      {
+        const datapackage_str = JSON.stringify(client.package.exportPackage());
+        if (datapackage_str.length < 2*1024*1024) {
+          try {
+            localStorage.setItem(
+              DATAPACKAGE_KEY,
+              datapackage_str,
+            );
+          }
+          catch (error) {
+            console.error("Error saving data package:", error);
+          }
+        }
+        else {
+          console.warn("Data package is very large, not caching!", datapackage_str.length);
+        }
+      }
+
       setSlotData(new_slot_info);
 
       const text_log = document.getElementById("text-log")!;
