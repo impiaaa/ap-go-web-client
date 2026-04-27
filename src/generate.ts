@@ -1,59 +1,6 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { client, prefs, slot_data } from "./globals";
 
-// TODO: timeout is also used in prioritization
-const query = `[out:json][timeout:180][maxsize:{{maxsize}}][bbox:{{bbox}}];
-(
-  (
-    way[highway=footway](around:{{maximum_distance}},{{center}});
-    way[highway=living_street](around:{{maximum_distance}},{{center}});
-    way[highway=path](around:{{maximum_distance}},{{center}});
-    way[highway=pedestrian](around:{{maximum_distance}},{{center}});
-    way[highway=platform](around:{{maximum_distance}},{{center}});
-    way[highway=primary](around:{{maximum_distance}},{{center}});
-    way[highway=primary_link](around:{{maximum_distance}},{{center}});
-    way[highway=residential](around:{{maximum_distance}},{{center}});
-    way[highway=secondary](around:{{maximum_distance}},{{center}});
-    way[highway=secondary_link](around:{{maximum_distance}},{{center}});
-    way[highway=service](around:{{maximum_distance}},{{center}});
-    way[highway=steps](around:{{maximum_distance}},{{center}});
-    way[highway=tertiary](around:{{maximum_distance}},{{center}});
-    way[highway=tertiary_link](around:{{maximum_distance}},{{center}});
-    way[highway=track](around:{{maximum_distance}},{{center}});
-    way[highway=unclassified](around:{{maximum_distance}},{{center}});
-    way[leisure=track](around:{{maximum_distance}},{{center}});
-    way[man_made=pier](around:{{maximum_distance}},{{center}});
-    way[railway=platform](around:{{maximum_distance}},{{center}});
-  );
-  -
-  (
-    way[access=no](around:{{maximum_distance}},{{center}});
-    way[access=agricultural](around:{{maximum_distance}},{{center}});
-    way[access=forestry](around:{{maximum_distance}},{{center}});
-    way[access=private](around:{{maximum_distance}},{{center}});
-    way[access=delivery](around:{{maximum_distance}},{{center}});
-    way[access=use_sidepath](around:{{maximum_distance}},{{center}});
-    way[foot=no](around:{{maximum_distance}},{{center}});
-    way[foot=agricultural](around:{{maximum_distance}},{{center}});
-    way[foot=forestry](around:{{maximum_distance}},{{center}});
-    way[foot=private](around:{{maximum_distance}},{{center}});
-    way[foot=delivery](around:{{maximum_distance}},{{center}});
-    way[foot=use_sidepath](around:{{maximum_distance}},{{center}});
-    way[sidewalk=separate](around:{{maximum_distance}},{{center}});
-  );
-);
-(
-  ._;
-  way[highway][foot=designated](around:{{maximum_distance}},{{center}});
-  way[highway][foot=yes](around:{{maximum_distance}},{{center}});
-  way[highway][foot=permissive](around:{{maximum_distance}},{{center}});
-);
-(
-  ._;
-  >;
-);
-out skel qt;`;
-
 export function generate(seed_name: string, slot: number) {
   if (!prefs.home) {
     throw "generate called with no home set";
@@ -77,7 +24,7 @@ export function generate(seed_name: string, slot: number) {
       Math.PI *
       0.424997174,
   );
-  const my_query = query
+  const my_query = prefs.overpass_query
     .replaceAll("{{maximum_distance}}", `${slot_data.maximum_distance}`)
     .replaceAll("{{center}}", `${prefs.home[1]},${prefs.home[0]}`)
     .replaceAll(

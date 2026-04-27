@@ -47,6 +47,12 @@ button.invalid {
   }
 }
 
+#overpass-query {
+  overflow: scroll;
+  font-family: monospace;
+  white-space: pre;
+}
+
 .spacer {
   flex-grow: 1;
 }

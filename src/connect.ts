@@ -7,6 +7,7 @@ import {
   cheat,
   client,
   DATAPACKAGE_KEY,
+  DEFAULT_OVERPASS_QUERY,
   game_state,
   PREFS_KEY,
   points,
@@ -293,6 +294,44 @@ function setUpSetHomeMap() {
   });
 }
 
+function openAdvancedSettings() {
+  (document.getElementById("overpass-server") as HTMLInputElement).value =
+    prefs.overpass_server;
+  (document.getElementById("overpass-query") as HTMLInputElement).value =
+    prefs.overpass_query;
+  (
+    document.getElementById("advanced-settings-dialog") as HTMLDialogElement
+  ).showModal();
+}
+
+function saveAdvancedSettings(ev: PointerEvent) {
+  if (
+    (
+      document.getElementById("advanced-settings-form") as HTMLFormElement
+    ).checkValidity()
+  ) {
+    ev.preventDefault();
+
+    prefs.overpass_server = (
+      document.getElementById("overpass-server") as HTMLInputElement
+    ).value;
+
+    const overpassQueryBox = document.getElementById(
+      "overpass-query",
+    ) as HTMLTextAreaElement;
+    if (overpassQueryBox.value) {
+      prefs.overpass_query = overpassQueryBox.value;
+    } else {
+      prefs.overpass_query = DEFAULT_OVERPASS_QUERY;
+    }
+
+    saveConnectInfo();
+    (
+      document.getElementById("advanced-settings-dialog") as HTMLDialogElement
+    ).close();
+  }
+}
+
 export function setUpConnectPage() {
   init();
   setConnectText(true);
@@ -303,13 +342,7 @@ export function setUpConnectPage() {
       document.getElementById("set-home-dialog") as HTMLDialogElement
     ).showModal();
   });
-  open_advanced_settings_button.addEventListener("click", () => {
-    (document.getElementById("overpass-server") as HTMLInputElement).value =
-      prefs.overpass_server;
-    (
-      document.getElementById("advanced-settings-dialog") as HTMLDialogElement
-    ).showModal();
-  });
+  open_advanced_settings_button.addEventListener("click", openAdvancedSettings);
 
   const datapackage_str = localStorage.getItem(DATAPACKAGE_KEY);
   if (datapackage_str) {
@@ -375,6 +408,11 @@ export function setUpConnectPage() {
       if (typeof overpass_server_json === "string") {
         prefs.overpass_server = overpass_server_json;
       }
+
+      const overpass_query_json = prefs_json.overpass_query;
+      if (typeof overpass_query_json === "string") {
+        prefs.overpass_query = overpass_query_json;
+      }
     } else {
       localStorage.removeItem(PREFS_KEY);
     }
@@ -382,22 +420,7 @@ export function setUpConnectPage() {
 
   (
     document.getElementById("save-advanced-settings") as HTMLButtonElement
-  ).addEventListener("click", (ev) => {
-    if (
-      (
-        document.getElementById("advanced-settings-form") as HTMLFormElement
-      ).checkValidity()
-    ) {
-      ev.preventDefault();
-      prefs.overpass_server = (
-        document.getElementById("overpass-server") as HTMLInputElement
-      ).value;
-      saveConnectInfo();
-      (
-        document.getElementById("advanced-settings-dialog") as HTMLDialogElement
-      ).close();
-    }
-  });
+  ).addEventListener("click", saveAdvancedSettings);
 
   if (!prefs.home) {
     set_home_button.classList.add("invalid");
@@ -429,6 +452,7 @@ function saveConnectInfo() {
     JSON.stringify({
       home: prefs.home,
       ip: ip.value,
+      overpass_query: prefs.overpass_query,
       overpass_server: prefs.overpass_server,
       password: password.value,
       player: player.value,

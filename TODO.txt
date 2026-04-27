@@ -2,6 +2,8 @@ goals: One Hard Travel
 
 speed requirements
 for debugging, redirect console.log etc to AP log window
+allow stop playing but remain connected by pressing geolocate control
+add timeout to geo updates
 
 bugs:
 - reconnecting makes circles disappear
