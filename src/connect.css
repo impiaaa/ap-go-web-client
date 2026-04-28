@@ -48,6 +48,7 @@ button.invalid {
 }
 
 #overpass-query {
+  height: 85px;
   overflow: scroll;
   font-family: monospace;
   white-space: pre;

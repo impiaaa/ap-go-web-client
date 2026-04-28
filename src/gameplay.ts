@@ -29,6 +29,8 @@ import {
 import { clearMarkers, hideMapPage, showMapPage, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
 
+const trap_queue: Item[] = [];
+
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
     .length;
@@ -153,6 +155,12 @@ export function setUpGameplay() {
   trap_dialog?.addEventListener("click", () => {
     trap_dialog.close();
   });
+  trap_dialog?.addEventListener("close", () => {
+    const item = trap_queue.pop();
+    if (item) {
+      displayTrap(item);
+    }
+  });
   client.socket.on("roomUpdate", (ev) => {
     if (ev.checked_locations !== undefined) {
       ev.checked_locations.forEach((location_id) => {
@@ -260,6 +268,11 @@ function displayTrap(item: Item) {
     "trap-dialog",
   ) as HTMLDialogElement | null;
   if (!trap_dialog) {
+    return;
+  }
+
+  if (trap_dialog.open) {
+    trap_queue.push(item);
     return;
   }
 
