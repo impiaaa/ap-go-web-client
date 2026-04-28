@@ -36,28 +36,32 @@ export function generate(seed_name: string, slot: number) {
   const ret = new Promise<Map<number, Array<number>> | string>(
     (resolve, reject) => {
       req.addEventListener("load", () => {
-        if (req.responseText[0] === "{") {
-          const res = JSON.parse(req.responseText);
-          const worker = new Worker(new URL("./worker.ts", import.meta.url));
-          worker.onmessage = (event) => {
-            resolve(event.data);
-          };
-          worker.postMessage({
-            home: prefs.home,
-            locations: new Map<number, string>(
-              client.room.allLocations.map((location_id) => [
-                location_id,
-                client.package.lookupLocationName(client.game, location_id),
-              ]),
-            ),
-            osm: res,
-            seed_name: seed_name,
-            slot: slot,
-            slot_data: slot_data,
-          });
-        } else {
+        if (req.responseText[0] !== "{") {
           reject(`Overpass error: ${req.responseText}`);
+          return;
         }
+        const res = JSON.parse(req.responseText);
+        if ((res.elements === undefined || (Array.isArray(res.elements) && res.elements.length === 0)) && res.remark) {
+          reject(`Overpass error: ${res.remark}`);
+          return;
+        }
+        const worker = new Worker(new URL("./worker.ts", import.meta.url));
+        worker.onmessage = (event) => {
+          resolve(event.data);
+        };
+        worker.postMessage({
+          home: prefs.home,
+          locations: new Map<number, string>(
+            client.room.allLocations.map((location_id) => [
+              location_id,
+              client.package.lookupLocationName(client.game, location_id),
+            ]),
+          ),
+          osm: res,
+          seed_name: seed_name,
+          slot: slot,
+          slot_data: slot_data,
+        });
       });
       req.addEventListener("abort", () => {
         reject("Request aborted");
