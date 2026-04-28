@@ -1,20 +1,16 @@
 import init from "@pkgs/gen";
 import maplibregl, { LngLat } from "maplibre-gl";
-import { checkLocations, moveGameState, saveGame } from "./gameplay";
+import { checkLocations, loadGame, moveGameState, saveGame } from "./gameplay";
 import { generate } from "./generate";
 import {
-  COLLECTION_DISTANCE_BASE,
   cheat,
   client,
   DATAPACKAGE_KEY,
   DEFAULT_OVERPASS_QUERY,
+  game_data,
   game_state,
   PREFS_KEY,
-  points,
   prefs,
-  SAVED_GAME_KEY,
-  scouted_locations,
-  setPoints,
   setSlotData,
 } from "./globals";
 import { addMessages } from "./log";
@@ -124,19 +120,17 @@ function doLogin(thenShowMap: boolean) {
       // instead.
       {
         const datapackage_str = JSON.stringify(client.package.exportPackage());
-        if (datapackage_str.length < 2*1024*1024) {
+        if (datapackage_str.length < 2 * 1024 * 1024) {
           try {
-            localStorage.setItem(
-              DATAPACKAGE_KEY,
-              datapackage_str,
-            );
-          }
-          catch (error) {
+            localStorage.setItem(DATAPACKAGE_KEY, datapackage_str);
+          } catch (error) {
             console.error("Error saving data package:", error);
           }
-        }
-        else {
-          console.warn("Data package is very large, not caching!", datapackage_str.length);
+        } else {
+          console.warn(
+            "Data package is very large, not caching!",
+            datapackage_str.length,
+          );
         }
       }
 
@@ -169,44 +163,10 @@ function doLogin(thenShowMap: boolean) {
         }
       };
 
-      const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
-      scouted_locations.clear();
-      if (saved_game_json) {
-        const saved_game = JSON.parse(saved_game_json);
-        if (saved_game && saved_game.seed === client.room.seedName) {
-          if (saved_game.scouted_locations) {
-            for (const location_id_str in saved_game.scouted_locations) {
-              scouted_locations.set(
-                parseInt(location_id_str, 10),
-                saved_game.scouted_locations[location_id_str],
-              );
-            }
-          }
-          if (
-            saved_game.points &&
-            saved_game.home &&
-            Array.isArray(saved_game.home) &&
-            saved_game.home.length === 2 &&
-            prefs.home &&
-            LngLat.convert(saved_game.home).distanceTo(
-              LngLat.convert(prefs.home),
-            ) < COLLECTION_DISTANCE_BASE
-          ) {
-            points.clear();
-            for (const location_id_str in saved_game.points) {
-              points.set(
-                parseInt(location_id_str, 10),
-                saved_game.points[location_id_str],
-              );
-            }
-            points.forEach((_, location_id) => {
-              updateMarker(location_id);
-            });
-            console.log("Successfully loaded saved game, skipping generation");
-            doneGenerating();
-            return;
-          }
-        }
+      if (loadGame()) {
+        console.log("Successfully loaded saved game, skipping generation");
+        doneGenerating();
+        return;
       }
 
       moveGameState(GameState.Generating);
@@ -219,7 +179,7 @@ function doLogin(thenShowMap: boolean) {
             client.socket.disconnect();
             return;
           }
-          setPoints(generate_results as Map<number, [number, number]>);
+          game_data.points = generate_results as Map<number, [number, number]>;
           client.room.allLocations.forEach((location_id) => {
             updateMarker(location_id);
           });

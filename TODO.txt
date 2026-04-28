@@ -7,7 +7,6 @@ add timeout to geo updates
 
 bugs:
 - reconnecting makes circles disappear
-- reconnecting makes traps reappear
 - map screen still dims
 - key and progression don't disappear from boxes on map screen when disconnecting
 - progression on map screen doesn't update when connecting

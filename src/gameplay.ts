@@ -1,6 +1,6 @@
 import { points_in_radius, set_up_with_saved_points } from "@pkgs/gen/gen";
 import { clientStatuses, type Item } from "archipelago.js";
-import type { LngLat } from "maplibre-gl";
+import { LngLat } from "maplibre-gl";
 import {
   setConnectDisabled,
   setConnectionMessage,
@@ -12,16 +12,15 @@ import {
   COLLECTION_DISTANCE_BASE,
   COLLECTION_DISTANCE_INCREMENT,
   client,
+  game_data,
   game_state,
   generator_internal,
   LONG_MACGUFFIN_ITEMS,
-  points,
   prefs,
   SAVED_GAME_KEY,
   SCOUTING_DISTANCE_BASE,
   SCOUTING_DISTANCE_INCREMENT,
   SHORT_MACGUFFIN_ITEMS,
-  scouted_locations,
   setGameState,
   setGeneratorInternal,
   slot_data,
@@ -30,6 +29,7 @@ import { clearMarkers, hideMapPage, showMapPage, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
 
 const trap_queue: Item[] = [];
+let displaying_trap: [string, number];
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -75,7 +75,7 @@ export function checkLocations(coords: LngLat) {
 
   if (!generator_internal) {
     setGeneratorInternal(
-      set_up_with_saved_points(new Float64Array(prefs.home), points),
+      set_up_with_saved_points(new Float64Array(prefs.home), game_data.points),
     );
   }
 
@@ -87,7 +87,9 @@ export function checkLocations(coords: LngLat) {
   if (scouts === null) {
     console.error("Error getting scouting locations");
   }
-  scouts = scouts?.filter((location_id) => !scouted_locations.has(location_id));
+  scouts = scouts?.filter(
+    (location_id) => !game_data.scouted_locations.has(location_id),
+  );
 
   let checks: undefined | null | Array<number> = points_in_radius(
     generator_internal!,
@@ -111,7 +113,7 @@ export function checkLocations(coords: LngLat) {
     console.log("Scouting locations:", scouts);
     client.scout(scouts).then((items) => {
       items.forEach((item) => {
-        scouted_locations.set(item.locationId, {
+        game_data.scouted_locations.set(item.locationId, {
           flags: item.flags,
           item: item.id,
           location: item.locationId,
@@ -139,12 +141,61 @@ export function saveGame() {
   localStorage.setItem(
     SAVED_GAME_KEY,
     JSON.stringify({
+      displayed_trap_locations: game_data.displayed_trap_locations,
       home: prefs.home,
-      points: Object.fromEntries(points),
-      scouted_locations: Object.fromEntries(scouted_locations),
+      points: Object.fromEntries(game_data.points),
+      scouted_locations: Object.fromEntries(game_data.scouted_locations),
       seed: client.room.seedName,
     }),
   );
+}
+
+export function loadGame() {
+  const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
+  game_data.scouted_locations.clear();
+  game_data.displayed_trap_locations = [];
+  if (saved_game_json) {
+    const saved_game = JSON.parse(saved_game_json);
+    if (saved_game && saved_game.seed === client.room.seedName) {
+      if (saved_game.scouted_locations) {
+        for (const location_id_str in saved_game.scouted_locations) {
+          game_data.scouted_locations.set(
+            parseInt(location_id_str, 10),
+            saved_game.scouted_locations[location_id_str],
+          );
+        }
+      }
+      if (
+        saved_game.displayed_trap_locations &&
+        Array.isArray(saved_game.displayed_trap_locations)
+      ) {
+        game_data.displayed_trap_locations =
+          saved_game.displayed_trap_locations;
+      }
+      if (
+        saved_game.points &&
+        saved_game.home &&
+        Array.isArray(saved_game.home) &&
+        saved_game.home.length === 2 &&
+        prefs.home &&
+        LngLat.convert(saved_game.home).distanceTo(LngLat.convert(prefs.home)) <
+          COLLECTION_DISTANCE_BASE
+      ) {
+        game_data.points.clear();
+        for (const location_id_str in saved_game.points) {
+          game_data.points.set(
+            parseInt(location_id_str, 10),
+            saved_game.points[location_id_str],
+          );
+        }
+        game_data.points.forEach((_, location_id) => {
+          updateMarker(location_id);
+        });
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export function setUpGameplay() {
@@ -156,6 +207,7 @@ export function setUpGameplay() {
     trap_dialog.close();
   });
   trap_dialog?.addEventListener("close", () => {
+    game_data.displayed_trap_locations.push(displaying_trap);
     const item = trap_queue.pop();
     if (item) {
       displayTrap(item);
@@ -264,6 +316,15 @@ function receiveItems(items: Item[]) {
 }
 
 function displayTrap(item: Item) {
+  if (
+    game_data.displayed_trap_locations.includes([
+      item.locationGame,
+      item.locationId,
+    ])
+  ) {
+    return;
+  }
+
   const trap_dialog = document.getElementById(
     "trap-dialog",
   ) as HTMLDialogElement | null;
@@ -311,6 +372,8 @@ function displayTrap(item: Item) {
     trap_dialog.querySelector("img")?.setAttribute("src", img_src);
   }
 
+  displaying_trap = [item.locationGame, item.locationId];
+
   trap_dialog.showModal();
 }
 
@@ -326,7 +389,7 @@ export function moveGameState(new_state: GameState) {
         window.location.hash = "#connect";
       }
       stopTracking();
-      points.clear();
+      game_data.points.clear();
       clearMarkers();
       break;
     case GameState.Connecting:

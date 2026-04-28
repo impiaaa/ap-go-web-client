@@ -41,7 +41,11 @@ export function generate(seed_name: string, slot: number) {
           return;
         }
         const res = JSON.parse(req.responseText);
-        if ((res.elements === undefined || (Array.isArray(res.elements) && res.elements.length === 0)) && res.remark) {
+        if (
+          (res.elements === undefined ||
+            (Array.isArray(res.elements) && res.elements.length === 0)) &&
+          res.remark
+        ) {
           reject(`Overpass error: ${res.remark}`);
           return;
         }
@@ -75,7 +79,8 @@ export function generate(seed_name: string, slot: number) {
       });
     },
   );
-  req.open("POST", prefs.overpass_server, true);
+  //req.open("POST", prefs.overpass_server, true);
+  req.open("POST", "/testdata.json", true);
   console.log("Sending Overpass request");
   req.send(`data=${encodeURIComponent(my_query)}`);
   return ret;

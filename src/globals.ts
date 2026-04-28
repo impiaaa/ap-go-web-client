@@ -112,12 +112,16 @@ export function setSlotData(new_slot_data: APGoSlotData) {
   slot_data = new_slot_data;
 }
 export const client = new Client();
-export let points = new Map<number, [number, number]>();
-export function setPoints(new_points: Map<number, [number, number]>) {
-  points = new_points;
-}
+export const game_data: {
+  displayed_trap_locations: [string, number][];
+  points: Map<number, [number, number]>;
+  scouted_locations: Map<number, NetworkItem>;
+} = {
+  displayed_trap_locations: [],
+  points: new Map<number, [number, number]>(),
+  scouted_locations: new Map<number, NetworkItem>(),
+};
 export const cheat = !!localStorage.getItem("cheat");
-export const scouted_locations = new Map<number, NetworkItem>();
 export let game_state: GameState = GameState.Disconnected;
 export function setGameState(new_state: GameState) {
   game_state = new_state;

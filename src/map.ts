@@ -14,13 +14,12 @@ import {
   COLLECTION_DISTANCE_BASE,
   cheat,
   client,
+  game_data,
   game_state,
   generator_internal,
   LONG_MACGUFFIN_ITEMS,
-  points,
   prefs,
   SHORT_MACGUFFIN_ITEMS,
-  scouted_locations,
   slot_data,
 } from "./globals";
 import icons_caution_svg from "./icons/caution.svg?raw";
@@ -333,7 +332,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     location_id = item.locationId;
   } else if (typeof arg === "number") {
     location_id = arg;
-    const scouted_location = scouted_locations.get(location_id);
+    const scouted_location = game_data.scouted_locations.get(location_id);
     if (scouted_location) {
       item = new Item(
         client,
@@ -358,7 +357,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     throw `Unknown trip ${location_name}`;
   }
   const key_progression = getKeyProgress();
-  let point = points.get(location_id);
+  let point = game_data.points.get(location_id);
   const icon = getItemMarker(location_id, trip, key_progression, item, hinted);
   const existing_marker = location_markers.get(location_id);
   if (existing_marker) {
@@ -1078,11 +1077,11 @@ class FitMapToPointsControl implements maplibregl.IControl {
 }
 
 export function fitMapToPoints(animated: boolean) {
-  if (!game_map || !game_map.loaded || !points) {
+  if (!game_map || !game_map.loaded || !game_data.points) {
     return;
   }
   const bounds = new maplibregl.LngLatBounds();
-  points.forEach((point) => {
+  game_data.points.forEach((point) => {
     bounds.extend(point);
   });
   if (!bounds.isEmpty()) {
