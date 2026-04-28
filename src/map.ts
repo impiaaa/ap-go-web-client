@@ -132,13 +132,6 @@ function lateSetUpMap() {
       source: "collection_circle",
       type: "line",
     });
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (event) => {
-        game_map!
-          .getLayer("collection_circle")
-          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
-      });
     game_map!.addSource("scouting_circle", {
       data: makePolygonGeojson([]),
       type: "geojson",
@@ -153,13 +146,25 @@ function lateSetUpMap() {
       source: "scouting_circle",
       type: "line",
     });
+
     window
       .matchMedia("(prefers-color-scheme: dark)")
       .addEventListener("change", (event) => {
-        game_map!
-          .getLayer("scouting_circle")
+        game_map
+          ?.getLayer("collection_circle")
+          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
+        game_map
+          ?.getLayer("scouting_circle")
           ?.setPaintProperty("line-color", event.matches ? "white" : "black");
       });
+    client.socket.on("connected", () => {
+      game_map?.setLayoutProperty("collection_circle", "visibility", "visible");
+      game_map?.setLayoutProperty("scouting_circle", "visibility", "visible");
+    });
+    client.socket.on("disconnected", () => {
+      game_map?.setLayoutProperty("collection_circle", "visibility", "none");
+      game_map?.setLayoutProperty("scouting_circle", "visibility", "none");
+    });
   });
 }
 

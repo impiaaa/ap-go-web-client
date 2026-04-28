@@ -202,6 +202,7 @@ function doLogin(thenShowMap: boolean) {
             points.forEach((_, location_id) => {
               updateMarker(location_id);
             });
+            console.log("Successfully loaded saved game, skipping generation");
             doneGenerating();
             return;
           }

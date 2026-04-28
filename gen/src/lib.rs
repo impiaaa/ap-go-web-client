@@ -372,11 +372,11 @@ pub fn points_in_radius(
 #[wasm_bindgen]
 pub fn make_circle(
     internal: &Internal,
-    point_arr: Vec<f64>,
+    center_arr: Vec<f64>,
     radius: f64,
     points: u64,
 ) -> Vec<JsValue> {
-    let center_geo: Coord = (point_arr[0], point_arr[1]).into();
+    let center_geo: Coord = (center_arr[0], center_arr[1]).into();
     let center_enu = geo_to_enu(
         center_geo,
         internal.ref_ecef.unwrap(),
