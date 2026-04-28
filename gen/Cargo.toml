@@ -10,6 +10,8 @@ crate-type = ["cdylib"]
 console_error_panic_hook = { version = "0.1.6" }
 geo = { version = "0.32", default-features = false }
 getrandom = { version = "0.2.17", default-features = false, features = ["js"] }
+num-traits = { version = "0.2.19", default-features = false }
+petgraph = { version = "0.8.3", default-features = false }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 rstar = { version = "0.12.2", default-features = false }
 wasm-bindgen = { version = "0.2", default-features = false }

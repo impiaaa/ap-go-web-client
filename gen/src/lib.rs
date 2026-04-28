@@ -1,9 +1,9 @@
-use ::geo::{ClosestPoint, Coord, LineString, Point};
+use ::geo::{ClosestPoint, Coord, Length, LineString, Point};
 use rand::{Rng, SeedableRng};
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, HashSet};
-use std::{f64, panic};
+use std::panic;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, js_sys};
 mod geo;
@@ -34,7 +34,7 @@ extern "C" {
     #[wasm_bindgen(structural, method, getter)]
     pub fn id(this: &OsmElement) -> f64;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn tags(this: &OsmElement) -> Option<JsValue>;
+    pub fn tags(this: &OsmElement) -> Option<js_sys::Object>;
 
     #[derive(Debug)]
     #[wasm_bindgen(extends = OsmElement)]
@@ -74,7 +74,7 @@ extern "C" {
     #[wasm_bindgen(method, getter)]
     pub fn speed_requirement(this: &APGoSlotData) -> f64;
     #[wasm_bindgen(method, getter)]
-    pub fn trips(this: &APGoSlotData) -> JsValue;
+    pub fn trips(this: &APGoSlotData) -> js_sys::Object;
 
     pub type Trip;
     #[wasm_bindgen(method, getter)]
@@ -102,6 +102,15 @@ pub struct Internal {
     pub(crate) ecef_mat: Option<AffineTransform3d>,
 }
 
+fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotData) -> f64 {
+    let max_dist = (slot_data.maximum_distance() / 10.0) * distance_tier;
+    if max_dist < slot_data.minimum_distance() {
+        slot_data.minimum_distance() * (1.0 + DISTANCE_LENIENCY)
+    } else {
+        max_dist
+    }
+}
+
 #[wasm_bindgen]
 pub fn generate(
     params: &GenerateParams,
@@ -125,96 +134,193 @@ pub fn generate(
     };
     let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
     let geo_mat = ecef_mat.transposed();
-
-    let elements = params.osm().elements();
-    let coords: HashMap<u64, Coord> = elements
-        .iter()
-        .filter_map(|el| {
-            if el.r#type() == "node" {
-                let node = el.unchecked_ref::<OsmNode>();
-                let point_geo: Coord = (node.lon(), node.lat()).into();
-                let point_enu = geo_to_enu(point_geo, ref_ecef, ecef_mat);
-                Some((el.id() as u64, (point_enu.x, point_enu.y).into()))
-            } else {
-                None
-            }
-        })
-        .collect();
-    let ways: Vec<&OsmWay> = elements
-        .iter()
-        .filter_map(|el| {
-            if el.r#type() == "way" {
-                Some(el.unchecked_ref::<OsmWay>())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let mut node_use_count: HashMap<u64, u32> = HashMap::new();
-    for way in &ways {
-        for node_id_float in way.nodes() {
-            let node_id_int = node_id_float as u64;
-            node_use_count.insert(
-                node_id_int,
-                node_use_count.get(&node_id_int).unwrap_or(&0u32) + 1,
-            );
-        }
-    }
-
-    let junction_nodes: HashSet<u64> = node_use_count
-        .iter()
-        .filter_map(
-            |(node_id, count)| {
-                if *count > 1u32 { Some(*node_id) } else { None }
-            },
-        )
-        .collect();
-
-    let mut segments: Vec<LineString> = Vec::new();
-    for way in ways {
-        let mut linestring: Vec<Coord> = Vec::new();
-        for node_id_float in way.nodes() {
-            let node_id_int = node_id_float as u64;
-            if let Some(coord) = coords.get(&node_id_int) {
-                linestring.push(*coord);
-                if junction_nodes.contains(&node_id_int) {
-                    if linestring.len() >= 2 {
-                        segments.push(LineString::from(linestring));
-                    }
-                    linestring = vec![*coord];
-                }
-            }
-        }
-        if linestring.len() >= 2 {
-            segments.push(LineString::from(linestring));
-        }
-    }
-
-    let segments_tree = RTree::bulk_load(segments);
-    if segments_tree.size() == 0 {
-        return Err("No segments");
-    }
-
-    let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
-    let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
-        js_sys::Map::new_typed();
+    console::log_1(&format!("ref_ecef={ref_ecef:?}").into());
+    console::log_1(&format!("ecef_mat={ecef_mat:?}").into());
+    console::log_1(&format!("geo_mat={geo_mat:?}").into());
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
         min_dist = params.slot_data().maximum_distance() * (1.0 - DISTANCE_LENIENCY);
     }
 
+    let mut max_dist_tier_number_locations_per_area = HashMap::<u8, (f64, usize)>::new();
+    for trip_js in js_sys::Object::values(&params.slot_data().trips()) {
+        let trip = trip_js.unchecked_ref::<Trip>();
+        let area = trip.key_needed() as u8;
+        let distance = trip.distance_tier();
+
+        max_dist_tier_number_locations_per_area.insert(
+            area,
+            max_dist_tier_number_locations_per_area
+                .get(&area)
+                .map(|(max_dist, count)| (max_dist.max(distance), count + 1))
+                .unwrap_or((distance, 1)),
+        );
+    }
+    for (area, (distance, count)) in max_dist_tier_number_locations_per_area.iter() {
+        console::log_1(&format!("Area {area}: {count} trips at most tier {distance}").into());
+    }
+
+    let random_point_per_area: HashMap<u8, ::geo::Point> = max_dist_tier_number_locations_per_area
+        .iter()
+        .map(|(area, (max_dist_tier, _count))| {
+            // do not seed areas outside the maximum radius of that area
+            (
+                *area,
+                random_point_in_circle(
+                    min_dist,
+                    distance_tier_to_maximum_distance(*max_dist_tier, &params.slot_data()),
+                    &mut rng,
+                ),
+            )
+        })
+        .collect();
+
+    let mut way_linestrings = Vec::<(u64, u64, LineString)>::new();
+    let elements = params.osm().elements();
+    {
+        console::log_1(&format!("{} elements", elements.len()).into());
+        let coords: HashMap<u64, Coord> = elements
+            .iter()
+            .filter_map(|el| {
+                if el.r#type() == "node" {
+                    let node = el.unchecked_ref::<OsmNode>();
+                    let point_geo: Coord = (node.lon(), node.lat()).into();
+                    let point_enu = geo_to_enu(point_geo, ref_ecef, ecef_mat);
+                    Some((el.id() as u64, (point_enu.x, point_enu.y).into()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        console::log_1(&format!("{} nodes", coords.len()).into());
+        let ways: Vec<&OsmWay> = elements
+            .iter()
+            .filter_map(|el| {
+                if el.r#type() == "way" {
+                    Some(el.unchecked_ref::<OsmWay>())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        console::log_1(&format!("{} ways", ways.len()).into());
+
+        let mut node_use_count: HashMap<u64, u32> = HashMap::new();
+        for way in &ways {
+            for node_id_float in way.nodes() {
+                let node_id_int = node_id_float as u64;
+                node_use_count.insert(
+                    node_id_int,
+                    node_use_count.get(&node_id_int).unwrap_or(&0u32) + 1,
+                );
+            }
+        }
+
+        let junction_nodes: HashSet<u64> = node_use_count
+            .iter()
+            .filter_map(
+                |(node_id, count)| {
+                    if *count > 1u32 { Some(*node_id) } else { None }
+                },
+            )
+            .collect();
+        console::log_1(&format!("{} junction nodes", junction_nodes.len()).into());
+
+        for way in ways {
+            let mut segment_coords: Vec<Coord> = Vec::new();
+            let mut first_node: u64 = way.nodes()[0] as u64;
+            for node_id_float in way.nodes() {
+                let node_id_int = node_id_float as u64;
+                if let Some(coord) = coords.get(&node_id_int) {
+                    segment_coords.push(*coord);
+                    if junction_nodes.contains(&node_id_int) {
+                        if segment_coords.len() >= 2 {
+                            way_linestrings.push((
+                                first_node,
+                                node_id_int,
+                                LineString::from(segment_coords),
+                            ));
+                        }
+                        segment_coords = vec![*coord];
+                        first_node = node_id_int;
+                    }
+                }
+            }
+            if segment_coords.len() >= 2 {
+                way_linestrings.push((
+                    first_node,
+                    *way.nodes().last().unwrap() as u64,
+                    LineString::from(segment_coords),
+                ));
+            }
+        }
+        console::log_1(&format!("{} linestrings", way_linestrings.len()).into());
+    }
+
+    let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
+    let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
+        .iter()
+        .filter_map(|el| {
+            if el.r#type() == "node" {
+                let node = el.unchecked_ref::<OsmNode>();
+                let node_int = node.id() as u64;
+                Some((node_int, graph.add_node(node_int)))
+            } else {
+                None
+            }
+        })
+        .collect();
+    console::log_1(&format!("{} nodes", graph.node_count()).into());
+    {
+        for (start_node, end_node, linestring) in &way_linestrings {
+            graph.add_edge(
+                *osm_id_to_graph_id.get(start_node).unwrap(),
+                *osm_id_to_graph_id.get(end_node).unwrap(),
+                ::geo::algorithm::line_measures::Euclidean.length(linestring),
+            );
+        }
+        console::log_1(&format!("{} edges", graph.edge_count()).into());
+
+        let sccs = petgraph::algo::kosaraju_scc(&graph);
+        let max_scc = sccs
+            .iter()
+            .max_by(|c1, c2| c1.len().cmp(&c2.len()))
+            .unwrap();
+        console::log_1(&format!("Largest connected component has {} nodes", max_scc.len()).into());
+
+        let max_scc_hashset: HashSet<&petgraph::graph::NodeIndex> = max_scc.iter().collect();
+        graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
+        console::log_1(&format!("Edge count now {}", graph.edge_count()).into());
+        console::log_1(&format!("Node count now {}", graph.node_count()).into());
+
+        osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
+        console::log_1(&format!("Lookup size={}", osm_id_to_graph_id.len()).into());
+    }
+
+    let mut segments_tree = RTree::<LineString>::new();
+    for (start_node, end_node, linestring) in way_linestrings {
+        if osm_id_to_graph_id.contains_key(&start_node)
+            && osm_id_to_graph_id.contains_key(&end_node)
+        {
+            segments_tree.insert(linestring);
+        }
+    }
+    if segments_tree.size() == 0 {
+        return Err("No segments");
+    }
+    console::log_1(&format!("{} segments in tree", segments_tree.size()).into());
+
+    let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
+    let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
+        js_sys::Map::new_typed();
+
     params.locations().for_each(&mut |trip_name, location_id| {
         let trip: Trip = js_sys::Reflect::get(&params.slot_data().trips(), &trip_name)
             .unwrap()
             .unchecked_into();
 
-        let mut max_dist =
-            (params.slot_data().maximum_distance() / 10.0) * trip.distance_tier();
-        if max_dist < params.slot_data().minimum_distance() {
-            max_dist = params.slot_data().minimum_distance() * (1.0 + DISTANCE_LENIENCY);
-        }
+        let max_dist = distance_tier_to_maximum_distance(trip.distance_tier(), &params.slot_data());
 
         let mut attempt = 1;
         const MAX_ATTEMPTS: i32 = 256;
@@ -226,10 +332,7 @@ pub fn generate(
                 .into(),
             );
 
-            let r = (max_dist - min_dist) * rng.r#gen::<f64>().sqrt() + min_dist;
-            let theta = rng.r#gen::<f64>() * std::f64::consts::TAU;
-            let (st, ct) = theta.sin_cos();
-            let random_point = ::geo::Point::new(r * ct, r * st);
+            let random_point = random_point_in_circle(min_dist, max_dist, &mut rng);
             console::log_1(&format!("Random point is {random_point:?}").into());
 
             // Don't generate points too close to each other, but at a lower priority than
@@ -291,6 +394,20 @@ pub fn generate(
     });
 
     Ok(trip_points)
+}
+
+fn random_point_in_circle<T: Rng, U: ::geo::CoordFloat + num_traits::FloatConst>(
+    min_dist: U,
+    max_dist: U,
+    rng: &mut T,
+) -> ::geo::Point<U>
+where
+    rand::distributions::Standard: rand::distributions::Distribution<U>,
+{
+    let r = (max_dist - min_dist) * rng.r#gen::<U>().sqrt() + min_dist;
+    let theta = rng.r#gen::<U>() * U::TAU();
+    let (st, ct) = theta.sin_cos();
+    ::geo::Point::<U>::new(r * ct, r * st)
 }
 
 #[wasm_bindgen]
@@ -385,7 +502,7 @@ pub fn make_circle(
     let geo_mat = internal.ecef_mat.unwrap().transposed();
     (0..points + 1)
         .map(|i| {
-            let theta = f64::consts::TAU * (i as f64) / (points as f64);
+            let theta = std::f64::consts::TAU * (i as f64) / (points as f64);
             let (sc, cs) = theta.sin_cos();
             let point_enu = Coord3d {
                 x: cs * radius + center_enu.x,
