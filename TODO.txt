@@ -8,7 +8,5 @@ add timeout to geo updates
 bugs:
 - reconnecting makes circles disappear
 - map screen still dims
-- key and progression don't disappear from boxes on map screen when disconnecting
-- progression on map screen doesn't update when connecting
 - sometimes hints don't update map
 - collected locations should show the item they had in their map pin popup

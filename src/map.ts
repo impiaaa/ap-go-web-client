@@ -469,6 +469,7 @@ class MacguffinDisplayControl implements maplibregl.IControl {
   private _map?: maplibregl.Map;
   private _container?: HTMLDivElement;
   private _letters: HTMLSpanElement[] = [];
+  private _item_ids: number[] = [];
   onAdd(map: maplibregl.Map): HTMLElement {
     this._map = map;
     this._container = document.createElement("div");
@@ -478,16 +479,34 @@ class MacguffinDisplayControl implements maplibregl.IControl {
       this.setUpLetters(slot_data);
     }
     client.socket.on("connected", this.onConnected.bind(this));
+    client.socket.on("disconnected", this.onDisconnected.bind(this));
+    client.items.on("itemsReceived", this.onItemsReceived.bind(this));
 
     return this._container;
   }
   private onConnected(packet: ConnectedPacket) {
     this.setUpLetters(packet.slot_data as APGoSlotData);
   }
-  private setUpLetters(slot_data: APGoSlotData) {
+  private onDisconnected() {
     this._letters.forEach((el) => {
       this._container?.removeChild(el);
     });
+    this._letters = [];
+    this._item_ids = [];
+  }
+  private setItemReceived(index: number, el?: HTMLSpanElement) {
+    if (!el) el = this._letters[index];
+    el.className = "received";
+    el.style.setProperty("color", APColors[index % APColors.length]);
+  }
+  private onItemsReceived(items: Item[]) {
+    items.forEach((item) => {
+      if (this._item_ids.includes(item.id)) {
+        this.setItemReceived(this._item_ids.indexOf(item.id));
+      }
+    });
+  }
+  private setUpLetters(slot_data: APGoSlotData) {
     if (!slot_data) {
       console.error(
         "Trying to set up MacguffinDisplayControl with no slot data",
@@ -496,15 +515,14 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     }
     shuffle(APColors);
     let letters: string;
-    let item_ids: number[];
     switch (slot_data.goal) {
       case Goal.ShortMacGuffin:
         letters = "AP-GO!";
-        item_ids = SHORT_MACGUFFIN_ITEMS;
+        this._item_ids = SHORT_MACGUFFIN_ITEMS;
         break;
       case Goal.LongMacGuffin:
         letters = "Archipela-GO!";
-        item_ids = LONG_MACGUFFIN_ITEMS;
+        this._item_ids = LONG_MACGUFFIN_ITEMS;
         break;
       default:
         this._map?.removeControl(this);
@@ -513,29 +531,23 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     this._letters = Array.from(letters).map((letter, index) => {
       const el = document.createElement("span");
       el.textContent = letter;
-      if (client.items.received.some((item) => item.id === item_ids[index])) {
-        el.className = "received";
-        el.style.setProperty("color", APColors[index % APColors.length]);
+      if (
+        client.items.received.some((item) => item.id === this._item_ids[index])
+      ) {
+        this.setItemReceived(index, el);
       }
       this._container?.appendChild(el);
       return el;
-    });
-    client.items.on("itemsReceived", (items) => {
-      items.forEach((item) => {
-        if (item_ids.includes(item.id)) {
-          const index = item_ids.indexOf(item.id);
-          const el = this._letters[index];
-          el.className = "received";
-          el.style.setProperty("color", APColors[index % APColors.length]);
-        }
-      });
     });
   }
   onRemove(_map: maplibregl.Map): void {
     this._container?.parentNode?.removeChild(this._container);
     this._letters = [];
+    this._item_ids = [];
     this._map = undefined;
     client.socket.off("connected", this.onConnected.bind(this));
+    client.socket.off("disconnected", this.onDisconnected.bind(this));
+    client.items.off("itemsReceived", this.onItemsReceived.bind(this));
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "top-left";
@@ -555,16 +567,26 @@ class KeyDisplayControl implements maplibregl.IControl {
       this.setUpKeys(slot_data);
     }
     client.socket.on("connected", this.onConnected.bind(this));
+    client.socket.on("disconnected", this.onDisconnected.bind(this));
+    client.items.on("itemsReceived", this.onItemsReceived.bind(this));
 
     return this._container;
   }
   private onConnected(packet: ConnectedPacket) {
     this.setUpKeys(packet.slot_data as APGoSlotData);
   }
-  private setUpKeys(slot_data: APGoSlotData) {
+  private onDisconnected() {
     this._keys.forEach((el) => {
       this._container?.removeChild(el);
     });
+    this._keys = [];
+  }
+  private onItemsReceived(items: Item[]) {
+    if (items.some((item) => item.id === ItemType.Key)) {
+      this.updateKeys();
+    }
+  }
+  private setUpKeys(slot_data: APGoSlotData) {
     if (!slot_data) {
       console.error("Trying to set up KeyDisplayControl with no slot data");
       return;
@@ -576,16 +598,12 @@ class KeyDisplayControl implements maplibregl.IControl {
       this._map?.removeControl(this);
       return;
     }
+    this._keys = new Array(max_keys);
     for (let i = 0; i < max_keys; i++) {
       const el = document.createElement("img");
       this._container?.appendChild(el);
       this._keys[i] = el;
     }
-    client.items.on("itemsReceived", (items) => {
-      if (items.some((item) => item.id === ItemType.Key)) {
-        this.updateKeys();
-      }
-    });
     this.updateKeys();
   }
   private updateKeys() {
@@ -604,6 +622,8 @@ class KeyDisplayControl implements maplibregl.IControl {
     this._keys = [];
     this._map = undefined;
     client.socket.off("connected", this.onConnected.bind(this));
+    client.socket.off("disconnected", this.onDisconnected.bind(this));
+    client.items.off("itemsReceived", this.onItemsReceived.bind(this));
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "bottom-left";
