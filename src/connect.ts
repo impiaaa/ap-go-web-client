@@ -1,4 +1,5 @@
 import init from "@pkgs/gen";
+import i18next from "i18next";
 import maplibregl, { LngLat } from "maplibre-gl";
 import { checkLocations, loadGame, moveGameState, saveGame } from "./gameplay";
 import { generate } from "./generate";
@@ -63,7 +64,9 @@ export function setConnectDisabled(disabled: boolean) {
 }
 
 export function setConnectText(textIsConnect: boolean) {
-  connect_button.innerText = textIsConnect ? "Connect" : "Disconnect";
+  connect_button.innerText = textIsConnect
+    ? i18next.t("connect.connect", "Connect")
+    : i18next.t("connect.disconnect", "Disconnect");
 }
 
 export function setConnectionMessage(message: string) {
@@ -92,7 +95,9 @@ function doLogin(thenShowMap: boolean) {
   ) as HTMLInputElement;
 
   if (!prefs.home) {
-    setConnectionError("Set a home location");
+    setConnectionError(
+      i18next.t("connect.error.no-home", "Set a home location"),
+    );
     return;
   }
 
@@ -174,7 +179,12 @@ function doLogin(thenShowMap: boolean) {
       generate(client.room.seedName, client.players.self.slot)
         .then((generate_results) => {
           if (typeof generate_results === "string") {
-            setConnectionError(`Error during generation: ${generate_results}`);
+            setConnectionError(
+              i18next.t("connect.error.generation", {
+                defaultValue: "Error during generation: {{generate_results}}",
+                generate_results: generate_results,
+              }),
+            );
             last_disconnect_was_intentional = true;
             client.socket.disconnect();
             return;
@@ -189,7 +199,12 @@ function doLogin(thenShowMap: boolean) {
           doneGenerating();
         })
         .catch((reason) => {
-          setConnectionError(`Error when fetching map data: ${reason}`);
+          setConnectionError(
+            i18next.t("connect.error.fetch", {
+              defaultValue: "Error when fetching map data: {{reason}}",
+              reason: reason,
+            }),
+          );
           last_disconnect_was_intentional = true;
           client.socket.disconnect();
         });
@@ -215,10 +230,18 @@ function geoLocationUpdate(location: GeolocationPosition) {
 function geoLocationError(error: GeolocationPositionError) {
   let message = error.message;
   if (error.code === GeolocationPositionError.PERMISSION_DENIED) {
-    message += "\nPlease reload and reconnect.";
+    message += "\n";
+    message += i18next.t(
+      "connect.geolocation-error.reload",
+      "Please reload and reconnect.",
+    );
     alert(message);
   } else {
-    message += "\nEnable cheat mode?";
+    message += "\n";
+    message += i18next.t(
+      "connect.geolocation-error.cheat",
+      "Enable cheat mode?",
+    );
     if (confirm(message)) {
       // TODO: add a way to unset cheat mode
       localStorage.setItem("cheat", "true");
@@ -231,7 +254,7 @@ function geoLocationError(error: GeolocationPositionError) {
   // - check what MapLibre does
   // - after N retries, disconnect
   moveGameState(GameState.ReadyNotTracking);
-  setConnectionMessage("Lost tracking");
+  setConnectionMessage(i18next.t("connect.error.tracking", "Lost tracking"));
   updateMapLocationError(error);
 }
 
@@ -338,7 +361,9 @@ export function setUpConnectPage() {
   client.socket.on("disconnected", () => {
     if (!last_disconnect_was_intentional) {
       // TODO: attempt to reconnect
-      setConnectionError("Disconnected");
+      setConnectionError(
+        i18next.t("connect.error.disconnected", "Disconnected"),
+      );
     }
     last_disconnect_was_intentional = false;
     moveGameState(GameState.Disconnected);

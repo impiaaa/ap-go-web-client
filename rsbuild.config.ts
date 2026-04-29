@@ -1,6 +1,8 @@
 import { defineConfig } from "@rsbuild/core";
 import { pluginTypeCheck } from "@rsbuild/plugin-type-check";
+import { pluginI18nextExtractor } from "rsbuild-plugin-i18next-extractor";
 import { pluginWasmPack } from "rsbuild-plugin-wasmpack";
+import i18nextToolkitConfig from "./i18next.config.ts";
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
@@ -11,6 +13,10 @@ export default defineConfig({
     target: "web",
   },
   plugins: [
+    pluginI18nextExtractor({
+      i18nextToolkitConfig: i18nextToolkitConfig,
+      localesDir: "./locales",
+    }),
     pluginTypeCheck(),
     pluginWasmPack({
       autoInstallWasmPack: true,

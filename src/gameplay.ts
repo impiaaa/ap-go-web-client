@@ -1,5 +1,6 @@
 import { points_in_radius, set_up_with_saved_points } from "@pkgs/gen/gen";
 import { clientStatuses, type Item } from "archipelago.js";
+import i18next from "i18next";
 import { LngLat } from "maplibre-gl";
 import {
   setConnectDisabled,
@@ -397,11 +398,15 @@ export function moveGameState(new_state: GameState) {
       setFormDisabled(true);
       setConnectDisabled(true);
       setConnectText(true);
-      setConnectionMessage("Connecting…");
+      setConnectionMessage(
+        i18next.t("connect.message.connecting", "Connecting…"),
+      );
       break;
     case GameState.Generating:
       // from: connection screen, if no game saved
-      setConnectionMessage("Generating…");
+      setConnectionMessage(
+        i18next.t("connect.message.generating", "Generating…"),
+      );
       break;
     case GameState.ReadyNotTracking:
       // from: connection screen

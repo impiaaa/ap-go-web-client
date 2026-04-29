@@ -1,5 +1,6 @@
 import { make_circle } from "@pkgs/gen/gen";
 import { type ConnectedPacket, Item } from "archipelago.js";
+import i18next from "i18next";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
@@ -377,7 +378,12 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     if (key_progression < trip.key_needed) {
       popup.appendChild(document.createElement("br"));
       popup.appendChild(
-        document.createTextNode(`Requires key ${trip.key_needed}`),
+        document.createTextNode(
+          i18next.t("map.popup.requires-key", {
+            defaultValue: "Requires key {{trip.key_needed}}",
+            trip: trip,
+          }),
+        ),
       );
     }
     if ((hinted || checked) && item) {

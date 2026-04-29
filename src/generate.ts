@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { client, prefs, slot_data } from "./globals";
 
@@ -68,19 +69,22 @@ export function generate(seed_name: string, slot: number) {
         });
       });
       req.addEventListener("abort", () => {
-        reject("Request aborted");
+        reject(i18next.t("connect.error.aborted", "Request aborted"));
       });
       req.addEventListener("error", () => {
         reject(
           req.status === 200
-            ? "Unknown network error"
-            : `HTTP error ${req.status}: ${req.statusText}`,
+            ? i18next.t("connect.error.network", "Unknown network error")
+            : i18next.t("connect.error.http", {
+                defaultValue: "HTTP error {{req.status}}: {{req.statusText}}",
+                req: req,
+              }),
         );
       });
     },
   );
-  //req.open("POST", prefs.overpass_server, true);
-  req.open("POST", "/testdata.json", true);
+  req.open("POST", prefs.overpass_server, true);
+  //req.open("POST", "/testdata.json", true);
   console.log("Sending Overpass request");
   req.send(`data=${encodeURIComponent(my_query)}`);
   return ret;

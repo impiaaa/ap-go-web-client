@@ -1,37 +1,37 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Archipela-GO!</title>
+        <title data-i18n="title">Archipela-GO!</title>
         <link rel="manifest" href="manifest.json" />
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body>
         <section id="page-connect" style="display: none;">
-            <h1>Archipela-GO!</h1>
-            <h2>Connect to server</h2>
+            <h1 data-i18n="connect.title">Archipela-GO!</h1>
+            <h2 data-i18n="connect.subtitle">Connect to server</h2>
             <form class="gridform" id="connect-form">
-                <label for="ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" maxlength="255" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
-                <label for="port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
-                <label for="player">Player Name</label><input autocapitalize="off" autocorrect="off" id="player" maxlength="16" name="player" required spellcheck="false">
-                <label for="password">Password</label><input id="password" maxlength="255" name="password" type="password">
-                <button id="set-home" type="button" aria-haspopup="dialog">Set Home Location…</button>
-                <button id="open-advanced-settings" type="button" aria-haspopup="dialog">Advanced Settings…</button>
+                <label for="ip" data-i18n="connect.ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" maxlength="255" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
+                <label for="port" data-i18n="connect.port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
+                <label for="player" data-i18n="connect.player">Player Name</label><input autocapitalize="off" autocorrect="off" id="player" maxlength="16" name="player" required spellcheck="false">
+                <label for="password" data-i18n="connect.password">Password</label><input id="password" maxlength="255" name="password" type="password">
+                <button id="set-home" type="button" aria-haspopup="dialog" data-i18n="connect.set-home">Set Home Location…</button>
+                <button id="open-advanced-settings" type="button" aria-haspopup="dialog" data-i18n="connect.open-advanced-settings">Advanced Settings…</button>
                 <button id="connect" type="submit"></button>
             </form>
             <span id="connection-message"></span>
             <div class="spacer"></div>
             <div class="license">
-                <a href="https://github.com/impiaaa/ap-go-web-client" target="_blank">Source code</a>
+                <a href="https://github.com/impiaaa/ap-go-web-client" target="_blank" data-i18n="connect.license">Source code</a>
             </div>
-            <dialog id="set-home-dialog" closedby="any" aria-label="Set home location on map">
+            <dialog id="set-home-dialog" closedby="any" aria-label="Set home location on map" data-i18n="[aria-label]connect.set-home-dialog.label">
                 <div id="set-home-map" class="map-container"></div>
-                <button id="save-home">Save</button>
+                <button id="save-home" data-i18n="connect.set-home-dialog.save">Save</button>
             </dialog>
             <dialog id="advanced-settings-dialog" closedby="any">
-                <h2>Advanced Settings</h2>
+                <h2 data-i18n="connect.advanced-settings-dialog.title">Advanced Settings</h2>
                 <form class="gridform" id="advanced-settings-form">
-                    <label for="overpass-server">Overpass Server</label>
+                    <label for="overpass-server" data-i18n="connect.advanced-settings-dialog.overpass-server">Overpass Server</label>
                     <input id="overpass-server" name="overpass-server" type="url" list="overpass-servers" required value="https://overpass.private.coffee/api/interpreter">
                     <datalist id="overpass-servers">
                         <option>https://overpass-api.de/api/interpreter</option>
@@ -43,9 +43,9 @@
                         <option>https://overpass.maprva.org/api/interpreter</option>
                         <option>https://ethiopia.overpass.openplaceguide.org/api/interpreter</option>
                     </datalist>
-                    <label for="overpass-query">Overpass Query</label>
+                    <label for="overpass-query" data-i18n="connect.advanced-settings-dialog.overpass-query">Overpass Query</label>
                     <textarea autocapitalize="off" autocomplete="off" autocorrect="off" id="overpass-query" maxlength="262144" name="overpass-query" spellcheck="false" wrap="off"></textarea>
-                    <button id="save-advanced-settings">Save</button>
+                    <button id="save-advanced-settings" data-i18n="connect.advanced-settings-dialog.save">Save</button>
                 </form>
             </dialog>
         </section>
@@ -55,19 +55,19 @@
         <section id="page-log" style="display: none;">
             <div class="log" id="text-log"></div>
             <form id="text-input">
-                <input autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Send text or a command to the Archipelago server">
+                <input autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Send text or a command to the Archipelago server" data-i18n="[aria-label]log.text-input">
             </form>
         </section>
         <section id="page-hints" style="display: none;">
             <table id="hint-table">
                 <thead>
                     <tr>
-                        <th>Receiving Player</th>
-                        <th>Item</th>
-                        <th>Finding Player</th>
-                        <th>Location</th>
-                        <th>Entrance</th>
-                        <th>Found</th>
+                        <th data-i18n="hints.receiver">Receiving Player</th>
+                        <th data-i18n="hints.item">Item</th>
+                        <th data-i18n="hints.sender">Finding Player</th>
+                        <th data-i18n="hints.location">Location</th>
+                        <th data-i18n="hints.entrance">Entrance</th>
+                        <th data-i18n="hints.found">Found</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -75,16 +75,16 @@
         </section>
         <nav>
             <ul role="tablist">
-                <li><a role="tab" aria-controls="page-connect" href="#connect">Connect</a></li>
-                <li><a role="tab" aria-controls="page-map" href="#map">Map</a></li>
-                <li><a role="tab" aria-controls="page-log" href="#log">Log</a></li>
-                <li><a role="tab" aria-controls="page-hints" href="#hints">Hints</a></li>
+                <li><a role="tab" aria-controls="page-connect" href="#connect" data-i18n="nav.connect">Connect</a></li>
+                <li><a role="tab" aria-controls="page-map" href="#map" data-i18n="nav.map">Map</a></li>
+                <li><a role="tab" aria-controls="page-log" href="#log" data-i18n="nav.log">Log</a></li>
+                <li><a role="tab" aria-controls="page-hints" href="#hints" data-i18n="nav.hints">Hints</a></li>
             </ul>
         </nav>
         <dialog id="trap-dialog" closedby="any">
             <h2></h2>
             <img>
-            <p>Tap to dismiss</p>
+            <p data-i18n="trap-dialog.dismiss">Tap to dismiss</p>
         </dialog>
     </body>
 </html>

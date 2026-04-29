@@ -1,0 +1,71 @@
+{
+  "translation": {
+    "connect": {
+      "advanced-settings-dialog": {
+        "overpass-query": "Overpass Query",
+        "overpass-server": "Overpass Server",
+        "save": "Save",
+        "title": "Advanced Settings"
+      },
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "error": {
+        "aborted": "Request aborted",
+        "disconnected": "Disconnected",
+        "fetch": "Error when fetching map data: {{reason}}",
+        "generation": "Error during generation: {{generate_results}}",
+        "http": "HTTP error {{req.status}}: {{req.statusText}}",
+        "network": "Unknown network error",
+        "no-home": "Set a home location",
+        "tracking": "Lost tracking"
+      },
+      "geolocation-error": {
+        "cheat": "Enable cheat mode?",
+        "reload": "Please reload and reconnect."
+      },
+      "ip": "Address",
+      "license": "Source code",
+      "message": {
+        "connecting": "Connecting…",
+        "generating": "Generating…"
+      },
+      "open-advanced-settings": "Advanced Settings…",
+      "password": "Password",
+      "player": "Player Name",
+      "port": "Port",
+      "set-home": "Set Home Location…",
+      "set-home-dialog": {
+        "label": "Set home location on map",
+        "save": "Save"
+      },
+      "subtitle": "Connect to server",
+      "title": "Archipela-GO!"
+    },
+    "hints": {
+      "entrance": "Entrance",
+      "found": "Found",
+      "item": "Item",
+      "location": "Location",
+      "receiver": "Receiving Player",
+      "sender": "Finding Player"
+    },
+    "log": {
+      "text-input": "Send text or a command to the Archipelago server"
+    },
+    "map": {
+      "popup": {
+        "requires-key": "Requires key {{trip.key_needed}}"
+      }
+    },
+    "nav": {
+      "connect": "Connect",
+      "hints": "Hints",
+      "log": "Log",
+      "map": "Map"
+    },
+    "title": "Archipela-GO!",
+    "trap-dialog": {
+      "dismiss": "Tap to dismiss"
+    }
+  }
+}
