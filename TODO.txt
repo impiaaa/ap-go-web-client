@@ -8,8 +8,6 @@ add timeout to geo updates
 bugs:
 - reconnecting makes circles disappear
 - map screen still dims
-- sometimes hints don't update map
-- collected locations should show the item they had in their map pin popup
 
 from discord:
 - location doesn't update

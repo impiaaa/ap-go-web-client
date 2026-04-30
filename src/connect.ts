@@ -1,7 +1,13 @@
 import init from "@pkgs/gen";
 import i18next from "i18next";
 import maplibregl, { LngLat } from "maplibre-gl";
-import { checkLocations, loadGame, moveGameState, saveGame } from "./gameplay";
+import {
+  checkLocations,
+  ensureLocationsScouted,
+  loadGame,
+  moveGameState,
+  saveGame,
+} from "./gameplay";
 import { generate } from "./generate";
 import {
   cheat,
@@ -158,7 +164,13 @@ function doLogin(thenShowMap: boolean) {
         }
       };
 
-      if (loadGame()) {
+      const did_load_points = loadGame();
+
+      // Normally this is called from the locationsChecked event, but during initial connect, that
+      // happens before loadGame, so we need to do it here as well.
+      ensureLocationsScouted(client.room.checkedLocations);
+
+      if (did_load_points) {
         console.log("Successfully loaded saved game, skipping generation");
         doneGenerating();
         return;

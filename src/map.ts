@@ -321,34 +321,23 @@ function getItemMarker(
   } else return getMarkerElement("darkturquoise", null);
 }
 
-export function updateMarker(arg: Item | number, hinted: boolean = false) {
+export function updateMarker(location_id: number, hinted: boolean = false) {
   if (!slot_data) {
     throw "updateMarker called without being connected";
   }
-  let item: Item | null;
-  let location_name: string;
-  let location_id: number;
-  if (arg instanceof Item) {
-    item = arg;
-    location_name = item.locationName;
-    location_id = item.locationId;
-  } else if (typeof arg === "number") {
-    location_id = arg;
-    const scouted_location = game_data.scouted_locations.get(location_id);
-    if (scouted_location) {
-      item = new Item(
+  const scouted_location = game_data.scouted_locations.get(location_id);
+  const item = scouted_location
+    ? new Item(
         client,
         scouted_location,
         client.players.self,
         client.players.findPlayer(scouted_location.player)!,
-      );
-    } else {
-      item = null;
-    }
-    location_name = client.package.lookupLocationName(client.game, location_id);
-  } else {
-    throw `Unkown argument type ${typeof arg}`;
-  }
+      )
+    : null;
+  const location_name = client.package.lookupLocationName(
+    client.game,
+    location_id,
+  );
   if (!hinted) {
     hinted = client.items.hints.some(
       (hint) => hint.item.locationId === location_id,

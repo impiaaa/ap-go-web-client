@@ -92,6 +92,10 @@ export function checkLocations(coords: LngLat) {
   scouts = scouts?.filter(
     (location_id) => !game_data.scouted_locations.has(location_id),
   );
+  if (scouts && scouts.length > 0) {
+    console.log("Scouting locations:", scouts);
+    client.scout(scouts);
+  }
 
   let checks: undefined | null | Array<number> = points_in_radius(
     generator_internal!,
@@ -110,22 +114,6 @@ export function checkLocations(coords: LngLat) {
     const checked = client.room.checkedLocations.includes(location_id);
     return !checked && trip && key_progression >= trip.key_needed;
   });
-
-  if (scouts && scouts.length > 0) {
-    console.log("Scouting locations:", scouts);
-    client.scout(scouts).then((items) => {
-      items.forEach((item) => {
-        game_data.scouted_locations.set(item.locationId, {
-          flags: item.flags,
-          item: item.id,
-          location: item.locationId,
-          player: item.receiver.slot,
-        });
-        updateMarker(item);
-      });
-      saveGame();
-    });
-  }
   if (checks && checks.length > 0) {
     console.log("Checking locations:", checks);
     client.check(...checks);
@@ -199,8 +187,21 @@ export function loadGame() {
   return false;
 }
 
+export function ensureLocationsScouted(locations: number[]) {
+  // Ensure that we can display the item from checked locations.
+  // During normal gameplay, scouted_locations is updated as we get near, but it's possible for
+  // the scouting circle to be smaller than the collection circle, or for another client to have
+  // collected the location before we did.
+  const unscouted_locations = locations.filter(
+    (location_id) => !game_data.scouted_locations.has(location_id),
+  );
+  if (unscouted_locations.length > 0) {
+    console.log("Scouting checked locations:", unscouted_locations);
+    client.scout(unscouted_locations);
+  }
+}
+
 export function setUpGameplay() {
-  client.items.on("itemsReceived", receiveItems);
   const trap_dialog = document.getElementById(
     "trap-dialog",
   ) as HTMLDialogElement | null;
@@ -214,12 +215,22 @@ export function setUpGameplay() {
       displayTrap(item);
     }
   });
-  client.socket.on("roomUpdate", (ev) => {
-    if (ev.checked_locations !== undefined) {
-      ev.checked_locations.forEach((location_id) => {
-        updateMarker(location_id);
+  client.items.on("itemsReceived", receiveItems);
+  client.room.on("locationsChecked", (locations) => {
+    if (slot_data) {
+      locations.forEach((location_id) => {
+        updateMarker(location_id, true);
       });
+
+      ensureLocationsScouted(locations);
     }
+  });
+  client.socket.on("locationInfo", (location_info) => {
+    location_info.locations.forEach((item) => {
+      game_data.scouted_locations.set(item.location, item);
+      updateMarker(item.location);
+    });
+    saveGame();
   });
 }
 
@@ -309,9 +320,6 @@ function receiveItems(items: Item[]) {
       default:
         console.error(`Unknown item type ${item}`);
         break;
-    }
-    if (item.sender.slot === client.players.self.slot) {
-      updateMarker(item, true);
     }
   });
 }

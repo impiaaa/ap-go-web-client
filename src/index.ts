@@ -11,7 +11,7 @@ import { setUpLogPage } from "./log";
 import { hideMapPage, showMapPage } from "./map";
 
 i18next.use(LanguageDetector).init({
-  debug: true,
+  debug: import.meta.env.DEV,
   resources: {
     en: en,
   },
