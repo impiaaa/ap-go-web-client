@@ -24,6 +24,7 @@ import {
   updateMarker,
 } from "./map";
 import { type APGoSlotData, GameState } from "./types";
+import { roundCoordinates } from "./utils";
 
 const setup_form = document.forms.namedItem("connect-form")!;
 const set_home_button = document.getElementById(
@@ -285,13 +286,18 @@ function setUpSetHomeMap() {
 
   map.getCanvasContainer().appendChild(overlay);
 
+  map.on("move", () => {
+    const center = map.project(roundCoordinates(map.getCenter()));
+    yhair.style.setProperty("left", `${center.x}px`);
+    xhair.style.setProperty("top", `${center.y}px`);
+  });
+
   const set_home_dialog = document.getElementById(
     "set-home-dialog",
   ) as HTMLDialogElement;
 
   document.getElementById("save-home")?.addEventListener("click", () => {
-    const new_home = map.getCenter().toArray();
-    prefs.home = new_home;
+    prefs.home = roundCoordinates(map.getCenter());
     set_home_button.classList.remove("invalid");
     setUpHomeMarker();
     set_home_dialog.close();
@@ -412,7 +418,7 @@ export function setUpConnectPage() {
         typeof home_json[0] === "number" &&
         typeof home_json[1] === "number"
       ) {
-        prefs.home = home_json as [number, number];
+        prefs.home = roundCoordinates(home_json as [number, number]);
       }
 
       const overpass_server_json = prefs_json.overpass_server;

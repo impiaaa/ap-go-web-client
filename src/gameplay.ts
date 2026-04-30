@@ -1,7 +1,7 @@
 import { points_in_radius, set_up_with_saved_points } from "@pkgs/gen/gen";
 import { clientStatuses, type Item } from "archipelago.js";
 import i18next from "i18next";
-import { LngLat } from "maplibre-gl";
+import type { LngLat } from "maplibre-gl";
 import {
   setConnectDisabled,
   setConnectionMessage,
@@ -28,6 +28,7 @@ import {
 } from "./globals";
 import { clearMarkers, hideMapPage, showMapPage, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
+import { coordinatesApproximatelyEqual } from "./utils";
 
 const trap_queue: Item[] = [];
 let displaying_trap: [string, number];
@@ -179,8 +180,7 @@ export function loadGame() {
         Array.isArray(saved_game.home) &&
         saved_game.home.length === 2 &&
         prefs.home &&
-        LngLat.convert(saved_game.home).distanceTo(LngLat.convert(prefs.home)) <
-          COLLECTION_DISTANCE_BASE
+        coordinatesApproximatelyEqual(saved_game.home, prefs.home)
       ) {
         game_data.points.clear();
         for (const location_id_str in saved_game.points) {
