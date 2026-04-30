@@ -1,13 +1,8 @@
-import type { Item, MessageNode, Player } from "archipelago.js";
+import type { MessageNode, Player } from "archipelago.js";
 import { client } from "./globals";
+import { styleItemElement } from "./utils";
 
 export const text_log = document.getElementById("text-log")!;
-
-export function styleItemElement(element: HTMLElement, item: Item) {
-  if (item.progression) element.classList.add("progression");
-  if (item.useful) element.classList.add("useful");
-  if (item.trap) element.classList.add("trap");
-}
 
 export function stylePlayerElement(element: HTMLElement, player: Player) {
   if (
@@ -54,7 +49,7 @@ function addMessageNode(node: MessageNode) {
   text_log.appendChild(msg_el);
 }
 
-export function addMessages(nodes: MessageNode[]) {
+function addMessages(nodes: MessageNode[]) {
   nodes.forEach(addMessageNode);
   text_log.appendChild(document.createElement("br"));
 }
@@ -72,6 +67,16 @@ export function setUpLogPage() {
     if (is_at_bottom) {
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
     }
+  });
+  client.socket.on("connected", () => {
+    text_log.childNodes.forEach((c) => {
+      text_log.removeChild(c);
+    });
+    client.messages.log.forEach((line) => {
+      addMessages(line.nodes);
+      text_log.appendChild(document.createElement("br"));
+    });
+    text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
   });
   const text_input_form = document.forms.namedItem("text-input")!;
   const text_input = text_input_form.elements[0] as HTMLInputElement;

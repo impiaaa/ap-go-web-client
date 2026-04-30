@@ -1,7 +1,8 @@
 import type { Hint } from "archipelago.js";
 import { client } from "./globals";
-import { styleItemElement, stylePlayerElement } from "./log";
+import { stylePlayerElement } from "./log";
 import { updateMarker } from "./map";
+import { styleItemElement } from "./utils";
 
 const hint_table = document
   .getElementById("hint-table")!

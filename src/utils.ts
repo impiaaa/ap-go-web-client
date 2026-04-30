@@ -1,3 +1,4 @@
+import type { Item } from "archipelago.js";
 import { LngLat, type LngLatLike } from "maplibre-gl";
 
 function metersAtEquatorToDegrees(m: number): number {
@@ -28,4 +29,10 @@ export function coordinatesApproximatelyEqual(
   return (
     Math.abs(l1.lng - l2.lng) < spacing && Math.abs(l1.lat - l2.lat) < spacing
   );
+}
+
+export function styleItemElement(element: HTMLElement, item: Item) {
+  if (item.progression) element.classList.add("progression");
+  if (item.useful) element.classList.add("useful");
+  if (item.trap) element.classList.add("trap");
 }

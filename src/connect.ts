@@ -14,7 +14,6 @@ import {
   prefs,
   setSlotData,
 } from "./globals";
-import { addMessages } from "./log";
 import {
   createMap,
   fitMapToPoints,
@@ -141,16 +140,6 @@ function doLogin(thenShowMap: boolean) {
       }
 
       setSlotData(new_slot_info);
-
-      const text_log = document.getElementById("text-log")!;
-      text_log.childNodes.forEach((c) => {
-        text_log.removeChild(c);
-      });
-      client.messages.log.forEach((line) => {
-        addMessages(line.nodes);
-        text_log.appendChild(document.createElement("br"));
-      });
-      text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
 
       const doneGenerating = () => {
         moveGameState(GameState.ReadyNotTracking);

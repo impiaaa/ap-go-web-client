@@ -30,7 +30,7 @@ import icons_home_svg from "./icons/home.svg?raw";
 import icons_locked_lock_svg from "./icons/locked_lock.svg?raw";
 import icons_question_mark_svg from "./icons/question_mark.svg?raw";
 import icons_star_svg from "./icons/star.svg?raw";
-import { styleItemElement, stylePlayerElement } from "./log";
+import { stylePlayerElement } from "./log";
 import marker_svg from "./marker.svg?raw";
 import {
   type APGoSlotData,
@@ -39,6 +39,7 @@ import {
   ItemType,
   type Trip,
 } from "./types";
+import { styleItemElement } from "./utils";
 
 const icon_parser = new DOMParser();
 const marker_svg_doc = icon_parser.parseFromString(marker_svg, "image/svg+xml");
