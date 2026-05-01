@@ -20,6 +20,7 @@ export default defineConfig({
     },
   },
   output: {
+    assetPrefix: process.env.ASSET_PREFIX,
     target: "web",
   },
   plugins: [
