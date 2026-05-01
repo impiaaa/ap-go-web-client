@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { defineConfig } from "@rsbuild/core";
 import { pluginTypeCheck } from "@rsbuild/plugin-type-check";
 import { pluginI18nextExtractor } from "rsbuild-plugin-i18next-extractor";
@@ -8,6 +9,14 @@ import i18nextToolkitConfig from "./i18next.config.ts";
 export default defineConfig({
   html: {
     template: "./src/index.html",
+    templateParameters: {
+      gitVersion: execFileSync("git", [
+        "describe",
+        "--always",
+        "--dirty=*",
+        "--match= ",
+      ]),
+    },
   },
   output: {
     target: "web",

@@ -94,7 +94,9 @@ export function setUpLogPage() {
     text_input.value = "";
   });
   window.addEventListener("error", (ev) => {
-    logError(`${ev.error} ${ev.filename}:${ev.lineno}:${ev.colno}: ${ev.message}`);
+    logError(
+      `${ev.error} ${ev.filename}:${ev.lineno}:${ev.colno}: ${ev.message}`,
+    );
   });
   window.addEventListener("unhandledrejection", (ev) => {
     logError(`Unhandled promise rejection: ${ev.reason}`);
