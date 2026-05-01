@@ -54,6 +54,14 @@ function addMessages(nodes: MessageNode[]) {
   text_log.appendChild(document.createElement("br"));
 }
 
+function logError(message: string) {
+  const msg_el = document.createElement("span");
+  msg_el.appendChild(document.createTextNode(message));
+  msg_el.classList.add("error");
+  text_log.appendChild(msg_el);
+  text_log.appendChild(document.createElement("br"));
+}
+
 export function setUpLogPage() {
   client.messages.on("message", (message, nodes) => {
     console.log(message);
@@ -84,5 +92,11 @@ export function setUpLogPage() {
     ev.preventDefault();
     client.messages.say(text_input.value);
     text_input.value = "";
+  });
+  window.addEventListener("error", (ev) => {
+    logError(`${ev.error} ${ev.filename}:${ev.lineno}:${ev.colno}: ${ev.message}`);
+  });
+  window.addEventListener("unhandledrejection", (ev) => {
+    logError(`Unhandled promise rejection: ${ev.reason}`);
   });
 }
