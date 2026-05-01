@@ -245,7 +245,6 @@ function geoLocationError(error: GeolocationPositionError) {
       "Enable cheat mode?",
     );
     if (confirm(message)) {
-      // TODO: add a way to unset cheat mode
       localStorage.setItem("cheat", "true");
       location.reload();
     }
@@ -439,6 +438,23 @@ export function setUpConnectPage() {
   (
     document.getElementById("save-advanced-settings") as HTMLButtonElement
   ).addEventListener("click", saveAdvancedSettings);
+  (document.getElementById("clear-all") as HTMLButtonElement).addEventListener(
+    "click",
+    (ev) => {
+      ev.preventDefault();
+      if (
+        confirm(
+          i18next.t(
+            "connect.advanced-settings-dialog.clear-all-confirm",
+            "Erase all settings and data?",
+          ),
+        )
+      ) {
+        localStorage.clear();
+        window.location.reload();
+      }
+    },
+  );
 
   if (!prefs.home) {
     set_home_button.classList.add("invalid");

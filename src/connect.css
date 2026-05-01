@@ -58,6 +58,10 @@ button.invalid {
   flex-grow: 1;
 }
 
+.gridform .spacer {
+  grid-column-end: -1;
+}
+
 .license {
   font-size: small;
   text-align: right;

@@ -2,6 +2,8 @@
   "translation": {
     "connect": {
       "advanced-settings-dialog": {
+        "clear-all": "Erase All Settings and Data",
+        "clear-all-confirm": "Erase all settings and data?",
         "overpass-query": "Overpass Query",
         "overpass-server": "Overpass Server",
         "save": "Save",
