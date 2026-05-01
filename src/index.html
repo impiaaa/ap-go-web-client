@@ -9,7 +9,7 @@
     <body>
         <section id="page-connect" style="display: none;">
             <h1 data-i18n="connect.title">Archipela-GO!</h1>
-            <h2 data-i18n="connect.subtitle">Connect to server</h2>
+            <h2 data-i18n="connect.subtitle">Connect to Server</h2>
             <form class="gridform" id="connect-form">
                 <label for="ip" data-i18n="connect.ip">Address</label><input autocapitalize="off" autocorrect="off" id="ip" inputmode="url" maxlength="255" name="ip" placeholder="archipelago.gg" required spellcheck="false" pattern="[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?(\.[a-zA-Z0-9](([a-zA-Z0-9]|-)*[a-zA-Z0-9])?)*">
                 <label for="port" data-i18n="connect.port">Port</label><input id="port" min="0" max="65535" name="port" placeholder="38281" required type="number">
@@ -24,7 +24,7 @@
             <div class="license">
                 <a href="https://github.com/impiaaa/ap-go-web-client" target="_blank" data-i18n="connect.license">Source code</a>
                 &nbsp;·&nbsp;
-                <span id="version"><%= gitVersion %></span>
+                <bdi id="version"><%= gitVersion %></bdi>
             </div>
             <dialog id="set-home-dialog" closedby="any" aria-label="Set home location on map" data-i18n="[aria-label]connect.set-home-dialog.label">
                 <div id="set-home-map" class="map-container"></div>

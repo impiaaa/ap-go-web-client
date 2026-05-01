@@ -59,6 +59,10 @@ window.addEventListener("hashchange", (ev) => {
 
 window.addEventListener("load", () => {
   localize("html");
+  if (i18next.resolvedLanguage) {
+    document.documentElement.setAttribute("lang", i18next.resolvedLanguage);
+    document.documentElement.setAttribute("dir", i18next.dir());
+  }
   showPage("", window.location.hash.substring(1));
 });
 
