@@ -76,6 +76,7 @@ pub fn geo_to_enu(point_ecef: Coord, ref_ecef: Coord3d, ecef_mat: AffineTransfor
     ecef_mat.apply3d(vec)
 }
 
+#[allow(non_snake_case)]
 pub fn ecef_to_geo(ecef: Coord3d) -> Coord {
     let r = (ecef.x * ecef.x + ecef.y * ecef.y).sqrt();
     let ep2 = (EQUATORIAL_RADIUS * EQUATORIAL_RADIUS - POLAR_RADIUS * POLAR_RADIUS)
