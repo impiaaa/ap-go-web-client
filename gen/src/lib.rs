@@ -368,36 +368,3 @@ pub fn points_in_radius(
         JsValue::null()
     }
 }
-
-#[wasm_bindgen]
-pub fn make_circle(
-    internal: &Internal,
-    center_arr: Vec<f64>,
-    radius: f64,
-    points: u64,
-) -> Vec<JsValue> {
-    let center_geo: Coord = (center_arr[0], center_arr[1]).into();
-    let center_enu = geo_to_enu(
-        center_geo,
-        internal.ref_ecef.unwrap(),
-        internal.ecef_mat.unwrap(),
-    );
-    let geo_mat = internal.ecef_mat.unwrap().transposed();
-    (0..points + 1)
-        .map(|i| {
-            let theta = f64::consts::TAU * (i as f64) / (points as f64);
-            let (sc, cs) = theta.sin_cos();
-            let point_enu = Coord3d {
-                x: cs * radius + center_enu.x,
-                y: sc * radius + center_enu.y,
-                z: center_enu.z,
-            };
-            let point_geo = enu_to_geo(point_enu, internal.ref_ecef.unwrap(), geo_mat);
-            vec![
-                JsValue::from_f64(point_geo.x),
-                JsValue::from_f64(point_geo.y),
-            ]
-            .into()
-        })
-        .collect()
-}

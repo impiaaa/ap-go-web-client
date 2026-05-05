@@ -1,4 +1,3 @@
-import { make_circle } from "@pkgs/gen/gen";
 import { type ConnectedPacket, Item } from "archipelago.js";
 import i18next from "i18next";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
@@ -17,7 +16,6 @@ import {
   client,
   game_data,
   game_state,
-  generator_internal,
   LONG_MACGUFFIN_ITEMS,
   prefs,
   SHORT_MACGUFFIN_ITEMS,
@@ -68,6 +66,27 @@ let home_marker: maplibregl.Marker | null = null;
 export const location_markers = new Map<number, maplibregl.Marker>();
 let wake_lock: WakeLockSentinel | null = null;
 let geolocate_control: MyGeolocateControl | null = null;
+const circles_geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+  features: [
+    {
+      geometry: {
+        coordinates: [0, 0],
+        type: "Point",
+      },
+      properties: { lat: 0, radius: 0, type: "collection" },
+      type: "Feature",
+    },
+    {
+      geometry: {
+        coordinates: [0, 0],
+        type: "Point",
+      },
+      properties: { lat: 0, radius: 0, type: "scouting" },
+      type: "Feature",
+    },
+  ],
+  type: "FeatureCollection",
+};
 
 export function clearMarkers() {
   location_markers.forEach((marker) => {
@@ -95,39 +114,49 @@ export function createMap(container: string) {
   return map;
 }
 
-function makePolygonGeojson(
-  points: GeoJSON.Position[],
-  properties: GeoJSON.GeoJsonProperties,
-): GeoJSON.Feature {
-  return {
-    geometry: { coordinates: [points], type: "Polygon" },
-    properties: properties,
-    type: "Feature",
-  };
-}
-
 function setUpCircles(dark: boolean) {
   // The matchMedia event listener in createMap removes all added layers, so we need to recreate it
-  if (game_map!.getLayer("circles")) {
-    return;
+  if (!game_map?.getSource("circles")) {
+    game_map!.addSource("circles", {
+      data: circles_geojson,
+      type: "geojson",
+    });
+    updateCircleRadii();
   }
-  game_map!.addSource("circles", {
-    data: {
-      features: [],
-      type: "FeatureCollection",
-    },
-    type: "geojson",
-  });
-  game_map!.addLayer({
-    id: "circles",
-    paint: {
-      "line-color": dark ? "white" : "black",
-      "line-opacity": ["match", ["get", "type"], "collection", 0.8, 0.4],
-      "line-width": 1,
-    },
-    source: "circles",
-    type: "line",
-  });
+  if (!game_map?.getLayer("circles")) {
+    game_map!.addLayer({
+      id: "circles",
+      layout: { visibility: client.socket.connected ? "visible" : "none" },
+      paint: {
+        "circle-color": "transparent",
+        "circle-radius": [
+          "let",
+          "mpp0",
+          ["*", 78271.517, ["cos", ["*", ["get", "lat"], Math.PI / 180]]],
+          [
+            "interpolate",
+            ["exponential", 2],
+            ["zoom"],
+            0,
+            ["/", ["get", "radius"], ["var", "mpp0"]],
+            24,
+            ["/", ["*", ["get", "radius"], 2 ** 24], ["var", "mpp0"]],
+          ],
+        ],
+        "circle-stroke-color": dark ? "white" : "black",
+        "circle-stroke-opacity": [
+          "match",
+          ["get", "type"],
+          "collection",
+          0.8,
+          0.4,
+        ],
+        "circle-stroke-width": 1,
+      },
+      source: "circles",
+      type: "circle",
+    });
+  }
 }
 
 function lateSetUpMap() {
@@ -156,43 +185,30 @@ function lateSetUpMap() {
     client.socket.on("disconnected", () => {
       game_map?.setLayoutProperty("circles", "visibility", "none");
     });
+    client.items.on("itemsReceived", () => updateCircleRadii);
   });
 }
 
-function updateCircles(lng: number, lat: number) {
-  if (game_map && generator_internal) {
-    const center = new Float64Array([lng, lat]);
-    const resolution = BigInt(64);
-    // TODO: generate points array in-place to avaoid reallocating
-    game_map.getSource<GeoJSONSource>("circles")?.setData({
-      features: [
-        makePolygonGeojson(
-          make_circle(
-            generator_internal,
-            center,
-            getCollectionDistance(),
-            resolution,
-          ),
-          { type: "collection" },
-        ),
-        makePolygonGeojson(
-          make_circle(
-            generator_internal,
-            center,
-            getScoutingDistance(),
-            resolution,
-          ),
-          { type: "scouting" },
-        ),
-      ],
-      type: "FeatureCollection",
+function updateCircleCenters(lng: number, lat: number) {
+  if (game_map) {
+    circles_geojson.features.forEach((feat) => {
+      feat.geometry.coordinates[0] = lng;
+      feat.geometry.coordinates[1] = lat;
+      feat.properties!.lat = lat;
     });
+    game_map.getSource<GeoJSONSource>("circles")?.setData(circles_geojson);
   }
+}
+
+function updateCircleRadii() {
+  circles_geojson.features[0].properties!.radius = getCollectionDistance();
+  circles_geojson.features[1].properties!.radius = getScoutingDistance();
+  game_map?.getSource<GeoJSONSource>("circles")?.setData(circles_geojson);
 }
 
 export function updateMapLocation(position: GeolocationPosition) {
   geolocate_control?.onSuccess(position);
-  updateCircles(position.coords.longitude, position.coords.latitude);
+  updateCircleCenters(position.coords.longitude, position.coords.latitude);
 }
 
 export function updateMapLocationError(error: GeolocationPositionError) {
@@ -856,7 +872,7 @@ class MyGeolocateControl
         if (game_state === GameState.Tracking) {
           const center = this._userLocationDotMarker!.getLngLat();
           checkLocations(center);
-          updateCircles(center.lng, center.lat);
+          updateCircleCenters(center.lng, center.lat);
         }
       });
     }
