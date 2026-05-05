@@ -82,23 +82,52 @@ export function createMap(container: string) {
     container: container,
     // https://stackoverflow.com/a/57795495
     style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? "eclipse" : "colorful"}/style.json`,
+    validateStyle: import.meta.env.DEV,
   });
   window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", (event) => {
       map.setStyle(
         `https://tiles.versatiles.org/assets/styles/${event.matches ? "eclipse" : "colorful"}/style.json`,
+        { diff: true, validate: import.meta.env.DEV },
       );
     });
   return map;
 }
 
-function makePolygonGeojson(points: GeoJSON.Position[]): GeoJSON.GeoJSON {
+function makePolygonGeojson(
+  points: GeoJSON.Position[],
+  properties: GeoJSON.GeoJsonProperties,
+): GeoJSON.Feature {
   return {
     geometry: { coordinates: [points], type: "Polygon" },
-    properties: {},
+    properties: properties,
     type: "Feature",
   };
+}
+
+function setUpCircles(dark: boolean) {
+  // The matchMedia event listener in createMap removes all added layers, so we need to recreate it
+  if (game_map!.getLayer("circles")) {
+    return;
+  }
+  game_map!.addSource("circles", {
+    data: {
+      features: [],
+      type: "FeatureCollection",
+    },
+    type: "geojson",
+  });
+  game_map!.addLayer({
+    id: "circles",
+    paint: {
+      "line-color": dark ? "white" : "black",
+      "line-opacity": ["match", ["get", "type"], "collection", 0.8, 0.4],
+      "line-width": 1,
+    },
+    source: "circles",
+    type: "line",
+  });
 }
 
 function lateSetUpMap() {
@@ -110,6 +139,9 @@ function lateSetUpMap() {
   game_map.addControl(geolocate_control);
   game_map.addControl(new FitMapToPointsControl());
 
+  game_map?.on("styledata", () => {
+    setUpCircles(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches);
+  });
   game_map.on("load", () => {
     location_markers.forEach((marker) => {
       if (marker.getLngLat()) {
@@ -118,53 +150,11 @@ function lateSetUpMap() {
     });
     fitMapToPoints(false);
 
-    const darkModeMql = window.matchMedia?.("(prefers-color-scheme: dark)");
-    game_map!.addSource("collection_circle", {
-      data: makePolygonGeojson([]),
-      type: "geojson",
-    });
-    game_map!.addLayer({
-      id: "collection_circle",
-      paint: {
-        "line-color": darkModeMql?.matches ? "white" : "black",
-        "line-opacity": 0.8,
-        "line-width": 1,
-      },
-      source: "collection_circle",
-      type: "line",
-    });
-    game_map!.addSource("scouting_circle", {
-      data: makePolygonGeojson([]),
-      type: "geojson",
-    });
-    game_map!.addLayer({
-      id: "scouting_circle",
-      paint: {
-        "line-color": darkModeMql?.matches ? "white" : "black",
-        "line-opacity": 0.4,
-        "line-width": 1,
-      },
-      source: "scouting_circle",
-      type: "line",
-    });
-
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (event) => {
-        game_map
-          ?.getLayer("collection_circle")
-          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
-        game_map
-          ?.getLayer("scouting_circle")
-          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
-      });
     client.socket.on("connected", () => {
-      game_map?.setLayoutProperty("collection_circle", "visibility", "visible");
-      game_map?.setLayoutProperty("scouting_circle", "visibility", "visible");
+      game_map?.setLayoutProperty("circles", "visibility", "visible");
     });
     client.socket.on("disconnected", () => {
-      game_map?.setLayoutProperty("collection_circle", "visibility", "none");
-      game_map?.setLayoutProperty("scouting_circle", "visibility", "none");
+      game_map?.setLayoutProperty("circles", "visibility", "none");
     });
   });
 }
@@ -174,9 +164,8 @@ function updateCircles(lng: number, lat: number) {
     const center = new Float64Array([lng, lat]);
     const resolution = BigInt(64);
     // TODO: generate points array in-place to avaoid reallocating
-    game_map
-      .getSource<GeoJSONSource>("collection_circle")
-      ?.setData(
+    game_map.getSource<GeoJSONSource>("circles")?.setData({
+      features: [
         makePolygonGeojson(
           make_circle(
             generator_internal,
@@ -184,11 +173,8 @@ function updateCircles(lng: number, lat: number) {
             getCollectionDistance(),
             resolution,
           ),
+          { type: "collection" },
         ),
-      );
-    game_map
-      .getSource<GeoJSONSource>("scouting_circle")
-      ?.setData(
         makePolygonGeojson(
           make_circle(
             generator_internal,
@@ -196,8 +182,11 @@ function updateCircles(lng: number, lat: number) {
             getScoutingDistance(),
             resolution,
           ),
+          { type: "scouting" },
         ),
-      );
+      ],
+      type: "FeatureCollection",
+    });
   }
 }
 
