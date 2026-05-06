@@ -1,4 +1,4 @@
-use ::geo::{ClosestPoint, Coord, Length, LineString, Point};
+use ::geo::{ClosestPoint, Coord, Length, LineLocatePoint, LineString, Point};
 use rand::{Rng, SeedableRng};
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
@@ -271,7 +271,9 @@ pub fn generate(
         console::log_1(&format!("{} linestrings", way_linestrings.len()).into());
     }
 
-    if params.subgraph_selection() == SubgraphSelection::BiggestSubgraph {
+    if params.subgraph_selection() == SubgraphSelection::BiggestSubgraph
+        || params.subgraph_selection() == SubgraphSelection::ClosestSubgraph
+    {
         let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
         let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
             .iter()
@@ -296,19 +298,90 @@ pub fn generate(
         }
         console::log_1(&format!("{} edges", graph.edge_count()).into());
 
-        let sccs = petgraph::algo::kosaraju_scc(&graph);
-        let max_scc = sccs
-            .iter()
-            .max_by(|c1, c2| c1.len().cmp(&c2.len()))
-            .unwrap();
-        console::log_1(&format!("Largest connected component has {} nodes", max_scc.len()).into());
+        if params.subgraph_selection() == SubgraphSelection::BiggestSubgraph {
+            let sccs = petgraph::algo::kosaraju_scc(&graph);
+            let max_scc = sccs
+                .iter()
+                .max_by(|c1, c2| c1.len().cmp(&c2.len()))
+                .unwrap();
+            console::log_1(
+                &format!("Largest connected component has {} nodes", max_scc.len()).into(),
+            );
 
-        let max_scc_hashset: HashSet<&petgraph::graph::NodeIndex> = max_scc.iter().collect();
-        graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
+            let max_scc_hashset: HashSet<&petgraph::graph::NodeIndex> = max_scc.iter().collect();
+            graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
+            osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
+        } else {
+            let segments_tree = RTree::bulk_load(
+                way_linestrings
+                    .iter()
+                    .map(|(start_node, end_node, linestring)| {
+                        GeomWithData::new(linestring.clone(), (*start_node, *end_node))
+                    })
+                    .collect(),
+            );
+            if segments_tree.size() == 0 {
+                return Err("No segments");
+            }
+            console::log_1(&format!("{} segments in tree", segments_tree.size()).into());
+
+            let home_enu = Point::new(0.0, 0.0);
+            let starting_line = segments_tree.nearest_neighbor(&home_enu).unwrap();
+            console::log_1(&format!("starting_line: {:?}", starting_line).into());
+            let starting_point = match starting_line.geom().closest_point(&home_enu) {
+                ::geo::Closest::Intersection(point) => point,
+                ::geo::Closest::SinglePoint(point) => point,
+                ::geo::Closest::Indeterminate => return Err("Indeterminate starting point"),
+            };
+            console::log_1(&format!("starting_point: {:?}", starting_point).into());
+            let distance_to_starting_point = starting_point.distance_2(&home_enu).sqrt();
+            console::log_1(
+                &format!(
+                    "distance_to_starting_point: {:?}",
+                    distance_to_starting_point
+                )
+                .into(),
+            );
+            let fraction_along_line = starting_line
+                .geom()
+                .line_locate_point(&starting_point)
+                .unwrap();
+            console::log_1(&format!("fraction_along_line: {:?}", fraction_along_line).into());
+            let (starting_node, distance_to_starting_node) = if fraction_along_line < 0.5 {
+                (
+                    osm_id_to_graph_id.get(&starting_line.data.0).unwrap(),
+                    distance_to_starting_point
+                        + fraction_along_line
+                            * ::geo::algorithm::line_measures::Euclidean
+                                .length(starting_line.geom()),
+                )
+            } else {
+                (
+                    osm_id_to_graph_id.get(&starting_line.data.1).unwrap(),
+                    distance_to_starting_point
+                        + (1.0 - fraction_along_line)
+                            * ::geo::algorithm::line_measures::Euclidean
+                                .length(starting_line.geom()),
+                )
+            };
+            console::log_1(&format!("starting_node: {:?}", starting_node).into());
+            console::log_1(
+                &format!("distance_to_starting_node: {:?}", distance_to_starting_node).into(),
+            );
+            let mut node_distances =
+                petgraph::algo::dijkstra::dijkstra(&graph, *starting_node, None, |edge| {
+                    *edge.weight()
+                });
+            // TODO: we should retain 1 node further out than allowable, then trim those edges
+            node_distances.retain(|_, distance| {
+                *distance <= params.slot_data().maximum_distance() - distance_to_starting_node
+            });
+            console::log_1(&format!("{} nodes within range", node_distances.len()).into());
+            graph.retain_nodes(|_, ni| node_distances.contains_key(&ni));
+            osm_id_to_graph_id.retain(|_osm_id, graph_id| node_distances.contains_key(graph_id));
+        }
         console::log_1(&format!("Edge count now {}", graph.edge_count()).into());
         console::log_1(&format!("Node count now {}", graph.node_count()).into());
-
-        osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
         console::log_1(&format!("Lookup size={}", osm_id_to_graph_id.len()).into());
 
         way_linestrings.retain(|(start_node, end_node, _)| {
@@ -316,10 +389,12 @@ pub fn generate(
         });
     }
 
-    let mut segments_tree = RTree::<LineString>::new();
-    for (_, _, linestring) in way_linestrings {
-        segments_tree.insert(linestring);
-    }
+    let segments_tree = RTree::<LineString>::bulk_load(
+        way_linestrings
+            .into_iter()
+            .map(|(_, _, linestring)| linestring)
+            .collect(),
+    );
     if segments_tree.size() == 0 {
         return Err("No segments");
     }
