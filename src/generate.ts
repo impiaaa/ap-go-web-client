@@ -1,4 +1,3 @@
-import { GenerateParams } from "@pkgs/gen/gen";
 import i18next from "i18next";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { client, prefs, slot_data } from "./globals";
@@ -65,22 +64,20 @@ export function generate(seed_name: string, slot: number) {
         worker.onmessage = (event) => {
           resolve(event.data);
         };
-        worker.postMessage(
-          new GenerateParams(
-            new Float64Array(prefs.home!),
-            new Map<number, string>(
-              client.room.allLocations.map((location_id) => [
-                location_id,
-                client.package.lookupLocationName(client.game, location_id),
-              ]),
-            ),
-            res,
-            seed_name,
-            slot,
-            slot_data,
-            prefs.subgraph_selection,
+        worker.postMessage({
+          home: new Float64Array(prefs.home!),
+          locations: new Map<number, string>(
+            client.room.allLocations.map((location_id) => [
+              location_id,
+              client.package.lookupLocationName(client.game, location_id),
+            ]),
           ),
-        );
+          osm: res,
+          seed_name: seed_name,
+          slot: slot,
+          slot_data: slot_data,
+          subgraph_selection: prefs.subgraph_selection,
+        });
       });
       req.addEventListener("abort", () => {
         reject(i18next.t("connect.error.aborted", "Request aborted"));

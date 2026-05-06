@@ -329,28 +329,37 @@ function saveAdvancedSettings(ev: PointerEvent) {
   if (advanced_settings_form.checkValidity()) {
     ev.preventDefault();
 
-    prefs.overpass_server =
-      (
-        advanced_settings_form.elements.namedItem(
-          "overpass-server",
-        ) as HTMLInputElement
-      ).value || prefs.overpass_server;
-    prefs.overpass_query =
-      (
-        advanced_settings_form.elements.namedItem(
-          "overpass-query",
-        ) as HTMLTextAreaElement
-      ).value || DEFAULT_OVERPASS_QUERY;
-    prefs.subgraph_selection = parseInt(
-      (
-        advanced_settings_form.elements.namedItem(
-          "subgraph-selection",
-        ) as HTMLTextAreaElement
-      ).value,
-      10,
-    );
+    const new_prefs: typeof prefs = {
+      ...prefs,
+      overpass_query:
+        (
+          advanced_settings_form.elements.namedItem(
+            "overpass-query",
+          ) as HTMLTextAreaElement
+        ).value || DEFAULT_OVERPASS_QUERY,
+      overpass_server:
+        (
+          advanced_settings_form.elements.namedItem(
+            "overpass-server",
+          ) as HTMLInputElement
+        ).value || prefs.overpass_server,
+      subgraph_selection: parseInt(
+        (
+          advanced_settings_form.elements.namedItem(
+            "subgraph-selection",
+          ) as HTMLTextAreaElement
+        ).value,
+        10,
+      ),
+    };
 
-    saveConnectInfo();
+    if (new_prefs !== prefs) {
+      Object.assign(prefs, new_prefs);
+      game_data.points.clear();
+      saveGame();
+      saveConnectInfo();
+    }
+
     (
       document.getElementById("advanced-settings-dialog") as HTMLDialogElement
     ).close();

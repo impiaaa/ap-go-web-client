@@ -1,7 +1,6 @@
-import type { GenerateParams } from "@pkgs/gen";
 import init, { generate } from "@pkgs/gen";
 
-self.onmessage = (event: MessageEvent<GenerateParams>) => {
+self.onmessage = (event) => {
   init().then(() => {
     let result: Map<number, Array<number>> | string;
     try {
