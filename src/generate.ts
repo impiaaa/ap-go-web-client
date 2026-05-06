@@ -16,14 +16,15 @@ export function generate(seed_name: string, slot: number) {
     slot_data.maximum_distance,
   );
   // Query optimization: We can get our query to be prioritized better by estimating how much memory
-  // it will require. In my experimenting, 55581746 bytes are required to run the default query with
-  // radius=5000m in London. That radius makes an area of 7.85e7 m², so ~0.708 bytes/m². Then add a
-  // fudge factor of 2x to approximate the memory required per area.
+  // it will require. The most highway-dense 1000m radius circle area in OSM is centered around Soho
+  // Square in London. In my experimenting, 2121863 bytes are required to run the current default
+  // query around this area. That radius makes an area of 3.14e6 m², so ~0.675 bytes/m². Then add a
+  // fudge factor of 1.5x to approximate the memory required per area.
   const maxsize = Math.round(
     slot_data.maximum_distance *
       slot_data.maximum_distance *
       Math.PI *
-      1.415377539,
+      1.013114955,
   );
   const my_query = prefs.overpass_query
     .replaceAll("{{maximum_distance}}", `${slot_data.maximum_distance}`)
