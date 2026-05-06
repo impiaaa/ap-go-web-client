@@ -1,7 +1,9 @@
 [package]
 name = "gen"
-version = "0.1.0"
+description = "Play Archipela-GO! on the web (WASM support components)"
 edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
 
 [lib]
 crate-type = ["cdylib"]

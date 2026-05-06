@@ -1,23 +1,26 @@
 import init from "@pkgs/gen";
+import i18next from "i18next";
 import maplibregl, { LngLat } from "maplibre-gl";
-import { checkLocations, moveGameState, saveGame } from "./gameplay";
+import {
+  checkLocations,
+  ensureLocationsScouted,
+  loadGame,
+  moveGameState,
+  saveGame,
+} from "./gameplay";
 import { generate } from "./generate";
 import {
-  COLLECTION_DISTANCE_BASE,
   cheat,
   client,
   DATAPACKAGE_KEY,
   DEFAULT_OVERPASS_QUERY,
+  game_data,
   game_state,
+  OLD_QUERY_DIGESTS,
   PREFS_KEY,
-  points,
   prefs,
-  SAVED_GAME_KEY,
-  scouted_locations,
-  setPoints,
   setSlotData,
 } from "./globals";
-import { addMessages } from "./log";
 import {
   createMap,
   fitMapToPoints,
@@ -27,6 +30,7 @@ import {
   updateMarker,
 } from "./map";
 import { type APGoSlotData, GameState } from "./types";
+import { roundCoordinates } from "./utils";
 
 const setup_form = document.forms.namedItem("connect-form")!;
 const set_home_button = document.getElementById(
@@ -67,7 +71,9 @@ export function setConnectDisabled(disabled: boolean) {
 }
 
 export function setConnectText(textIsConnect: boolean) {
-  connect_button.innerText = textIsConnect ? "Connect" : "Disconnect";
+  connect_button.innerText = textIsConnect
+    ? i18next.t("connect.connect", "Connect")
+    : i18next.t("connect.disconnect", "Disconnect");
 }
 
 export function setConnectionMessage(message: string) {
@@ -96,7 +102,9 @@ function doLogin(thenShowMap: boolean) {
   ) as HTMLInputElement;
 
   if (!prefs.home) {
-    setConnectionError("Set a home location");
+    setConnectionError(
+      i18next.t("connect.error.no-home", "Set a home location"),
+    );
     return;
   }
 
@@ -124,33 +132,21 @@ function doLogin(thenShowMap: boolean) {
       // instead.
       {
         const datapackage_str = JSON.stringify(client.package.exportPackage());
-        if (datapackage_str.length < 2*1024*1024) {
+        if (datapackage_str.length < 2 * 1024 * 1024) {
           try {
-            localStorage.setItem(
-              DATAPACKAGE_KEY,
-              datapackage_str,
-            );
-          }
-          catch (error) {
+            localStorage.setItem(DATAPACKAGE_KEY, datapackage_str);
+          } catch (error) {
             console.error("Error saving data package:", error);
           }
-        }
-        else {
-          console.warn("Data package is very large, not caching!", datapackage_str.length);
+        } else {
+          console.warn(
+            "Data package is very large, not caching!",
+            datapackage_str.length,
+          );
         }
       }
 
       setSlotData(new_slot_info);
-
-      const text_log = document.getElementById("text-log")!;
-      text_log.childNodes.forEach((c) => {
-        text_log.removeChild(c);
-      });
-      client.messages.log.forEach((line) => {
-        addMessages(line.nodes);
-        text_log.appendChild(document.createElement("br"));
-      });
-      text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
 
       const doneGenerating = () => {
         moveGameState(GameState.ReadyNotTracking);
@@ -169,43 +165,16 @@ function doLogin(thenShowMap: boolean) {
         }
       };
 
-      const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
-      scouted_locations.clear();
-      if (saved_game_json) {
-        const saved_game = JSON.parse(saved_game_json);
-        if (saved_game && saved_game.seed === client.room.seedName) {
-          if (saved_game.scouted_locations) {
-            for (const location_id_str in saved_game.scouted_locations) {
-              scouted_locations.set(
-                parseInt(location_id_str, 10),
-                saved_game.scouted_locations[location_id_str],
-              );
-            }
-          }
-          if (
-            saved_game.points &&
-            saved_game.home &&
-            Array.isArray(saved_game.home) &&
-            saved_game.home.length === 2 &&
-            prefs.home &&
-            LngLat.convert(saved_game.home).distanceTo(
-              LngLat.convert(prefs.home),
-            ) < COLLECTION_DISTANCE_BASE
-          ) {
-            points.clear();
-            for (const location_id_str in saved_game.points) {
-              points.set(
-                parseInt(location_id_str, 10),
-                saved_game.points[location_id_str],
-              );
-            }
-            points.forEach((_, location_id) => {
-              updateMarker(location_id);
-            });
-            doneGenerating();
-            return;
-          }
-        }
+      const did_load_points = loadGame();
+
+      // Normally this is called from the locationsChecked event, but during initial connect, that
+      // happens before loadGame, so we need to do it here as well.
+      ensureLocationsScouted(client.room.checkedLocations);
+
+      if (did_load_points) {
+        console.log("Successfully loaded saved game, skipping generation");
+        doneGenerating();
+        return;
       }
 
       moveGameState(GameState.Generating);
@@ -213,12 +182,17 @@ function doLogin(thenShowMap: boolean) {
       generate(client.room.seedName, client.players.self.slot)
         .then((generate_results) => {
           if (typeof generate_results === "string") {
-            setConnectionError(`Error during generation: ${generate_results}`);
+            setConnectionError(
+              i18next.t("connect.error.generation", {
+                defaultValue: "Error during generation: {{generate_results}}",
+                generate_results: generate_results,
+              }),
+            );
             last_disconnect_was_intentional = true;
             client.socket.disconnect();
             return;
           }
-          setPoints(generate_results as Map<number, [number, number]>);
+          game_data.points = generate_results as Map<number, [number, number]>;
           client.room.allLocations.forEach((location_id) => {
             updateMarker(location_id);
           });
@@ -228,7 +202,12 @@ function doLogin(thenShowMap: boolean) {
           doneGenerating();
         })
         .catch((reason) => {
-          setConnectionError(`Error when fetching map data: ${reason}`);
+          setConnectionError(
+            i18next.t("connect.error.fetch", {
+              defaultValue: "Error when fetching map data: {{reason}}",
+              reason: reason,
+            }),
+          );
           last_disconnect_was_intentional = true;
           client.socket.disconnect();
         });
@@ -254,12 +233,19 @@ function geoLocationUpdate(location: GeolocationPosition) {
 function geoLocationError(error: GeolocationPositionError) {
   let message = error.message;
   if (error.code === GeolocationPositionError.PERMISSION_DENIED) {
-    message += "\nPlease reload and reconnect.";
+    message += "\n";
+    message += i18next.t(
+      "connect.geolocation-error.reload",
+      "Please reload and reconnect.",
+    );
     alert(message);
   } else {
-    message += "\nEnable cheat mode?";
+    message += "\n";
+    message += i18next.t(
+      "connect.geolocation-error.cheat",
+      "Enable cheat mode?",
+    );
     if (confirm(message)) {
-      // TODO: add a way to unset cheat mode
       localStorage.setItem("cheat", "true");
       location.reload();
     }
@@ -270,7 +256,7 @@ function geoLocationError(error: GeolocationPositionError) {
   // - check what MapLibre does
   // - after N retries, disconnect
   moveGameState(GameState.ReadyNotTracking);
-  setConnectionMessage("Lost tracking");
+  setConnectionMessage(i18next.t("connect.error.tracking", "Lost tracking"));
   updateMapLocationError(error);
 }
 
@@ -301,13 +287,18 @@ function setUpSetHomeMap() {
 
   map.getCanvasContainer().appendChild(overlay);
 
+  map.on("move", () => {
+    const center = map.project(roundCoordinates(map.getCenter()));
+    yhair.style.setProperty("left", `${center.x}px`);
+    xhair.style.setProperty("top", `${center.y}px`);
+  });
+
   const set_home_dialog = document.getElementById(
     "set-home-dialog",
   ) as HTMLDialogElement;
 
   document.getElementById("save-home")?.addEventListener("click", () => {
-    const new_home = map.getCenter().toArray();
-    prefs.home = new_home;
+    prefs.home = roundCoordinates(map.getCenter());
     set_home_button.classList.remove("invalid");
     setUpHomeMarker();
     set_home_dialog.close();
@@ -377,7 +368,9 @@ export function setUpConnectPage() {
   client.socket.on("disconnected", () => {
     if (!last_disconnect_was_intentional) {
       // TODO: attempt to reconnect
-      setConnectionError("Disconnected");
+      setConnectionError(
+        i18next.t("connect.error.disconnected", "Disconnected"),
+      );
     }
     last_disconnect_was_intentional = false;
     moveGameState(GameState.Disconnected);
@@ -426,7 +419,7 @@ export function setUpConnectPage() {
         typeof home_json[0] === "number" &&
         typeof home_json[1] === "number"
       ) {
-        prefs.home = home_json as [number, number];
+        prefs.home = roundCoordinates(home_json as [number, number]);
       }
 
       const overpass_server_json = prefs_json.overpass_server;
@@ -436,7 +429,21 @@ export function setUpConnectPage() {
 
       const overpass_query_json = prefs_json.overpass_query;
       if (typeof overpass_query_json === "string") {
-        prefs.overpass_query = overpass_query_json;
+        window.crypto.subtle
+          .digest("SHA-1", new TextEncoder().encode(overpass_query_json))
+          .then((digest) => {
+            const digest_array = Array.from(new Uint8Array(digest));
+            const digest_hex = digest_array
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join("");
+            if (OLD_QUERY_DIGESTS.includes(digest_hex)) {
+              console.log(
+                "Old default query detected, ignoring and using new default",
+              );
+            } else {
+              prefs.overpass_query = overpass_query_json;
+            }
+          });
       }
     } else {
       localStorage.removeItem(PREFS_KEY);
@@ -446,6 +453,23 @@ export function setUpConnectPage() {
   (
     document.getElementById("save-advanced-settings") as HTMLButtonElement
   ).addEventListener("click", saveAdvancedSettings);
+  (document.getElementById("clear-all") as HTMLButtonElement).addEventListener(
+    "click",
+    (ev) => {
+      ev.preventDefault();
+      if (
+        confirm(
+          i18next.t(
+            "connect.advanced-settings-dialog.clear-all-confirm",
+            "Erase all settings and data?",
+          ),
+        )
+      ) {
+        localStorage.clear();
+        window.location.reload();
+      }
+    },
+  );
 
   if (!prefs.home) {
     set_home_button.classList.add("invalid");

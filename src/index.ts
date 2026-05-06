@@ -1,10 +1,23 @@
+import en from "../locales/en.json";
 import "./index.css";
+import i18next from "i18next";
+import LanguageDetector from "i18next-browser-languagedetector";
+import locI18next from "loc-i18next";
 import { setUpConnectPage } from "./connect";
 import { setUpGameplay } from "./gameplay";
 import { DEFAULT_PAGE } from "./globals";
 import { setUpHintsPage } from "./hints";
 import { setUpLogPage } from "./log";
 import { hideMapPage, showMapPage } from "./map";
+
+i18next.use(LanguageDetector).init({
+  debug: import.meta.env.DEV,
+  resources: {
+    en: en,
+  },
+  supportedLngs: ["en"],
+});
+const localize = locI18next.init(i18next);
 
 /* Page layout */
 
@@ -43,7 +56,13 @@ window.addEventListener("hashchange", (ev) => {
   });
   showPage(old_hash, new_hash);
 });
+
 window.addEventListener("load", () => {
+  localize("html");
+  if (i18next.resolvedLanguage) {
+    document.documentElement.setAttribute("lang", i18next.resolvedLanguage);
+    document.documentElement.setAttribute("dir", i18next.dir());
+  }
   showPage("", window.location.hash.substring(1));
 });
 

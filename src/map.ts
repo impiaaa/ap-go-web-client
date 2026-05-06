@@ -1,5 +1,5 @@
-import { make_circle } from "@pkgs/gen/gen";
 import { type ConnectedPacket, Item } from "archipelago.js";
+import i18next from "i18next";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
@@ -14,13 +14,11 @@ import {
   COLLECTION_DISTANCE_BASE,
   cheat,
   client,
+  game_data,
   game_state,
-  generator_internal,
   LONG_MACGUFFIN_ITEMS,
-  points,
   prefs,
   SHORT_MACGUFFIN_ITEMS,
-  scouted_locations,
   slot_data,
 } from "./globals";
 import icons_caution_svg from "./icons/caution.svg?raw";
@@ -30,7 +28,7 @@ import icons_home_svg from "./icons/home.svg?raw";
 import icons_locked_lock_svg from "./icons/locked_lock.svg?raw";
 import icons_question_mark_svg from "./icons/question_mark.svg?raw";
 import icons_star_svg from "./icons/star.svg?raw";
-import { styleItemElement, stylePlayerElement } from "./log";
+import { stylePlayerElement } from "./log";
 import marker_svg from "./marker.svg?raw";
 import {
   type APGoSlotData,
@@ -39,6 +37,7 @@ import {
   ItemType,
   type Trip,
 } from "./types";
+import { styleItemElement } from "./utils";
 
 const icon_parser = new DOMParser();
 const marker_svg_doc = icon_parser.parseFromString(marker_svg, "image/svg+xml");
@@ -67,6 +66,27 @@ let home_marker: maplibregl.Marker | null = null;
 export const location_markers = new Map<number, maplibregl.Marker>();
 let wake_lock: WakeLockSentinel | null = null;
 let geolocate_control: MyGeolocateControl | null = null;
+const circles_geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+  features: [
+    {
+      geometry: {
+        coordinates: [0, 0],
+        type: "Point",
+      },
+      properties: { lat: 0, radius: 0, type: "collection" },
+      type: "Feature",
+    },
+    {
+      geometry: {
+        coordinates: [0, 0],
+        type: "Point",
+      },
+      properties: { lat: 0, radius: 0, type: "scouting" },
+      type: "Feature",
+    },
+  ],
+  type: "FeatureCollection",
+};
 
 export function clearMarkers() {
   location_markers.forEach((marker) => {
@@ -81,23 +101,62 @@ export function createMap(container: string) {
     container: container,
     // https://stackoverflow.com/a/57795495
     style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? "eclipse" : "colorful"}/style.json`,
+    validateStyle: import.meta.env.DEV,
   });
   window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", (event) => {
       map.setStyle(
         `https://tiles.versatiles.org/assets/styles/${event.matches ? "eclipse" : "colorful"}/style.json`,
+        { diff: true, validate: import.meta.env.DEV },
       );
     });
   return map;
 }
 
-function makePolygonGeojson(points: GeoJSON.Position[]): GeoJSON.GeoJSON {
-  return {
-    geometry: { coordinates: [points], type: "Polygon" },
-    properties: {},
-    type: "Feature",
-  };
+function setUpCircles(dark: boolean) {
+  // The matchMedia event listener in createMap removes all added layers, so we need to recreate it
+  if (!game_map?.getSource("circles")) {
+    game_map!.addSource("circles", {
+      data: circles_geojson,
+      type: "geojson",
+    });
+    updateCircleRadii();
+  }
+  if (!game_map?.getLayer("circles")) {
+    game_map!.addLayer({
+      id: "circles",
+      layout: { visibility: client.socket.connected ? "visible" : "none" },
+      paint: {
+        "circle-color": "transparent",
+        "circle-radius": [
+          "let",
+          "mpp0",
+          ["*", 78271.517, ["cos", ["*", ["get", "lat"], Math.PI / 180]]],
+          [
+            "interpolate",
+            ["exponential", 2],
+            ["zoom"],
+            0,
+            ["/", ["get", "radius"], ["var", "mpp0"]],
+            24,
+            ["/", ["*", ["get", "radius"], 2 ** 24], ["var", "mpp0"]],
+          ],
+        ],
+        "circle-stroke-color": dark ? "white" : "black",
+        "circle-stroke-opacity": [
+          "match",
+          ["get", "type"],
+          "collection",
+          0.8,
+          0.4,
+        ],
+        "circle-stroke-width": 1,
+      },
+      source: "circles",
+      type: "circle",
+    });
+  }
 }
 
 function lateSetUpMap() {
@@ -109,6 +168,9 @@ function lateSetUpMap() {
   game_map.addControl(geolocate_control);
   game_map.addControl(new FitMapToPointsControl());
 
+  game_map?.on("styledata", () => {
+    setUpCircles(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches);
+  });
   game_map.on("load", () => {
     location_markers.forEach((marker) => {
       if (marker.getLngLat()) {
@@ -117,87 +179,36 @@ function lateSetUpMap() {
     });
     fitMapToPoints(false);
 
-    const darkModeMql = window.matchMedia?.("(prefers-color-scheme: dark)");
-    game_map!.addSource("collection_circle", {
-      data: makePolygonGeojson([]),
-      type: "geojson",
+    client.socket.on("connected", () => {
+      game_map?.setLayoutProperty("circles", "visibility", "visible");
     });
-    game_map!.addLayer({
-      id: "collection_circle",
-      paint: {
-        "line-color": darkModeMql?.matches ? "white" : "black",
-        "line-opacity": 0.8,
-        "line-width": 1,
-      },
-      source: "collection_circle",
-      type: "line",
+    client.socket.on("disconnected", () => {
+      game_map?.setLayoutProperty("circles", "visibility", "none");
     });
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (event) => {
-        game_map!
-          .getLayer("collection_circle")
-          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
-      });
-    game_map!.addSource("scouting_circle", {
-      data: makePolygonGeojson([]),
-      type: "geojson",
-    });
-    game_map!.addLayer({
-      id: "scouting_circle",
-      paint: {
-        "line-color": darkModeMql?.matches ? "white" : "black",
-        "line-opacity": 0.4,
-        "line-width": 1,
-      },
-      source: "scouting_circle",
-      type: "line",
-    });
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (event) => {
-        game_map!
-          .getLayer("scouting_circle")
-          ?.setPaintProperty("line-color", event.matches ? "white" : "black");
-      });
+    client.items.on("itemsReceived", () => updateCircleRadii);
   });
 }
 
-function updateCircles(lng: number, lat: number) {
-  if (game_map && generator_internal) {
-    const center = new Float64Array([lng, lat]);
-    const resolution = BigInt(64);
-    // TODO: generate points array in-place to avaoid reallocating
-    game_map
-      .getSource<GeoJSONSource>("collection_circle")
-      ?.setData(
-        makePolygonGeojson(
-          make_circle(
-            generator_internal,
-            center,
-            getCollectionDistance(),
-            resolution,
-          ),
-        ),
-      );
-    game_map
-      .getSource<GeoJSONSource>("scouting_circle")
-      ?.setData(
-        makePolygonGeojson(
-          make_circle(
-            generator_internal,
-            center,
-            getScoutingDistance(),
-            resolution,
-          ),
-        ),
-      );
+function updateCircleCenters(lng: number, lat: number) {
+  if (game_map) {
+    circles_geojson.features.forEach((feat) => {
+      feat.geometry.coordinates[0] = lng;
+      feat.geometry.coordinates[1] = lat;
+      feat.properties!.lat = lat;
+    });
+    game_map.getSource<GeoJSONSource>("circles")?.setData(circles_geojson);
   }
+}
+
+function updateCircleRadii() {
+  circles_geojson.features[0].properties!.radius = getCollectionDistance();
+  circles_geojson.features[1].properties!.radius = getScoutingDistance();
+  game_map?.getSource<GeoJSONSource>("circles")?.setData(circles_geojson);
 }
 
 export function updateMapLocation(position: GeolocationPosition) {
   geolocate_control?.onSuccess(position);
-  updateCircles(position.coords.longitude, position.coords.latitude);
+  updateCircleCenters(position.coords.longitude, position.coords.latitude);
 }
 
 export function updateMapLocationError(error: GeolocationPositionError) {
@@ -315,34 +326,23 @@ function getItemMarker(
   } else return getMarkerElement("darkturquoise", null);
 }
 
-export function updateMarker(arg: Item | number, hinted: boolean = false) {
+export function updateMarker(location_id: number, hinted: boolean = false) {
   if (!slot_data) {
     throw "updateMarker called without being connected";
   }
-  let item: Item | null;
-  let location_name: string;
-  let location_id: number;
-  if (arg instanceof Item) {
-    item = arg;
-    location_name = item.locationName;
-    location_id = item.locationId;
-  } else if (typeof arg === "number") {
-    location_id = arg;
-    const scouted_location = scouted_locations.get(location_id);
-    if (scouted_location) {
-      item = new Item(
+  const scouted_location = game_data.scouted_locations.get(location_id);
+  const item = scouted_location
+    ? new Item(
         client,
         scouted_location,
         client.players.self,
         client.players.findPlayer(scouted_location.player)!,
-      );
-    } else {
-      item = null;
-    }
-    location_name = client.package.lookupLocationName(client.game, location_id);
-  } else {
-    throw `Unkown argument type ${typeof arg}`;
-  }
+      )
+    : null;
+  const location_name = client.package.lookupLocationName(
+    client.game,
+    location_id,
+  );
   if (!hinted) {
     hinted = client.items.hints.some(
       (hint) => hint.item.locationId === location_id,
@@ -353,7 +353,7 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     throw `Unknown trip ${location_name}`;
   }
   const key_progression = getKeyProgress();
-  let point = points.get(location_id);
+  let point = game_data.points.get(location_id);
   const icon = getItemMarker(location_id, trip, key_progression, item, hinted);
   const existing_marker = location_markers.get(location_id);
   if (existing_marker) {
@@ -373,7 +373,12 @@ export function updateMarker(arg: Item | number, hinted: boolean = false) {
     if (key_progression < trip.key_needed) {
       popup.appendChild(document.createElement("br"));
       popup.appendChild(
-        document.createTextNode(`Requires key ${trip.key_needed}`),
+        document.createTextNode(
+          i18next.t("map.popup.requires-key", {
+            defaultValue: "Requires key {{trip.key_needed}}",
+            trip: trip,
+          }),
+        ),
       );
     }
     if ((hinted || checked) && item) {
@@ -459,6 +464,7 @@ class MacguffinDisplayControl implements maplibregl.IControl {
   private _map?: maplibregl.Map;
   private _container?: HTMLDivElement;
   private _letters: HTMLSpanElement[] = [];
+  private _item_ids: number[] = [];
   onAdd(map: maplibregl.Map): HTMLElement {
     this._map = map;
     this._container = document.createElement("div");
@@ -468,16 +474,34 @@ class MacguffinDisplayControl implements maplibregl.IControl {
       this.setUpLetters(slot_data);
     }
     client.socket.on("connected", this.onConnected.bind(this));
+    client.socket.on("disconnected", this.onDisconnected.bind(this));
+    client.items.on("itemsReceived", this.onItemsReceived.bind(this));
 
     return this._container;
   }
   private onConnected(packet: ConnectedPacket) {
     this.setUpLetters(packet.slot_data as APGoSlotData);
   }
-  private setUpLetters(slot_data: APGoSlotData) {
+  private onDisconnected() {
     this._letters.forEach((el) => {
       this._container?.removeChild(el);
     });
+    this._letters = [];
+    this._item_ids = [];
+  }
+  private setItemReceived(index: number, el?: HTMLSpanElement) {
+    if (!el) el = this._letters[index];
+    el.className = "received";
+    el.style.setProperty("color", APColors[index % APColors.length]);
+  }
+  private onItemsReceived(items: Item[]) {
+    items.forEach((item) => {
+      if (this._item_ids.includes(item.id)) {
+        this.setItemReceived(this._item_ids.indexOf(item.id));
+      }
+    });
+  }
+  private setUpLetters(slot_data: APGoSlotData) {
     if (!slot_data) {
       console.error(
         "Trying to set up MacguffinDisplayControl with no slot data",
@@ -486,15 +510,14 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     }
     shuffle(APColors);
     let letters: string;
-    let item_ids: number[];
     switch (slot_data.goal) {
       case Goal.ShortMacGuffin:
         letters = "AP-GO!";
-        item_ids = SHORT_MACGUFFIN_ITEMS;
+        this._item_ids = SHORT_MACGUFFIN_ITEMS;
         break;
       case Goal.LongMacGuffin:
         letters = "Archipela-GO!";
-        item_ids = LONG_MACGUFFIN_ITEMS;
+        this._item_ids = LONG_MACGUFFIN_ITEMS;
         break;
       default:
         this._map?.removeControl(this);
@@ -503,29 +526,23 @@ class MacguffinDisplayControl implements maplibregl.IControl {
     this._letters = Array.from(letters).map((letter, index) => {
       const el = document.createElement("span");
       el.textContent = letter;
-      if (client.items.received.some((item) => item.id === item_ids[index])) {
-        el.className = "received";
-        el.style.setProperty("color", APColors[index % APColors.length]);
+      if (
+        client.items.received.some((item) => item.id === this._item_ids[index])
+      ) {
+        this.setItemReceived(index, el);
       }
       this._container?.appendChild(el);
       return el;
-    });
-    client.items.on("itemsReceived", (items) => {
-      items.forEach((item) => {
-        if (item_ids.includes(item.id)) {
-          const index = item_ids.indexOf(item.id);
-          const el = this._letters[index];
-          el.className = "received";
-          el.style.setProperty("color", APColors[index % APColors.length]);
-        }
-      });
     });
   }
   onRemove(_map: maplibregl.Map): void {
     this._container?.parentNode?.removeChild(this._container);
     this._letters = [];
+    this._item_ids = [];
     this._map = undefined;
     client.socket.off("connected", this.onConnected.bind(this));
+    client.socket.off("disconnected", this.onDisconnected.bind(this));
+    client.items.off("itemsReceived", this.onItemsReceived.bind(this));
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "top-left";
@@ -545,16 +562,26 @@ class KeyDisplayControl implements maplibregl.IControl {
       this.setUpKeys(slot_data);
     }
     client.socket.on("connected", this.onConnected.bind(this));
+    client.socket.on("disconnected", this.onDisconnected.bind(this));
+    client.items.on("itemsReceived", this.onItemsReceived.bind(this));
 
     return this._container;
   }
   private onConnected(packet: ConnectedPacket) {
     this.setUpKeys(packet.slot_data as APGoSlotData);
   }
-  private setUpKeys(slot_data: APGoSlotData) {
+  private onDisconnected() {
     this._keys.forEach((el) => {
       this._container?.removeChild(el);
     });
+    this._keys = [];
+  }
+  private onItemsReceived(items: Item[]) {
+    if (items.some((item) => item.id === ItemType.Key)) {
+      this.updateKeys();
+    }
+  }
+  private setUpKeys(slot_data: APGoSlotData) {
     if (!slot_data) {
       console.error("Trying to set up KeyDisplayControl with no slot data");
       return;
@@ -566,16 +593,12 @@ class KeyDisplayControl implements maplibregl.IControl {
       this._map?.removeControl(this);
       return;
     }
+    this._keys = new Array(max_keys);
     for (let i = 0; i < max_keys; i++) {
       const el = document.createElement("img");
       this._container?.appendChild(el);
       this._keys[i] = el;
     }
-    client.items.on("itemsReceived", (items) => {
-      if (items.some((item) => item.id === ItemType.Key)) {
-        this.updateKeys();
-      }
-    });
     this.updateKeys();
   }
   private updateKeys() {
@@ -594,6 +617,8 @@ class KeyDisplayControl implements maplibregl.IControl {
     this._keys = [];
     this._map = undefined;
     client.socket.off("connected", this.onConnected.bind(this));
+    client.socket.off("disconnected", this.onDisconnected.bind(this));
+    client.items.off("itemsReceived", this.onItemsReceived.bind(this));
   }
   getDefaultPosition(): maplibregl.ControlPosition {
     return "bottom-left";
@@ -847,7 +872,7 @@ class MyGeolocateControl
         if (game_state === GameState.Tracking) {
           const center = this._userLocationDotMarker!.getLngLat();
           checkLocations(center);
-          updateCircles(center.lng, center.lat);
+          updateCircleCenters(center.lng, center.lat);
         }
       });
     }
@@ -1073,11 +1098,11 @@ class FitMapToPointsControl implements maplibregl.IControl {
 }
 
 export function fitMapToPoints(animated: boolean) {
-  if (!game_map || !game_map.loaded || !points) {
+  if (!game_map || !game_map.loaded || !game_data.points) {
     return;
   }
   const bounds = new maplibregl.LngLatBounds();
-  points.forEach((point) => {
+  game_data.points.forEach((point) => {
     bounds.extend(point);
   });
   if (!bounds.isEmpty()) {

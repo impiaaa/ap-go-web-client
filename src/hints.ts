@@ -1,7 +1,9 @@
 import type { Hint } from "archipelago.js";
-import { client } from "./globals";
-import { styleItemElement, stylePlayerElement } from "./log";
+import { saveGame } from "./gameplay";
+import { client, game_data } from "./globals";
+import { stylePlayerElement } from "./log";
 import { updateMarker } from "./map";
+import { styleItemElement } from "./utils";
 
 const hint_table = document
   .getElementById("hint-table")!
@@ -46,7 +48,16 @@ function addHint(hint: Hint) {
   hint_table.appendChild(row);
 
   if (hint.item.locationGame === client.game) {
-    updateMarker(hint.item, true);
+    if (!game_data.scouted_locations.has(hint.item.locationId)) {
+      game_data.scouted_locations.set(hint.item.locationId, {
+        flags: hint.item.flags,
+        item: hint.item.id,
+        location: hint.item.locationId,
+        player: hint.item.receiver.slot,
+      });
+      saveGame();
+    }
+    updateMarker(hint.item.locationId, true);
   }
 }
 

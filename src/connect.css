@@ -48,6 +48,7 @@ button.invalid {
 }
 
 #overpass-query {
+  height: 85px;
   overflow: scroll;
   font-family: monospace;
   white-space: pre;
@@ -55,6 +56,10 @@ button.invalid {
 
 .spacer {
   flex-grow: 1;
+}
+
+.gridform .spacer {
+  grid-column-end: -1;
 }
 
 .license {

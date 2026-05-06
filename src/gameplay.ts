@@ -1,5 +1,6 @@
 import { points_in_radius, set_up_with_saved_points } from "@pkgs/gen/gen";
 import { clientStatuses, type Item } from "archipelago.js";
+import i18next from "i18next";
 import type { LngLat } from "maplibre-gl";
 import {
   setConnectDisabled,
@@ -12,22 +13,25 @@ import {
   COLLECTION_DISTANCE_BASE,
   COLLECTION_DISTANCE_INCREMENT,
   client,
+  game_data,
   game_state,
   generator_internal,
   LONG_MACGUFFIN_ITEMS,
-  points,
   prefs,
   SAVED_GAME_KEY,
   SCOUTING_DISTANCE_BASE,
   SCOUTING_DISTANCE_INCREMENT,
   SHORT_MACGUFFIN_ITEMS,
-  scouted_locations,
   setGameState,
   setGeneratorInternal,
   slot_data,
 } from "./globals";
 import { clearMarkers, hideMapPage, showMapPage, updateMarker } from "./map";
 import { GameState, Goal, ItemType } from "./types";
+import { coordinatesApproximatelyEqual } from "./utils";
+
+const trap_queue: Item[] = [];
+let displaying_trap: [string, number];
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -73,7 +77,7 @@ export function checkLocations(coords: LngLat) {
 
   if (!generator_internal) {
     setGeneratorInternal(
-      set_up_with_saved_points(new Float64Array(prefs.home), points),
+      set_up_with_saved_points(new Float64Array(prefs.home), game_data.points),
     );
   }
 
@@ -85,7 +89,13 @@ export function checkLocations(coords: LngLat) {
   if (scouts === null) {
     console.error("Error getting scouting locations");
   }
-  scouts = scouts?.filter((location_id) => !scouted_locations.has(location_id));
+  scouts = scouts?.filter(
+    (location_id) => !game_data.scouted_locations.has(location_id),
+  );
+  if (scouts && scouts.length > 0) {
+    console.log("Scouting locations:", scouts);
+    client.scout(scouts);
+  }
 
   let checks: undefined | null | Array<number> = points_in_radius(
     generator_internal!,
@@ -104,22 +114,6 @@ export function checkLocations(coords: LngLat) {
     const checked = client.room.checkedLocations.includes(location_id);
     return !checked && trip && key_progression >= trip.key_needed;
   });
-
-  if (scouts && scouts.length > 0) {
-    console.log("Scouting locations:", scouts);
-    client.scout(scouts).then((items) => {
-      items.forEach((item) => {
-        scouted_locations.set(item.locationId, {
-          flags: item.flags,
-          item: item.id,
-          location: item.locationId,
-          player: item.receiver.slot,
-        });
-        updateMarker(item);
-      });
-      saveGame();
-    });
-  }
   if (checks && checks.length > 0) {
     console.log("Checking locations:", checks);
     client.check(...checks);
@@ -137,28 +131,106 @@ export function saveGame() {
   localStorage.setItem(
     SAVED_GAME_KEY,
     JSON.stringify({
+      displayed_trap_locations: game_data.displayed_trap_locations,
       home: prefs.home,
-      points: Object.fromEntries(points),
-      scouted_locations: Object.fromEntries(scouted_locations),
+      points: Object.fromEntries(game_data.points),
+      scouted_locations: Object.fromEntries(game_data.scouted_locations),
       seed: client.room.seedName,
     }),
   );
 }
 
+export function loadGame() {
+  const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
+  game_data.scouted_locations.clear();
+  game_data.displayed_trap_locations = [];
+  if (saved_game_json) {
+    const saved_game = JSON.parse(saved_game_json);
+    if (saved_game && saved_game.seed === client.room.seedName) {
+      if (saved_game.scouted_locations) {
+        for (const location_id_str in saved_game.scouted_locations) {
+          game_data.scouted_locations.set(
+            parseInt(location_id_str, 10),
+            saved_game.scouted_locations[location_id_str],
+          );
+        }
+      }
+      if (
+        saved_game.displayed_trap_locations &&
+        Array.isArray(saved_game.displayed_trap_locations)
+      ) {
+        game_data.displayed_trap_locations =
+          saved_game.displayed_trap_locations;
+      }
+      if (
+        saved_game.points &&
+        saved_game.home &&
+        Array.isArray(saved_game.home) &&
+        saved_game.home.length === 2 &&
+        prefs.home &&
+        coordinatesApproximatelyEqual(saved_game.home, prefs.home)
+      ) {
+        game_data.points.clear();
+        for (const location_id_str in saved_game.points) {
+          game_data.points.set(
+            parseInt(location_id_str, 10),
+            saved_game.points[location_id_str],
+          );
+        }
+        game_data.points.forEach((_, location_id) => {
+          updateMarker(location_id);
+        });
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function ensureLocationsScouted(locations: number[]) {
+  // Ensure that we can display the item from checked locations.
+  // During normal gameplay, scouted_locations is updated as we get near, but it's possible for
+  // the scouting circle to be smaller than the collection circle, or for another client to have
+  // collected the location before we did.
+  const unscouted_locations = locations.filter(
+    (location_id) => !game_data.scouted_locations.has(location_id),
+  );
+  if (unscouted_locations.length > 0) {
+    console.log("Scouting checked locations:", unscouted_locations);
+    client.scout(unscouted_locations);
+  }
+}
+
 export function setUpGameplay() {
-  client.items.on("itemsReceived", receiveItems);
   const trap_dialog = document.getElementById(
     "trap-dialog",
   ) as HTMLDialogElement | null;
   trap_dialog?.addEventListener("click", () => {
     trap_dialog.close();
   });
-  client.socket.on("roomUpdate", (ev) => {
-    if (ev.checked_locations !== undefined) {
-      ev.checked_locations.forEach((location_id) => {
-        updateMarker(location_id);
-      });
+  trap_dialog?.addEventListener("close", () => {
+    game_data.displayed_trap_locations.push(displaying_trap);
+    const item = trap_queue.pop();
+    if (item) {
+      displayTrap(item);
     }
+  });
+  client.items.on("itemsReceived", receiveItems);
+  client.room.on("locationsChecked", (locations) => {
+    if (slot_data) {
+      locations.forEach((location_id) => {
+        updateMarker(location_id, true);
+      });
+
+      ensureLocationsScouted(locations);
+    }
+  });
+  client.socket.on("locationInfo", (location_info) => {
+    location_info.locations.forEach((item) => {
+      game_data.scouted_locations.set(item.location, item);
+      updateMarker(item.location);
+    });
+    saveGame();
   });
 }
 
@@ -249,17 +321,28 @@ function receiveItems(items: Item[]) {
         console.error(`Unknown item type ${item}`);
         break;
     }
-    if (item.sender.slot === client.players.self.slot) {
-      updateMarker(item, true);
-    }
   });
 }
 
 function displayTrap(item: Item) {
+  if (
+    game_data.displayed_trap_locations.includes([
+      item.locationGame,
+      item.locationId,
+    ])
+  ) {
+    return;
+  }
+
   const trap_dialog = document.getElementById(
     "trap-dialog",
   ) as HTMLDialogElement | null;
   if (!trap_dialog) {
+    return;
+  }
+
+  if (trap_dialog.open) {
+    trap_queue.push(item);
     return;
   }
 
@@ -298,6 +381,8 @@ function displayTrap(item: Item) {
     trap_dialog.querySelector("img")?.setAttribute("src", img_src);
   }
 
+  displaying_trap = [item.locationGame, item.locationId];
+
   trap_dialog.showModal();
 }
 
@@ -313,7 +398,7 @@ export function moveGameState(new_state: GameState) {
         window.location.hash = "#connect";
       }
       stopTracking();
-      points.clear();
+      game_data.points.clear();
       clearMarkers();
       break;
     case GameState.Connecting:
@@ -321,11 +406,15 @@ export function moveGameState(new_state: GameState) {
       setFormDisabled(true);
       setConnectDisabled(true);
       setConnectText(true);
-      setConnectionMessage("Connecting…");
+      setConnectionMessage(
+        i18next.t("connect.message.connecting", "Connecting…"),
+      );
       break;
     case GameState.Generating:
       // from: connection screen, if no game saved
-      setConnectionMessage("Generating…");
+      setConnectionMessage(
+        i18next.t("connect.message.generating", "Generating…"),
+      );
       break;
     case GameState.ReadyNotTracking:
       // from: connection screen
