@@ -16,6 +16,7 @@ import {
   DEFAULT_OVERPASS_QUERY,
   game_data,
   game_state,
+  OLD_QUERY_DIGESTS,
   PREFS_KEY,
   prefs,
   setSlotData,
@@ -428,7 +429,21 @@ export function setUpConnectPage() {
 
       const overpass_query_json = prefs_json.overpass_query;
       if (typeof overpass_query_json === "string") {
-        prefs.overpass_query = overpass_query_json;
+        window.crypto.subtle
+          .digest("SHA-1", new TextEncoder().encode(overpass_query_json))
+          .then((digest) => {
+            const digest_array = Array.from(new Uint8Array(digest));
+            const digest_hex = digest_array
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join("");
+            if (OLD_QUERY_DIGESTS.includes(digest_hex)) {
+              console.log(
+                "Old default query detected, ignoring and using new default",
+              );
+            } else {
+              prefs.overpass_query = overpass_query_json;
+            }
+          });
       }
     } else {
       localStorage.removeItem(PREFS_KEY);

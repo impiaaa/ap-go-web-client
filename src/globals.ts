@@ -92,6 +92,9 @@ way._
   >;
 );
 out skel qt;`;
+export const OLD_QUERY_DIGESTS: string[] = [
+  "2cf5d496485134db8a62fa42c61b2d06b4bad32e",
+];
 
 export const prefs: {
   home: [number, number] | null;
