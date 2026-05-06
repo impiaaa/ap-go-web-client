@@ -35,8 +35,7 @@ export const LONG_MACGUFFIN_ITEMS = [
   ItemType.MacguffinExclamation,
 ];
 
-// TODO: timeout is also used in prioritization
-export const DEFAULT_OVERPASS_QUERY = `[out:json][timeout:180][maxsize:{{maxsize}}][bbox:{{bbox}}];
+export const DEFAULT_OVERPASS_QUERY = `[out:json][timeout:{{timeout}}][maxsize:{{maxsize}}][bbox:{{bbox}}];
 (
   way[highway=footway](around:{{maximum_distance}},{{center}});
   way[highway=living_street](around:{{maximum_distance}},{{center}});

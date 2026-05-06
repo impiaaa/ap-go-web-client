@@ -10,30 +10,39 @@ export function generate(seed_name: string, slot: number) {
     throw "generate called while not connected";
   }
 
-  // Query optimization: BBox searches are faster than within-radius.
-  const bbox = LngLatBounds.fromLngLat(
-    LngLat.convert(prefs.home),
-    slot_data.maximum_distance,
+  // Query optimization: We can get our query to be prioritized better by estimating how long it
+  // will take. The most highway-dense 1000m radius circle area in OSM is centered around Soho
+  // Square in London. In my experimenting, the current default query takes 10 seconds to run in
+  // this area. That radius makes an area of 3.14e6 m², so ~3.18e-6 seconds/m². Then add a fudge
+  // factor of 2x to approximate the timeout required per area.
+  const timeout = Math.round(
+    slot_data.maximum_distance *
+      slot_data.maximum_distance *
+      Math.PI *
+      6.366197724e-6,
   );
-  // Query optimization: We can get our query to be prioritized better by estimating how much memory
-  // it will require. The most highway-dense 1000m radius circle area in OSM is centered around Soho
-  // Square in London. In my experimenting, 2121863 bytes are required to run the current default
-  // query around this area. That radius makes an area of 3.14e6 m², so ~0.675 bytes/m². Then add a
-  // fudge factor of 1.5x to approximate the memory required per area.
+  // Query optimization: Same as above, but for memory usage. The same area takes 2121863 bytes to
+  // run the current default query, so ~0.675 bytes/m², then add a smaller fudge factor of 1.5x.
   const maxsize = Math.round(
     slot_data.maximum_distance *
       slot_data.maximum_distance *
       Math.PI *
       1.013114955,
   );
+  // Query optimization: BBox searches are faster than global within-radius.
+  const bbox = LngLatBounds.fromLngLat(
+    LngLat.convert(prefs.home),
+    slot_data.maximum_distance,
+  );
   const my_query = prefs.overpass_query
-    .replaceAll("{{maximum_distance}}", `${slot_data.maximum_distance}`)
-    .replaceAll("{{center}}", `${prefs.home[1]},${prefs.home[0]}`)
+    .replaceAll("{{timeout}}", `${timeout}`)
+    .replaceAll("{{maxsize}}", `${maxsize}`)
     .replaceAll(
       "{{bbox}}",
       `${bbox.getSouth()},${bbox.getWest()},${bbox.getNorth()},${bbox.getEast()}`,
     )
-    .replaceAll("{{maxsize}}", `${maxsize}`);
+    .replaceAll("{{maximum_distance}}", `${slot_data.maximum_distance}`)
+    .replaceAll("{{center}}", `${prefs.home[1]},${prefs.home[0]}`);
   const req = new XMLHttpRequest();
   const ret = new Promise<Map<number, Array<number>> | string>(
     (resolve, reject) => {
