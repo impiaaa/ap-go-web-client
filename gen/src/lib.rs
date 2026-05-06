@@ -22,6 +22,7 @@ pub fn my_init_function() {
 
 #[wasm_bindgen]
 extern "C" {
+    #[derive(Clone)]
     pub type OverpassResponse;
 
     #[wasm_bindgen(structural, method, getter)]
@@ -50,20 +51,7 @@ extern "C" {
     #[wasm_bindgen(structural, method, getter)]
     pub fn nodes(this: &OsmWay) -> Vec<f64>;
 
-    pub type GenerateParams;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn home(this: &GenerateParams) -> Vec<f64>;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn locations(this: &GenerateParams) -> js_sys::Map<js_sys::Number, js_sys::JsString>;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn osm(this: &GenerateParams) -> OverpassResponse;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn seed_name(this: &GenerateParams) -> String;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn slot(this: &GenerateParams) -> f64;
-    #[wasm_bindgen(structural, method, getter)]
-    pub fn slot_data(this: &GenerateParams) -> APGoSlotData;
-
+    #[derive(Clone)]
     pub type APGoSlotData;
     #[wasm_bindgen(method, getter)]
     pub fn goal(this: &APGoSlotData) -> Goal;
@@ -102,6 +90,49 @@ pub struct Internal {
     pub(crate) ecef_mat: Option<AffineTransform3d>,
 }
 
+#[wasm_bindgen]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SubgraphSelection {
+    FullGraph,
+    BiggestSubgraph,
+    ClosestSubgraph,
+}
+
+#[wasm_bindgen(getter_with_clone)]
+pub struct GenerateParams {
+    pub home: Vec<f64>,
+    pub locations: js_sys::Map<js_sys::Number, js_sys::JsString>,
+    pub osm: OverpassResponse,
+    pub seed_name: String,
+    pub slot: f64,
+    pub slot_data: APGoSlotData,
+    pub subgraph_selection: SubgraphSelection,
+}
+
+#[wasm_bindgen]
+impl GenerateParams {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        home: Vec<f64>,
+        locations: js_sys::Map<js_sys::Number, js_sys::JsString>,
+        osm: OverpassResponse,
+        seed_name: String,
+        slot: f64,
+        slot_data: APGoSlotData,
+        subgraph_selection: SubgraphSelection,
+    ) -> GenerateParams {
+        GenerateParams {
+            home,
+            locations,
+            osm,
+            seed_name,
+            slot,
+            slot_data,
+            subgraph_selection,
+        }
+    }
+}
+
 fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotData) -> f64 {
     let max_dist = (slot_data.maximum_distance() / 10.0) * distance_tier;
     if max_dist < slot_data.minimum_distance() {
@@ -116,19 +147,19 @@ pub fn generate(
     params: &GenerateParams,
 ) -> Result<js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>, &'static str> {
     let Ok(seed) = params
-        .seed_name()
+        .seed_name
         .parse::<u128>()
         // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
         // The multiply and divide brings it down from 1e20 range to u64::MAX range
         // Finally xor with the slot number so that different AP-Go participants in the same AP game
         // have different sets of trips
-        .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot() as u64))
+        .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot as u64))
     else {
         return Err("Couldn't parse seed");
     };
     let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
-    let home: Coord = if params.home().len() == 2 {
-        (params.home()[0], params.home()[1]).into()
+    let home: Coord = if params.home.len() == 2 {
+        (params.home[0], params.home[1]).into()
     } else {
         return Err("Couldn't parse home");
     };
@@ -138,13 +169,13 @@ pub fn generate(
     console::log_1(&format!("ecef_mat={ecef_mat:?}").into());
     console::log_1(&format!("geo_mat={geo_mat:?}").into());
 
-    let mut min_dist = params.slot_data().minimum_distance();
-    if min_dist > params.slot_data().maximum_distance() {
-        min_dist = params.slot_data().maximum_distance() * (1.0 - DISTANCE_LENIENCY);
+    let mut min_dist = params.slot_data.minimum_distance();
+    if min_dist > params.slot_data.maximum_distance() {
+        min_dist = params.slot_data.maximum_distance() * (1.0 - DISTANCE_LENIENCY);
     }
 
     let mut max_dist_tier_number_locations_per_area = HashMap::<u8, (f64, usize)>::new();
-    for trip_js in js_sys::Object::values(&params.slot_data().trips()) {
+    for trip_js in js_sys::Object::values(&params.slot_data.trips()) {
         let trip = trip_js.unchecked_ref::<Trip>();
         let area = trip.key_needed() as u8;
         let distance = trip.distance_tier();
@@ -169,15 +200,16 @@ pub fn generate(
                 *area,
                 random_point_in_circle(
                     min_dist,
-                    distance_tier_to_maximum_distance(*max_dist_tier, &params.slot_data()),
+                    distance_tier_to_maximum_distance(*max_dist_tier, &params.slot_data),
                     &mut rng,
                 ),
             )
         })
         .collect();
 
+    // (first node ID, last node ID, geometry)
     let mut way_linestrings = Vec::<(u64, u64, LineString)>::new();
-    let elements = params.osm().elements();
+    let elements = params.osm.elements();
     {
         console::log_1(&format!("{} elements", elements.len()).into());
         let coords: HashMap<u64, Coord> = elements
@@ -258,21 +290,22 @@ pub fn generate(
         console::log_1(&format!("{} linestrings", way_linestrings.len()).into());
     }
 
-    let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
-    let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
-        .iter()
-        .filter_map(|el| {
-            if el.r#type() == "node" {
-                let node = el.unchecked_ref::<OsmNode>();
-                let node_int = node.id() as u64;
-                Some((node_int, graph.add_node(node_int)))
-            } else {
-                None
-            }
-        })
-        .collect();
-    console::log_1(&format!("{} nodes", graph.node_count()).into());
-    {
+    if params.subgraph_selection == SubgraphSelection::BiggestSubgraph {
+        let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
+        let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
+            .iter()
+            .filter_map(|el| {
+                if el.r#type() == "node" {
+                    let node = el.unchecked_ref::<OsmNode>();
+                    let node_int = node.id() as u64;
+                    Some((node_int, graph.add_node(node_int)))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        console::log_1(&format!("{} nodes", graph.node_count()).into());
+
         for (start_node, end_node, linestring) in &way_linestrings {
             graph.add_edge(
                 *osm_id_to_graph_id.get(start_node).unwrap(),
@@ -296,15 +329,15 @@ pub fn generate(
 
         osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
         console::log_1(&format!("Lookup size={}", osm_id_to_graph_id.len()).into());
+
+        way_linestrings.retain(|(start_node, end_node, _)| {
+            osm_id_to_graph_id.contains_key(start_node) && osm_id_to_graph_id.contains_key(end_node)
+        });
     }
 
     let mut segments_tree = RTree::<LineString>::new();
-    for (start_node, end_node, linestring) in way_linestrings {
-        if osm_id_to_graph_id.contains_key(&start_node)
-            && osm_id_to_graph_id.contains_key(&end_node)
-        {
-            segments_tree.insert(linestring);
-        }
+    for (_, _, linestring) in way_linestrings {
+        segments_tree.insert(linestring);
     }
     if segments_tree.size() == 0 {
         return Err("No segments");
@@ -315,12 +348,12 @@ pub fn generate(
     let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
         js_sys::Map::new_typed();
 
-    params.locations().for_each(&mut |trip_name, location_id| {
-        let trip: Trip = js_sys::Reflect::get(&params.slot_data().trips(), &trip_name)
+    params.locations.for_each(&mut |trip_name, location_id| {
+        let trip: Trip = js_sys::Reflect::get(&params.slot_data.trips(), &trip_name)
             .unwrap()
             .unchecked_into();
 
-        let max_dist = distance_tier_to_maximum_distance(trip.distance_tier(), &params.slot_data());
+        let max_dist = distance_tier_to_maximum_distance(trip.distance_tier(), &params.slot_data);
 
         let mut attempt = 1;
         const MAX_ATTEMPTS: i32 = 256;

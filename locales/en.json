@@ -7,6 +7,12 @@
         "overpass-query": "Overpass Query",
         "overpass-server": "Overpass Server",
         "save": "Save",
+        "subgraph": {
+          "biggest-subgraph": "Most Roads",
+          "closest-subgraph": "Closest Roads",
+          "full-graph": "No Limits",
+          "selection": "Ensure Reachable"
+        },
         "title": "Advanced Settings"
       },
       "connect": "Connect",
