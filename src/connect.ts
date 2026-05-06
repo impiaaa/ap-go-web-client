@@ -329,35 +329,38 @@ function saveAdvancedSettings(ev: PointerEvent) {
   if (advanced_settings_form.checkValidity()) {
     ev.preventDefault();
 
-    const new_prefs: typeof prefs = {
-      ...prefs,
-      overpass_query:
-        (
-          advanced_settings_form.elements.namedItem(
-            "overpass-query",
-          ) as HTMLTextAreaElement
-        ).value || DEFAULT_OVERPASS_QUERY,
-      overpass_server:
-        (
-          advanced_settings_form.elements.namedItem(
-            "overpass-server",
-          ) as HTMLInputElement
-        ).value || prefs.overpass_server,
-      subgraph_selection: parseInt(
-        (
-          advanced_settings_form.elements.namedItem(
-            "subgraph-selection",
-          ) as HTMLTextAreaElement
-        ).value,
-        10,
-      ),
-    };
+    const overpass_query =
+      (
+        advanced_settings_form.elements.namedItem(
+          "overpass-query",
+        ) as HTMLTextAreaElement
+      ).value || DEFAULT_OVERPASS_QUERY;
+    const overpass_server =
+      (
+        advanced_settings_form.elements.namedItem(
+          "overpass-server",
+        ) as HTMLInputElement
+      ).value || prefs.overpass_server;
+    const subgraph_selection = parseInt(
+      (
+        advanced_settings_form.elements.namedItem(
+          "subgraph-selection",
+        ) as HTMLTextAreaElement
+      ).value,
+      10,
+    );
 
-    if (new_prefs !== prefs) {
-      Object.assign(prefs, new_prefs);
+    if (
+      overpass_query !== prefs.overpass_query ||
+      overpass_server !== prefs.overpass_server ||
+      subgraph_selection !== prefs.subgraph_selection
+    ) {
+      prefs.overpass_query = overpass_query;
+      prefs.overpass_server = overpass_server;
+      prefs.subgraph_selection = subgraph_selection;
+      saveConnectInfo();
       game_data.points.clear();
       saveGame();
-      saveConnectInfo();
     }
 
     (
