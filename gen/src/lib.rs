@@ -146,9 +146,6 @@ pub fn generate(
     };
     let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
     let geo_mat = ecef_mat.transposed();
-    console::log_1(&format!("ref_ecef={ref_ecef:?}").into());
-    console::log_1(&format!("ecef_mat={ecef_mat:?}").into());
-    console::log_1(&format!("geo_mat={geo_mat:?}").into());
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
@@ -173,6 +170,7 @@ pub fn generate(
         console::log_1(&format!("Area {area}: {count} trips at most tier {distance}").into());
     }
 
+    /*
     let random_point_per_area: HashMap<u8, ::geo::Point> = max_dist_tier_number_locations_per_area
         .iter()
         .map(|(area, (max_dist_tier, _count))| {
@@ -187,6 +185,7 @@ pub fn generate(
             )
         })
         .collect();
+    */
 
     // (first node ID, last node ID, geometry)
     let mut way_linestrings = Vec::<(u64, u64, LineString)>::new();
