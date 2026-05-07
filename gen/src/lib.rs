@@ -228,7 +228,7 @@ fn trim_tree_to_graph(
     maximum_distance: f64,
 ) -> Result<Option<HashSet<u64>>, &'static str> {
     let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
-    let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
+    let osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
         .iter()
         .filter_map(|el| {
             if el.r#type() == "node" {
@@ -240,8 +240,7 @@ fn trim_tree_to_graph(
             }
         })
         .collect();
-    let original_node_count = graph.node_count();
-    console_log!("{} nodes", original_node_count);
+    console_log!("{} nodes", graph.node_count());
 
     for segment in segments_tree {
         graph.add_edge(
@@ -252,20 +251,18 @@ fn trim_tree_to_graph(
     }
     console_log!("{} edges", graph.edge_count());
 
-    match mode {
+    let maybe_nodes_to_keep: Option<HashSet<petgraph::graph::NodeIndex>> = match mode {
         SubgraphSelection::BiggestSubgraph => {
             let sccs = petgraph::algo::kosaraju_scc(&graph);
             let max_scc = sccs
-                .iter()
+                .into_iter()
                 .max_by(|c1, c2| c1.len().cmp(&c2.len()))
                 .unwrap();
             console::log_1(
                 &format!("Largest connected component has {} nodes", max_scc.len()).into(),
             );
 
-            let max_scc_hashset: HashSet<&petgraph::graph::NodeIndex> = max_scc.iter().collect();
-            //graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
-            osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
+            Some(max_scc.into_iter().collect())
         }
         SubgraphSelection::ClosestSubgraph => {
             let home_enu = Point::new(0.0, 0.0);
@@ -311,23 +308,43 @@ fn trim_tree_to_graph(
             console::log_1(
                 &format!("distance_to_starting_node: {:?}", distance_to_starting_node).into(),
             );
-            let mut node_distances =
+            let node_distances =
                 petgraph::algo::dijkstra::dijkstra(&graph, *starting_node, None, |edge| {
                     *edge.weight()
                 });
-            // TODO: we should retain 1 node further out than allowable, then trim those edges
-            node_distances
-                .retain(|_, distance| *distance <= maximum_distance - distance_to_starting_node);
-            console_log!("{} nodes within range", node_distances.len());
-            //graph.retain_nodes(|_, ni| node_distances.contains_key(&ni));
-            osm_id_to_graph_id.retain(|_osm_id, graph_id| node_distances.contains_key(graph_id));
+            let nodes_within_distance: HashSet<petgraph::graph::NodeIndex> = node_distances
+                .iter()
+                .filter_map(|(node_id, distance)| {
+                    if *distance <= maximum_distance - distance_to_starting_node {
+                        Some(*node_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            drop(node_distances);
+            console_log!("{} nodes within range", nodes_within_distance.len());
+            let neighbors = nodes_within_distance
+                .iter()
+                .flat_map(|node_index| graph.neighbors(*node_index));
+            Some(std::iter::chain(nodes_within_distance.iter().copied(), neighbors).collect())
         }
-        SubgraphSelection::FullGraph => (),
-    }
+        SubgraphSelection::FullGraph => None,
+    };
 
-    console_log!("Lookup size={}", osm_id_to_graph_id.len());
-    if osm_id_to_graph_id.len() != original_node_count {
-        Ok(Some(osm_id_to_graph_id.keys().copied().collect()))
+    if let Some(nodes_to_keep) = maybe_nodes_to_keep {
+        Ok(Some(
+            osm_id_to_graph_id
+                .iter()
+                .filter_map(|(k, v)| {
+                    if nodes_to_keep.contains(v) {
+                        Some(*k)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        ))
     } else {
         Ok(None)
     }
