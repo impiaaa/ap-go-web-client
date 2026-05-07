@@ -177,7 +177,11 @@ function lateSetUpMap() {
         marker.addTo(game_map!);
       }
     });
-    fitMapToPoints(false);
+    if (game_data.points.size > 0) {
+      fitMapToPoints(false);
+    } else if (prefs.home) {
+      game_map!.jumpTo({ center: prefs.home, zoom: 9 });
+    }
 
     client.socket.on("connected", () => {
       game_map?.setLayoutProperty("circles", "visibility", "visible");
