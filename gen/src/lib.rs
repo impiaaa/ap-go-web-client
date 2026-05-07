@@ -5,7 +5,7 @@ use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, HashSet};
 use std::panic;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, js_sys};
+use web_sys::js_sys;
 mod geo;
 use geo::{enu_to_geo, geo_ref_ecef_mat, geo_to_enu};
 
@@ -116,7 +116,7 @@ pub enum SubgraphSelection {
 
 #[cfg(target_family = "wasm")]
 macro_rules! console_log {
-    ($($t:tt)*) => (console::log_1(&format!($($t)*).into()))
+    ($($t:tt)*) => (web_sys::console::log_1(&format!($($t)*).into()))
 }
 #[cfg(not(target_family = "wasm"))]
 macro_rules! console_log {
@@ -258,9 +258,7 @@ fn trim_tree_to_graph(
                 .into_iter()
                 .max_by(|c1, c2| c1.len().cmp(&c2.len()))
                 .unwrap();
-            console::log_1(
-                &format!("Largest connected component has {} nodes", max_scc.len()).into(),
-            );
+            console_log!("Largest connected component has {} nodes", max_scc.len(),);
 
             Some(max_scc.into_iter().collect())
         }
@@ -275,12 +273,9 @@ fn trim_tree_to_graph(
             };
             console_log!("starting_point: {:?}", starting_point);
             let distance_to_starting_point = starting_point.distance_2(&home_enu).sqrt();
-            console::log_1(
-                &format!(
-                    "distance_to_starting_point: {:?}",
-                    distance_to_starting_point
-                )
-                .into(),
+            console_log!(
+                "distance_to_starting_point: {:?}",
+                distance_to_starting_point
             );
             let fraction_along_line = starting_line
                 .geom()
@@ -305,9 +300,7 @@ fn trim_tree_to_graph(
                 )
             };
             console_log!("starting_node: {:?}", starting_node);
-            console::log_1(
-                &format!("distance_to_starting_node: {:?}", distance_to_starting_node).into(),
-            );
+            console_log!("distance_to_starting_node: {:?}", distance_to_starting_node);
             let node_distances =
                 petgraph::algo::dijkstra::dijkstra(&graph, *starting_node, None, |edge| {
                     *edge.weight()
@@ -454,12 +447,9 @@ pub fn generate(
         let mut attempt = 1;
         const MAX_ATTEMPTS: i32 = 256;
         loop {
-            console::log_1(
-                &format!(
+            console_log!(
                     "Attempt {attempt}: Generating random point with radius between {min_dist} and {max_dist}"
-                )
-                .into(),
-            );
+                );
 
             let random_point = random_point_in_circle(min_dist, max_dist, &mut rng);
             console_log!("Random point is {random_point:?}");
@@ -491,10 +481,7 @@ pub fn generate(
                 let selected_point = if attempt < MAX_ATTEMPTS {
                     random_point
                 } else {
-                    console::log_1(
-                        &format!("Out of attempts, snapping to {nearest_point_on_segment:?}")
-                            .into(),
-                    );
+                    console_log!("Out of attempts, snapping to {nearest_point_on_segment:?}");
                     nearest_point_on_segment
                 };
                 points_tree.insert(GeomWithData::new(
