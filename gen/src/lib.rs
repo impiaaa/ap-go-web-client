@@ -187,8 +187,8 @@ pub fn generate(
         .collect();
     */
 
-    // (first node ID, last node ID, geometry)
-    let mut way_linestrings = Vec::<(u64, u64, LineString)>::new();
+    // (first node ID, last node ID)
+    let mut segments_tree: RTree<GeomWithData<LineString, (u64, u64)>>;
     let elements = params.osm().elements();
     {
         console::log_1(&format!("{} elements", elements.len()).into());
@@ -239,6 +239,7 @@ pub fn generate(
             .collect();
         console::log_1(&format!("{} junction nodes", junction_nodes.len()).into());
 
+        let mut way_linestrings = Vec::<GeomWithData<LineString, (u64, u64)>>::new();
         for way in ways {
             let mut segment_coords: Vec<Coord> = Vec::new();
             let mut first_node: u64 = way.nodes()[0] as u64;
@@ -248,10 +249,9 @@ pub fn generate(
                     segment_coords.push(*coord);
                     if junction_nodes.contains(&node_id_int) {
                         if segment_coords.len() >= 2 {
-                            way_linestrings.push((
-                                first_node,
-                                node_id_int,
+                            way_linestrings.push(GeomWithData::new(
                                 LineString::from(segment_coords),
+                                (first_node, node_id_int),
                             ));
                         }
                         segment_coords = vec![*coord];
@@ -260,14 +260,18 @@ pub fn generate(
                 }
             }
             if segment_coords.len() >= 2 {
-                way_linestrings.push((
-                    first_node,
-                    *way.nodes().last().unwrap() as u64,
+                way_linestrings.push(GeomWithData::new(
                     LineString::from(segment_coords),
+                    (first_node, *way.nodes().last().unwrap() as u64),
                 ));
             }
         }
         console::log_1(&format!("{} linestrings", way_linestrings.len()).into());
+        segments_tree = RTree::bulk_load(way_linestrings);
+        console::log_1(&format!("{} segments in tree", segments_tree.size()).into());
+    }
+    if segments_tree.size() == 0 {
+        return Err("No segments");
     }
 
     if params.subgraph_selection() == SubgraphSelection::BiggestSubgraph
@@ -288,11 +292,11 @@ pub fn generate(
             .collect();
         console::log_1(&format!("{} nodes", graph.node_count()).into());
 
-        for (start_node, end_node, linestring) in &way_linestrings {
+        for segment in &segments_tree {
             graph.add_edge(
-                *osm_id_to_graph_id.get(start_node).unwrap(),
-                *osm_id_to_graph_id.get(end_node).unwrap(),
-                ::geo::algorithm::line_measures::Euclidean.length(linestring),
+                *osm_id_to_graph_id.get(&segment.data.0).unwrap(),
+                *osm_id_to_graph_id.get(&segment.data.1).unwrap(),
+                ::geo::algorithm::line_measures::Euclidean.length(segment.geom()),
             );
         }
         console::log_1(&format!("{} edges", graph.edge_count()).into());
@@ -311,19 +315,6 @@ pub fn generate(
             graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
             osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
         } else {
-            let segments_tree = RTree::bulk_load(
-                way_linestrings
-                    .iter()
-                    .map(|(start_node, end_node, linestring)| {
-                        GeomWithData::new(linestring.clone(), (*start_node, *end_node))
-                    })
-                    .collect(),
-            );
-            if segments_tree.size() == 0 {
-                return Err("No segments");
-            }
-            console::log_1(&format!("{} segments in tree", segments_tree.size()).into());
-
             let home_enu = Point::new(0.0, 0.0);
             let starting_line = segments_tree.nearest_neighbor(&home_enu).unwrap();
             console::log_1(&format!("starting_line: {:?}", starting_line).into());
@@ -382,22 +373,19 @@ pub fn generate(
         console::log_1(&format!("Edge count now {}", graph.edge_count()).into());
         console::log_1(&format!("Node count now {}", graph.node_count()).into());
         console::log_1(&format!("Lookup size={}", osm_id_to_graph_id.len()).into());
-
-        way_linestrings.retain(|(start_node, end_node, _)| {
-            osm_id_to_graph_id.contains_key(start_node) && osm_id_to_graph_id.contains_key(end_node)
-        });
+        if graph.edge_count() != segments_tree.size() {
+            segments_tree = RTree::bulk_load(
+                segments_tree
+                    .into_iter()
+                    .filter(|segment| {
+                        osm_id_to_graph_id.contains_key(&segment.data.0)
+                            || osm_id_to_graph_id.contains_key(&segment.data.1)
+                    })
+                    .collect(),
+            );
+        }
+        console::log_1(&format!("Now {} segments in tree", segments_tree.size()).into());
     }
-
-    let segments_tree = RTree::<LineString>::bulk_load(
-        way_linestrings
-            .into_iter()
-            .map(|(_, _, linestring)| linestring)
-            .collect(),
-    );
-    if segments_tree.size() == 0 {
-        return Err("No segments");
-    }
-    console::log_1(&format!("{} segments in tree", segments_tree.size()).into());
 
     let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
     let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
@@ -437,7 +425,7 @@ pub fn generate(
                 // empty tree?
                 return;
             };
-            let nearest_point_on_segment = match nearest_segment.closest_point(&random_point) {
+            let nearest_point_on_segment = match nearest_segment.geom().closest_point(&random_point) {
                 ::geo::Closest::Indeterminate => continue,
                 ::geo::Closest::Intersection(point) => point,
                 ::geo::Closest::SinglePoint(point) => point,
