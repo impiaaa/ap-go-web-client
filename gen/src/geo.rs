@@ -20,7 +20,7 @@ pub struct Coord3d<T: CoordNum = f64> {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct AffineTransform3d<T: CoordNum = f64>([[T; 3]; 3]);
 impl<T: CoordNum> AffineTransform3d<T> {
-    pub fn apply3d(&self, coord: Coord3d<T>) -> Coord3d<T> {
+    pub fn apply3d(&self, coord: &Coord3d<T>) -> Coord3d<T> {
         Coord3d {
             x: (self.0[0][0] * coord.x + self.0[0][1] * coord.y + self.0[0][2] * coord.z),
             y: (self.0[1][0] * coord.x + self.0[1][1] * coord.y + self.0[1][2] * coord.z),
@@ -36,7 +36,7 @@ impl<T: CoordNum> AffineTransform3d<T> {
     }
 }
 
-pub fn geo_to_ecef(geo: Coord) -> Coord3d {
+pub fn geo_to_ecef(geo: &Coord) -> Coord3d {
     let l = geo.x.to_radians();
     let t = geo.y.to_radians();
     let ct = t.cos();
@@ -49,7 +49,7 @@ pub fn geo_to_ecef(geo: Coord) -> Coord3d {
     }
 }
 
-pub fn geo_ref_ecef_mat(ref_geo: Coord) -> (Coord3d, AffineTransform3d) {
+pub fn geo_ref_ecef_mat(ref_geo: &Coord) -> (Coord3d, AffineTransform3d) {
     let ref_ecef = geo_to_ecef(ref_geo);
 
     let l = ref_geo.x.to_radians();
@@ -66,14 +66,14 @@ pub fn geo_ref_ecef_mat(ref_geo: Coord) -> (Coord3d, AffineTransform3d) {
     (ref_ecef, ecef_mat)
 }
 
-pub fn geo_to_enu(point_ecef: Coord, ref_ecef: Coord3d, ecef_mat: AffineTransform3d) -> Coord3d {
+pub fn geo_to_enu(point_ecef: &Coord, ref_ecef: &Coord3d, ecef_mat: &AffineTransform3d) -> Coord3d {
     let point_ecef = geo_to_ecef(point_ecef);
     let vec = Coord3d {
         x: point_ecef.x - ref_ecef.x,
         y: point_ecef.y - ref_ecef.y,
         z: point_ecef.z - ref_ecef.z,
     };
-    ecef_mat.apply3d(vec)
+    ecef_mat.apply3d(&vec)
 }
 
 #[allow(non_snake_case)]
@@ -104,7 +104,7 @@ pub fn ecef_to_geo(ecef: Coord3d) -> Coord {
 
 pub fn enu_to_geo(point_enu: Coord3d, ref_ecef: Coord3d, geo_mat: AffineTransform3d) -> Coord {
     // geo_mat = ecef_mat.transposed()
-    let v = geo_mat.apply3d(point_enu);
+    let v = geo_mat.apply3d(&point_enu);
     let point_ecef = Coord3d {
         x: v.x + ref_ecef.x,
         y: v.y + ref_ecef.y,
@@ -124,7 +124,7 @@ mod tests {
             y: 37.39572903483493,
         };
 
-        let home_ecef = geo_to_ecef(home_geo);
+        let home_ecef = geo_to_ecef(&home_geo);
         let epsilon = 0.015;
         assert!((home_ecef.x - -2692426.658).abs() < epsilon);
         assert!((home_ecef.y - -4300075.106).abs() < epsilon);

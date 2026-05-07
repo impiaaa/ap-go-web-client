@@ -114,12 +114,222 @@ pub enum SubgraphSelection {
     ClosestSubgraph,
 }
 
+#[cfg(target_family = "wasm")]
+macro_rules! console_log {
+    ($($t:tt)*) => (console::log_1(&format!($($t)*).into()))
+}
+#[cfg(not(target_family = "wasm"))]
+macro_rules! console_log {
+    ($($t:tt)*) => (println!($($t)*))
+}
+
+type SegmentsTree = RTree<GeomWithData<LineString, (u64, u64)>>;
+
 fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotData) -> f64 {
     let max_dist = (slot_data.maximum_distance() / 10.0) * distance_tier;
     if max_dist < slot_data.minimum_distance() {
         slot_data.minimum_distance() * (1.0 + DISTANCE_LENIENCY)
     } else {
         max_dist
+    }
+}
+
+fn build_segments_tree(
+    elements: &[OsmElement],
+    ref_ecef: &Coord3d,
+    ecef_mat: &AffineTransform3d,
+) -> SegmentsTree {
+    console_log!("{} elements", elements.len());
+    let coords: HashMap<u64, Coord> = elements
+        .iter()
+        .filter_map(|el| {
+            if el.r#type() == "node" {
+                let node = el.unchecked_ref::<OsmNode>();
+                let point_geo: Coord = (node.lon(), node.lat()).into();
+                let point_enu = geo_to_enu(&point_geo, ref_ecef, ecef_mat);
+                Some((el.id() as u64, (point_enu.x, point_enu.y).into()))
+            } else {
+                None
+            }
+        })
+        .collect();
+    console_log!("{} nodes", coords.len());
+    let ways: Vec<&OsmWay> = elements
+        .iter()
+        .filter_map(|el| {
+            if el.r#type() == "way" {
+                Some(el.unchecked_ref::<OsmWay>())
+            } else {
+                None
+            }
+        })
+        .collect();
+    console_log!("{} ways", ways.len());
+
+    let mut node_use_count: HashMap<u64, u32> = HashMap::new();
+    for way in &ways {
+        for node_id_float in way.nodes() {
+            let node_id_int = node_id_float as u64;
+            node_use_count.insert(
+                node_id_int,
+                node_use_count.get(&node_id_int).unwrap_or(&0u32) + 1,
+            );
+        }
+    }
+
+    let junction_nodes: HashSet<u64> = node_use_count
+        .iter()
+        .filter_map(
+            |(node_id, count)| {
+                if *count > 1u32 { Some(*node_id) } else { None }
+            },
+        )
+        .collect();
+    drop(node_use_count);
+    console_log!("{} junction nodes", junction_nodes.len());
+
+    let mut way_linestrings = Vec::<GeomWithData<LineString, (u64, u64)>>::new();
+    for way in ways {
+        let mut segment_coords: Vec<Coord> = Vec::new();
+        let mut first_node: u64 = way.nodes()[0] as u64;
+        for node_id_float in way.nodes() {
+            let node_id_int = node_id_float as u64;
+            if let Some(coord) = coords.get(&node_id_int) {
+                segment_coords.push(*coord);
+                if junction_nodes.contains(&node_id_int) {
+                    if segment_coords.len() >= 2 {
+                        way_linestrings.push(GeomWithData::new(
+                            LineString::from(segment_coords),
+                            (first_node, node_id_int),
+                        ));
+                    }
+                    segment_coords = vec![*coord];
+                    first_node = node_id_int;
+                }
+            }
+        }
+        if segment_coords.len() >= 2 {
+            way_linestrings.push(GeomWithData::new(
+                LineString::from(segment_coords),
+                (first_node, *way.nodes().last().unwrap() as u64),
+            ));
+        }
+    }
+    console_log!("{} linestrings", way_linestrings.len());
+    let segments_tree = RTree::bulk_load(way_linestrings);
+    console_log!("{} segments in tree", segments_tree.size());
+    segments_tree
+}
+
+fn trim_tree_to_graph(
+    segments_tree: &SegmentsTree,
+    elements: &[OsmElement],
+    mode: SubgraphSelection,
+    maximum_distance: f64,
+) -> Result<Option<HashSet<u64>>, &'static str> {
+    let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
+    let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
+        .iter()
+        .filter_map(|el| {
+            if el.r#type() == "node" {
+                let node = el.unchecked_ref::<OsmNode>();
+                let node_int = node.id() as u64;
+                Some((node_int, graph.add_node(node_int)))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let original_node_count = graph.node_count();
+    console_log!("{} nodes", original_node_count);
+
+    for segment in segments_tree {
+        graph.add_edge(
+            *osm_id_to_graph_id.get(&segment.data.0).unwrap(),
+            *osm_id_to_graph_id.get(&segment.data.1).unwrap(),
+            ::geo::algorithm::line_measures::Euclidean.length(segment.geom()),
+        );
+    }
+    console_log!("{} edges", graph.edge_count());
+
+    match mode {
+        SubgraphSelection::BiggestSubgraph => {
+            let sccs = petgraph::algo::kosaraju_scc(&graph);
+            let max_scc = sccs
+                .iter()
+                .max_by(|c1, c2| c1.len().cmp(&c2.len()))
+                .unwrap();
+            console::log_1(
+                &format!("Largest connected component has {} nodes", max_scc.len()).into(),
+            );
+
+            let max_scc_hashset: HashSet<&petgraph::graph::NodeIndex> = max_scc.iter().collect();
+            //graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
+            osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
+        }
+        SubgraphSelection::ClosestSubgraph => {
+            let home_enu = Point::new(0.0, 0.0);
+            let starting_line = segments_tree.nearest_neighbor(&home_enu).unwrap();
+            console_log!("starting_line: {:?}", starting_line);
+            let starting_point = match starting_line.geom().closest_point(&home_enu) {
+                ::geo::Closest::Intersection(point) => point,
+                ::geo::Closest::SinglePoint(point) => point,
+                ::geo::Closest::Indeterminate => return Err("Indeterminate starting point"),
+            };
+            console_log!("starting_point: {:?}", starting_point);
+            let distance_to_starting_point = starting_point.distance_2(&home_enu).sqrt();
+            console::log_1(
+                &format!(
+                    "distance_to_starting_point: {:?}",
+                    distance_to_starting_point
+                )
+                .into(),
+            );
+            let fraction_along_line = starting_line
+                .geom()
+                .line_locate_point(&starting_point)
+                .unwrap();
+            console_log!("fraction_along_line: {:?}", fraction_along_line);
+            let (starting_node, distance_to_starting_node) = if fraction_along_line < 0.5 {
+                (
+                    osm_id_to_graph_id.get(&starting_line.data.0).unwrap(),
+                    distance_to_starting_point
+                        + fraction_along_line
+                            * ::geo::algorithm::line_measures::Euclidean
+                                .length(starting_line.geom()),
+                )
+            } else {
+                (
+                    osm_id_to_graph_id.get(&starting_line.data.1).unwrap(),
+                    distance_to_starting_point
+                        + (1.0 - fraction_along_line)
+                            * ::geo::algorithm::line_measures::Euclidean
+                                .length(starting_line.geom()),
+                )
+            };
+            console_log!("starting_node: {:?}", starting_node);
+            console::log_1(
+                &format!("distance_to_starting_node: {:?}", distance_to_starting_node).into(),
+            );
+            let mut node_distances =
+                petgraph::algo::dijkstra::dijkstra(&graph, *starting_node, None, |edge| {
+                    *edge.weight()
+                });
+            // TODO: we should retain 1 node further out than allowable, then trim those edges
+            node_distances
+                .retain(|_, distance| *distance <= maximum_distance - distance_to_starting_node);
+            console_log!("{} nodes within range", node_distances.len());
+            //graph.retain_nodes(|_, ni| node_distances.contains_key(&ni));
+            osm_id_to_graph_id.retain(|_osm_id, graph_id| node_distances.contains_key(graph_id));
+        }
+        SubgraphSelection::FullGraph => (),
+    }
+
+    console_log!("Lookup size={}", osm_id_to_graph_id.len());
+    if osm_id_to_graph_id.len() != original_node_count {
+        Ok(Some(osm_id_to_graph_id.keys().copied().collect()))
+    } else {
+        Ok(None)
     }
 }
 
@@ -144,7 +354,7 @@ pub fn generate(
     } else {
         return Err("Couldn't parse home");
     };
-    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
+    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(&home);
     let geo_mat = ecef_mat.transposed();
 
     let mut min_dist = params.slot_data().minimum_distance();
@@ -167,7 +377,7 @@ pub fn generate(
         );
     }
     for (area, (distance, count)) in max_dist_tier_number_locations_per_area.iter() {
-        console::log_1(&format!("Area {area}: {count} trips at most tier {distance}").into());
+        console_log!("Area {area}: {count} trips at most tier {distance}");
     }
 
     /*
@@ -188,203 +398,29 @@ pub fn generate(
     */
 
     // (first node ID, last node ID)
-    let mut segments_tree: RTree<GeomWithData<LineString, (u64, u64)>>;
-    let elements = params.osm().elements();
-    {
-        console::log_1(&format!("{} elements", elements.len()).into());
-        let coords: HashMap<u64, Coord> = elements
-            .iter()
-            .filter_map(|el| {
-                if el.r#type() == "node" {
-                    let node = el.unchecked_ref::<OsmNode>();
-                    let point_geo: Coord = (node.lon(), node.lat()).into();
-                    let point_enu = geo_to_enu(point_geo, ref_ecef, ecef_mat);
-                    Some((el.id() as u64, (point_enu.x, point_enu.y).into()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        console::log_1(&format!("{} nodes", coords.len()).into());
-        let ways: Vec<&OsmWay> = elements
-            .iter()
-            .filter_map(|el| {
-                if el.r#type() == "way" {
-                    Some(el.unchecked_ref::<OsmWay>())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        console::log_1(&format!("{} ways", ways.len()).into());
-
-        let mut node_use_count: HashMap<u64, u32> = HashMap::new();
-        for way in &ways {
-            for node_id_float in way.nodes() {
-                let node_id_int = node_id_float as u64;
-                node_use_count.insert(
-                    node_id_int,
-                    node_use_count.get(&node_id_int).unwrap_or(&0u32) + 1,
-                );
-            }
-        }
-
-        let junction_nodes: HashSet<u64> = node_use_count
-            .iter()
-            .filter_map(
-                |(node_id, count)| {
-                    if *count > 1u32 { Some(*node_id) } else { None }
-                },
-            )
-            .collect();
-        console::log_1(&format!("{} junction nodes", junction_nodes.len()).into());
-
-        let mut way_linestrings = Vec::<GeomWithData<LineString, (u64, u64)>>::new();
-        for way in ways {
-            let mut segment_coords: Vec<Coord> = Vec::new();
-            let mut first_node: u64 = way.nodes()[0] as u64;
-            for node_id_float in way.nodes() {
-                let node_id_int = node_id_float as u64;
-                if let Some(coord) = coords.get(&node_id_int) {
-                    segment_coords.push(*coord);
-                    if junction_nodes.contains(&node_id_int) {
-                        if segment_coords.len() >= 2 {
-                            way_linestrings.push(GeomWithData::new(
-                                LineString::from(segment_coords),
-                                (first_node, node_id_int),
-                            ));
-                        }
-                        segment_coords = vec![*coord];
-                        first_node = node_id_int;
-                    }
-                }
-            }
-            if segment_coords.len() >= 2 {
-                way_linestrings.push(GeomWithData::new(
-                    LineString::from(segment_coords),
-                    (first_node, *way.nodes().last().unwrap() as u64),
-                ));
-            }
-        }
-        console::log_1(&format!("{} linestrings", way_linestrings.len()).into());
-        segments_tree = RTree::bulk_load(way_linestrings);
-        console::log_1(&format!("{} segments in tree", segments_tree.size()).into());
-    }
+    let mut segments_tree = build_segments_tree(&params.osm().elements(), &ref_ecef, &ecef_mat);
     if segments_tree.size() == 0 {
         return Err("No segments");
     }
 
-    if params.subgraph_selection() == SubgraphSelection::BiggestSubgraph
-        || params.subgraph_selection() == SubgraphSelection::ClosestSubgraph
+    if (params.subgraph_selection() == SubgraphSelection::BiggestSubgraph
+        || params.subgraph_selection() == SubgraphSelection::ClosestSubgraph)
+        && let Some(new_nodes) = trim_tree_to_graph(
+            &segments_tree,
+            &params.osm().elements(),
+            params.subgraph_selection(),
+            params.slot_data().maximum_distance(),
+        )?
     {
-        let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
-        let mut osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
-            .iter()
-            .filter_map(|el| {
-                if el.r#type() == "node" {
-                    let node = el.unchecked_ref::<OsmNode>();
-                    let node_int = node.id() as u64;
-                    Some((node_int, graph.add_node(node_int)))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        console::log_1(&format!("{} nodes", graph.node_count()).into());
-
-        for segment in &segments_tree {
-            graph.add_edge(
-                *osm_id_to_graph_id.get(&segment.data.0).unwrap(),
-                *osm_id_to_graph_id.get(&segment.data.1).unwrap(),
-                ::geo::algorithm::line_measures::Euclidean.length(segment.geom()),
-            );
-        }
-        console::log_1(&format!("{} edges", graph.edge_count()).into());
-
-        if params.subgraph_selection() == SubgraphSelection::BiggestSubgraph {
-            let sccs = petgraph::algo::kosaraju_scc(&graph);
-            let max_scc = sccs
-                .iter()
-                .max_by(|c1, c2| c1.len().cmp(&c2.len()))
-                .unwrap();
-            console::log_1(
-                &format!("Largest connected component has {} nodes", max_scc.len()).into(),
-            );
-
-            let max_scc_hashset: HashSet<&petgraph::graph::NodeIndex> = max_scc.iter().collect();
-            graph.retain_nodes(|_, ni| max_scc_hashset.contains(&ni));
-            osm_id_to_graph_id.retain(|_osm_id, graph_id| max_scc_hashset.contains(graph_id));
-        } else {
-            let home_enu = Point::new(0.0, 0.0);
-            let starting_line = segments_tree.nearest_neighbor(&home_enu).unwrap();
-            console::log_1(&format!("starting_line: {:?}", starting_line).into());
-            let starting_point = match starting_line.geom().closest_point(&home_enu) {
-                ::geo::Closest::Intersection(point) => point,
-                ::geo::Closest::SinglePoint(point) => point,
-                ::geo::Closest::Indeterminate => return Err("Indeterminate starting point"),
-            };
-            console::log_1(&format!("starting_point: {:?}", starting_point).into());
-            let distance_to_starting_point = starting_point.distance_2(&home_enu).sqrt();
-            console::log_1(
-                &format!(
-                    "distance_to_starting_point: {:?}",
-                    distance_to_starting_point
-                )
-                .into(),
-            );
-            let fraction_along_line = starting_line
-                .geom()
-                .line_locate_point(&starting_point)
-                .unwrap();
-            console::log_1(&format!("fraction_along_line: {:?}", fraction_along_line).into());
-            let (starting_node, distance_to_starting_node) = if fraction_along_line < 0.5 {
-                (
-                    osm_id_to_graph_id.get(&starting_line.data.0).unwrap(),
-                    distance_to_starting_point
-                        + fraction_along_line
-                            * ::geo::algorithm::line_measures::Euclidean
-                                .length(starting_line.geom()),
-                )
-            } else {
-                (
-                    osm_id_to_graph_id.get(&starting_line.data.1).unwrap(),
-                    distance_to_starting_point
-                        + (1.0 - fraction_along_line)
-                            * ::geo::algorithm::line_measures::Euclidean
-                                .length(starting_line.geom()),
-                )
-            };
-            console::log_1(&format!("starting_node: {:?}", starting_node).into());
-            console::log_1(
-                &format!("distance_to_starting_node: {:?}", distance_to_starting_node).into(),
-            );
-            let mut node_distances =
-                petgraph::algo::dijkstra::dijkstra(&graph, *starting_node, None, |edge| {
-                    *edge.weight()
-                });
-            // TODO: we should retain 1 node further out than allowable, then trim those edges
-            node_distances.retain(|_, distance| {
-                *distance <= params.slot_data().maximum_distance() - distance_to_starting_node
-            });
-            console::log_1(&format!("{} nodes within range", node_distances.len()).into());
-            graph.retain_nodes(|_, ni| node_distances.contains_key(&ni));
-            osm_id_to_graph_id.retain(|_osm_id, graph_id| node_distances.contains_key(graph_id));
-        }
-        console::log_1(&format!("Edge count now {}", graph.edge_count()).into());
-        console::log_1(&format!("Node count now {}", graph.node_count()).into());
-        console::log_1(&format!("Lookup size={}", osm_id_to_graph_id.len()).into());
-        if graph.edge_count() != segments_tree.size() {
-            segments_tree = RTree::bulk_load(
-                segments_tree
-                    .into_iter()
-                    .filter(|segment| {
-                        osm_id_to_graph_id.contains_key(&segment.data.0)
-                            || osm_id_to_graph_id.contains_key(&segment.data.1)
-                    })
-                    .collect(),
-            );
-        }
-        console::log_1(&format!("Now {} segments in tree", segments_tree.size()).into());
+        segments_tree = RTree::bulk_load(
+            segments_tree
+                .into_iter()
+                .filter(|segment| {
+                    new_nodes.contains(&segment.data.0) || new_nodes.contains(&segment.data.1)
+                })
+                .collect(),
+        );
+        console_log!("Now {} segments in tree", segments_tree.size());
     }
 
     let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
@@ -409,7 +445,7 @@ pub fn generate(
             );
 
             let random_point = random_point_in_circle(min_dist, max_dist, &mut rng);
-            console::log_1(&format!("Random point is {random_point:?}").into());
+            console_log!("Random point is {random_point:?}");
 
             // Don't generate points too close to each other, but at a lower priority than
             // checking for nearby segments
@@ -492,7 +528,7 @@ pub fn set_up_with_saved_points(
     points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>,
 ) -> Internal {
     let home: Coord = (home_vec[0], home_vec[1]).into();
-    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
+    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(&home);
 
     let points_tree = RTree::<GeomWithData<Point, i64>>::bulk_load(
         points
@@ -502,9 +538,9 @@ pub fn set_up_with_saved_points(
             .map(|location_id| {
                 let v = points.get(&location_id);
                 let enu_coord = geo_to_enu(
-                    (v.get(0).as_f64().unwrap(), v.get(1).as_f64().unwrap()).into(),
-                    ref_ecef,
-                    ecef_mat,
+                    &(v.get(0).as_f64().unwrap(), v.get(1).as_f64().unwrap()).into(),
+                    &ref_ecef,
+                    &ecef_mat,
                 );
                 GeomWithData::new(
                     (enu_coord.x, enu_coord.y).into(),
@@ -532,9 +568,9 @@ fn _points_in_radius(
     )
         .into();
     let coord_enu = geo_to_enu(
-        coord_geo,
-        internal.ref_ecef.ok_or(())?,
-        internal.ecef_mat.ok_or(())?,
+        &coord_geo,
+        &internal.ref_ecef.ok_or(())?,
+        &internal.ecef_mat.ok_or(())?,
     );
     let point_enu: Point = (coord_enu.x, coord_enu.y).into();
     if let Some(points_tree) = &internal.points_rtree {
