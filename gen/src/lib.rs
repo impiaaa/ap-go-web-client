@@ -1,11 +1,11 @@
-use ::geo::{ClosestPoint, Coord, LineString, Point};
+use ::geo::{ClosestPoint, Coord, Length, LineLocatePoint, LineString, Point};
 use rand::{Rng, SeedableRng};
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, HashSet};
-use std::{f64, panic};
+use std::panic;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, js_sys};
+use web_sys::js_sys;
 mod geo;
 use geo::{enu_to_geo, geo_ref_ecef_mat, geo_to_enu};
 
@@ -22,6 +22,7 @@ pub fn my_init_function() {
 
 #[wasm_bindgen]
 extern "C" {
+    #[derive(Clone)]
     pub type OverpassResponse;
 
     #[wasm_bindgen(structural, method, getter)]
@@ -34,7 +35,7 @@ extern "C" {
     #[wasm_bindgen(structural, method, getter)]
     pub fn id(this: &OsmElement) -> f64;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn tags(this: &OsmElement) -> Option<JsValue>;
+    pub fn tags(this: &OsmElement) -> Option<js_sys::Object>;
 
     #[derive(Debug)]
     #[wasm_bindgen(extends = OsmElement)]
@@ -63,7 +64,10 @@ extern "C" {
     pub fn slot(this: &GenerateParams) -> f64;
     #[wasm_bindgen(structural, method, getter)]
     pub fn slot_data(this: &GenerateParams) -> APGoSlotData;
+    #[wasm_bindgen(structural, method, getter)]
+    pub fn subgraph_selection(this: &GenerateParams) -> SubgraphSelection;
 
+    #[derive(Clone)]
     pub type APGoSlotData;
     #[wasm_bindgen(method, getter)]
     pub fn goal(this: &APGoSlotData) -> Goal;
@@ -74,7 +78,7 @@ extern "C" {
     #[wasm_bindgen(method, getter)]
     pub fn speed_requirement(this: &APGoSlotData) -> f64;
     #[wasm_bindgen(method, getter)]
-    pub fn trips(this: &APGoSlotData) -> JsValue;
+    pub fn trips(this: &APGoSlotData) -> js_sys::Object;
 
     pub type Trip;
     #[wasm_bindgen(method, getter)]
@@ -103,43 +107,53 @@ pub struct Internal {
 }
 
 #[wasm_bindgen]
-pub fn generate(
-    params: &GenerateParams,
-) -> Result<js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>, &'static str> {
-    let Ok(seed) = params
-        .seed_name()
-        .parse::<u128>()
-        // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
-        // The multiply and divide brings it down from 1e20 range to u64::MAX range
-        // Finally xor with the slot number so that different AP-Go participants in the same AP game
-        // have different sets of trips
-        .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot() as u64))
-    else {
-        return Err("Couldn't parse seed");
-    };
-    let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
-    let home: Coord = if params.home().len() == 2 {
-        (params.home()[0], params.home()[1]).into()
-    } else {
-        return Err("Couldn't parse home");
-    };
-    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
-    let geo_mat = ecef_mat.transposed();
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SubgraphSelection {
+    FullGraph,
+    BiggestSubgraph,
+    ClosestSubgraph,
+}
 
-    let elements = params.osm().elements();
+#[cfg(target_family = "wasm")]
+macro_rules! console_log {
+    ($($t:tt)*) => (web_sys::console::log_1(&format!($($t)*).into()))
+}
+#[cfg(not(target_family = "wasm"))]
+macro_rules! console_log {
+    ($($t:tt)*) => (println!($($t)*))
+}
+
+type SegmentsTree = RTree<GeomWithData<LineString, (u64, u64)>>;
+
+fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotData) -> f64 {
+    let max_dist = (slot_data.maximum_distance() / 10.0) * distance_tier;
+    if max_dist < slot_data.minimum_distance() {
+        slot_data.minimum_distance() * (1.0 + DISTANCE_LENIENCY)
+    } else {
+        max_dist
+    }
+}
+
+fn build_segments_tree(
+    elements: &[OsmElement],
+    ref_ecef: &Coord3d,
+    ecef_mat: &AffineTransform3d,
+) -> SegmentsTree {
+    console_log!("{} elements", elements.len());
     let coords: HashMap<u64, Coord> = elements
         .iter()
         .filter_map(|el| {
             if el.r#type() == "node" {
                 let node = el.unchecked_ref::<OsmNode>();
                 let point_geo: Coord = (node.lon(), node.lat()).into();
-                let point_enu = geo_to_enu(point_geo, ref_ecef, ecef_mat);
+                let point_enu = geo_to_enu(&point_geo, ref_ecef, ecef_mat);
                 Some((el.id() as u64, (point_enu.x, point_enu.y).into()))
             } else {
                 None
             }
         })
         .collect();
+    console_log!("{} nodes", coords.len());
     let ways: Vec<&OsmWay> = elements
         .iter()
         .filter_map(|el| {
@@ -150,6 +164,7 @@ pub fn generate(
             }
         })
         .collect();
+    console_log!("{} ways", ways.len());
 
     let mut node_use_count: HashMap<u64, u32> = HashMap::new();
     for way in &ways {
@@ -170,67 +185,274 @@ pub fn generate(
             },
         )
         .collect();
+    drop(node_use_count);
+    console_log!("{} junction nodes", junction_nodes.len());
 
-    let mut segments: Vec<LineString> = Vec::new();
+    let mut way_linestrings = Vec::<GeomWithData<LineString, (u64, u64)>>::new();
     for way in ways {
-        let mut linestring: Vec<Coord> = Vec::new();
+        let mut segment_coords: Vec<Coord> = Vec::new();
+        let mut first_node: u64 = way.nodes()[0] as u64;
         for node_id_float in way.nodes() {
             let node_id_int = node_id_float as u64;
             if let Some(coord) = coords.get(&node_id_int) {
-                linestring.push(*coord);
+                segment_coords.push(*coord);
                 if junction_nodes.contains(&node_id_int) {
-                    if linestring.len() >= 2 {
-                        segments.push(LineString::from(linestring));
+                    if segment_coords.len() >= 2 {
+                        way_linestrings.push(GeomWithData::new(
+                            LineString::from(segment_coords),
+                            (first_node, node_id_int),
+                        ));
                     }
-                    linestring = vec![*coord];
+                    segment_coords = vec![*coord];
+                    first_node = node_id_int;
                 }
             }
         }
-        if linestring.len() >= 2 {
-            segments.push(LineString::from(linestring));
+        if segment_coords.len() >= 2 {
+            way_linestrings.push(GeomWithData::new(
+                LineString::from(segment_coords),
+                (first_node, *way.nodes().last().unwrap() as u64),
+            ));
         }
     }
+    console_log!("{} linestrings", way_linestrings.len());
+    let segments_tree = RTree::bulk_load(way_linestrings);
+    console_log!("{} segments in tree", segments_tree.size());
+    segments_tree
+}
 
-    let segments_tree = RTree::bulk_load(segments);
-    if segments_tree.size() == 0 {
-        return Err("No segments");
+fn trim_tree_to_graph(
+    segments_tree: &SegmentsTree,
+    elements: &[OsmElement],
+    mode: SubgraphSelection,
+    maximum_distance: f64,
+) -> Result<Option<HashSet<u64>>, &'static str> {
+    let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
+    let osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
+        .iter()
+        .filter_map(|el| {
+            if el.r#type() == "node" {
+                let node = el.unchecked_ref::<OsmNode>();
+                let node_int = node.id() as u64;
+                Some((node_int, graph.add_node(node_int)))
+            } else {
+                None
+            }
+        })
+        .collect();
+    console_log!("{} nodes", graph.node_count());
+
+    for segment in segments_tree {
+        graph.add_edge(
+            *osm_id_to_graph_id.get(&segment.data.0).unwrap(),
+            *osm_id_to_graph_id.get(&segment.data.1).unwrap(),
+            ::geo::algorithm::line_measures::Euclidean.length(segment.geom()),
+        );
     }
+    console_log!("{} edges", graph.edge_count());
 
-    let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
-    let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
-        js_sys::Map::new_typed();
+    let maybe_nodes_to_keep: Option<HashSet<petgraph::graph::NodeIndex>> = match mode {
+        SubgraphSelection::BiggestSubgraph => {
+            let sccs = petgraph::algo::kosaraju_scc(&graph);
+            let max_scc = sccs
+                .into_iter()
+                .max_by(|c1, c2| c1.len().cmp(&c2.len()))
+                .unwrap();
+            console_log!("Largest connected component has {} nodes", max_scc.len(),);
+
+            Some(max_scc.into_iter().collect())
+        }
+        SubgraphSelection::ClosestSubgraph => {
+            let home_enu = Point::new(0.0, 0.0);
+            let starting_line = segments_tree.nearest_neighbor(&home_enu).unwrap();
+            console_log!("starting_line: {:?}", starting_line);
+            let starting_point = match starting_line.geom().closest_point(&home_enu) {
+                ::geo::Closest::Intersection(point) => point,
+                ::geo::Closest::SinglePoint(point) => point,
+                ::geo::Closest::Indeterminate => return Err("Indeterminate starting point"),
+            };
+            console_log!("starting_point: {:?}", starting_point);
+            let distance_to_starting_point = starting_point.distance_2(&home_enu).sqrt();
+            console_log!(
+                "distance_to_starting_point: {:?}",
+                distance_to_starting_point
+            );
+            let fraction_along_line = starting_line
+                .geom()
+                .line_locate_point(&starting_point)
+                .unwrap();
+            console_log!("fraction_along_line: {:?}", fraction_along_line);
+            let (starting_node, distance_to_starting_node) = if fraction_along_line < 0.5 {
+                (
+                    osm_id_to_graph_id.get(&starting_line.data.0).unwrap(),
+                    distance_to_starting_point
+                        + fraction_along_line
+                            * ::geo::algorithm::line_measures::Euclidean
+                                .length(starting_line.geom()),
+                )
+            } else {
+                (
+                    osm_id_to_graph_id.get(&starting_line.data.1).unwrap(),
+                    distance_to_starting_point
+                        + (1.0 - fraction_along_line)
+                            * ::geo::algorithm::line_measures::Euclidean
+                                .length(starting_line.geom()),
+                )
+            };
+            console_log!("starting_node: {:?}", starting_node);
+            console_log!("distance_to_starting_node: {:?}", distance_to_starting_node);
+            let node_distances =
+                petgraph::algo::dijkstra::dijkstra(&graph, *starting_node, None, |edge| {
+                    *edge.weight()
+                });
+            let nodes_within_distance: HashSet<petgraph::graph::NodeIndex> = node_distances
+                .iter()
+                .filter_map(|(node_id, distance)| {
+                    if *distance <= maximum_distance - distance_to_starting_node {
+                        Some(*node_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            drop(node_distances);
+            console_log!("{} nodes within range", nodes_within_distance.len());
+            let neighbors = nodes_within_distance
+                .iter()
+                .flat_map(|node_index| graph.neighbors(*node_index));
+            Some(std::iter::chain(nodes_within_distance.iter().copied(), neighbors).collect())
+        }
+        SubgraphSelection::FullGraph => None,
+    };
+
+    if let Some(nodes_to_keep) = maybe_nodes_to_keep {
+        Ok(Some(
+            osm_id_to_graph_id
+                .iter()
+                .filter_map(|(k, v)| {
+                    if nodes_to_keep.contains(v) {
+                        Some(*k)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+#[wasm_bindgen]
+pub fn generate(
+    params: &GenerateParams,
+) -> Result<js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>, &'static str> {
+    let Ok(seed) = params
+        .seed_name()
+        .parse::<u128>()
+        // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
+        // The multiply and divide brings it down from 1e20 range to u64::MAX range
+        // Finally xor with the slot number so that different AP-Go participants in the same AP game
+        // have different sets of trips
+        .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot() as u64))
+    else {
+        return Err("Couldn't parse seed");
+    };
+    let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
+    let home: Coord = if params.home().len() == 2 {
+        (params.home()[0], params.home()[1]).into()
+    } else {
+        return Err("Couldn't parse home");
+    };
+    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(&home);
+    let geo_mat = ecef_mat.transposed();
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
         min_dist = params.slot_data().maximum_distance() * (1.0 - DISTANCE_LENIENCY);
     }
 
+    let mut max_dist_tier_number_locations_per_area = HashMap::<u8, (f64, usize)>::new();
+    for trip_js in js_sys::Object::values(&params.slot_data().trips()) {
+        let trip = trip_js.unchecked_ref::<Trip>();
+        let area = trip.key_needed() as u8;
+        let distance = trip.distance_tier();
+
+        max_dist_tier_number_locations_per_area.insert(
+            area,
+            max_dist_tier_number_locations_per_area
+                .get(&area)
+                .map(|(max_dist, count)| (max_dist.max(distance), count + 1))
+                .unwrap_or((distance, 1)),
+        );
+    }
+    for (area, (distance, count)) in max_dist_tier_number_locations_per_area.iter() {
+        console_log!("Area {area}: {count} trips at most tier {distance}");
+    }
+
+    /*
+    let random_point_per_area: HashMap<u8, ::geo::Point> = max_dist_tier_number_locations_per_area
+        .iter()
+        .map(|(area, (max_dist_tier, _count))| {
+            // do not seed areas outside the maximum radius of that area
+            (
+                *area,
+                random_point_in_circle(
+                    min_dist,
+                    distance_tier_to_maximum_distance(*max_dist_tier, &params.slot_data()),
+                    &mut rng,
+                ),
+            )
+        })
+        .collect();
+    */
+
+    // (first node ID, last node ID)
+    let mut segments_tree = build_segments_tree(&params.osm().elements(), &ref_ecef, &ecef_mat);
+    if segments_tree.size() == 0 {
+        return Err("No segments");
+    }
+
+    if (params.subgraph_selection() == SubgraphSelection::BiggestSubgraph
+        || params.subgraph_selection() == SubgraphSelection::ClosestSubgraph)
+        && let Some(new_nodes) = trim_tree_to_graph(
+            &segments_tree,
+            &params.osm().elements(),
+            params.subgraph_selection(),
+            params.slot_data().maximum_distance(),
+        )?
+    {
+        segments_tree = RTree::bulk_load(
+            segments_tree
+                .into_iter()
+                .filter(|segment| {
+                    new_nodes.contains(&segment.data.0) || new_nodes.contains(&segment.data.1)
+                })
+                .collect(),
+        );
+        console_log!("Now {} segments in tree", segments_tree.size());
+    }
+
+    let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
+    let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
+        js_sys::Map::new_typed();
+
     params.locations().for_each(&mut |trip_name, location_id| {
         let trip: Trip = js_sys::Reflect::get(&params.slot_data().trips(), &trip_name)
             .unwrap()
             .unchecked_into();
 
-        let mut max_dist =
-            (params.slot_data().maximum_distance() / 10.0) * trip.distance_tier();
-        if max_dist < params.slot_data().minimum_distance() {
-            max_dist = params.slot_data().minimum_distance() * (1.0 + DISTANCE_LENIENCY);
-        }
+        let max_dist = distance_tier_to_maximum_distance(trip.distance_tier(), &params.slot_data());
 
         let mut attempt = 1;
         const MAX_ATTEMPTS: i32 = 256;
         loop {
-            console::log_1(
-                &format!(
+            console_log!(
                     "Attempt {attempt}: Generating random point with radius between {min_dist} and {max_dist}"
-                )
-                .into(),
-            );
+                );
 
-            let r = (max_dist - min_dist) * rng.r#gen::<f64>().sqrt() + min_dist;
-            let theta = rng.r#gen::<f64>() * std::f64::consts::TAU;
-            let (st, ct) = theta.sin_cos();
-            let random_point = ::geo::Point::new(r * ct, r * st);
-            console::log_1(&format!("Random point is {random_point:?}").into());
+            let random_point = random_point_in_circle(min_dist, max_dist, &mut rng);
+            console_log!("Random point is {random_point:?}");
 
             // Don't generate points too close to each other, but at a lower priority than
             // checking for nearby segments
@@ -246,7 +468,7 @@ pub fn generate(
                 // empty tree?
                 return;
             };
-            let nearest_point_on_segment = match nearest_segment.closest_point(&random_point) {
+            let nearest_point_on_segment = match nearest_segment.geom().closest_point(&random_point) {
                 ::geo::Closest::Indeterminate => continue,
                 ::geo::Closest::Intersection(point) => point,
                 ::geo::Closest::SinglePoint(point) => point,
@@ -259,10 +481,7 @@ pub fn generate(
                 let selected_point = if attempt < MAX_ATTEMPTS {
                     random_point
                 } else {
-                    console::log_1(
-                        &format!("Out of attempts, snapping to {nearest_point_on_segment:?}")
-                            .into(),
-                    );
+                    console_log!("Out of attempts, snapping to {nearest_point_on_segment:?}");
                     nearest_point_on_segment
                 };
                 points_tree.insert(GeomWithData::new(
@@ -293,13 +512,27 @@ pub fn generate(
     Ok(trip_points)
 }
 
+fn random_point_in_circle<T: Rng, U: ::geo::CoordFloat + num_traits::FloatConst>(
+    min_dist: U,
+    max_dist: U,
+    rng: &mut T,
+) -> ::geo::Point<U>
+where
+    rand::distributions::Standard: rand::distributions::Distribution<U>,
+{
+    let r = (max_dist - min_dist) * rng.r#gen::<U>().sqrt() + min_dist;
+    let theta = rng.r#gen::<U>() * U::TAU();
+    let (st, ct) = theta.sin_cos();
+    ::geo::Point::<U>::new(r * ct, r * st)
+}
+
 #[wasm_bindgen]
 pub fn set_up_with_saved_points(
     home_vec: Vec<f64>,
     points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>>,
 ) -> Internal {
     let home: Coord = (home_vec[0], home_vec[1]).into();
-    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(home);
+    let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(&home);
 
     let points_tree = RTree::<GeomWithData<Point, i64>>::bulk_load(
         points
@@ -309,9 +542,9 @@ pub fn set_up_with_saved_points(
             .map(|location_id| {
                 let v = points.get(&location_id);
                 let enu_coord = geo_to_enu(
-                    (v.get(0).as_f64().unwrap(), v.get(1).as_f64().unwrap()).into(),
-                    ref_ecef,
-                    ecef_mat,
+                    &(v.get(0).as_f64().unwrap(), v.get(1).as_f64().unwrap()).into(),
+                    &ref_ecef,
+                    &ecef_mat,
                 );
                 GeomWithData::new(
                     (enu_coord.x, enu_coord.y).into(),
@@ -339,9 +572,9 @@ fn _points_in_radius(
     )
         .into();
     let coord_enu = geo_to_enu(
-        coord_geo,
-        internal.ref_ecef.ok_or(())?,
-        internal.ecef_mat.ok_or(())?,
+        &coord_geo,
+        &internal.ref_ecef.ok_or(())?,
+        &internal.ecef_mat.ok_or(())?,
     );
     let point_enu: Point = (coord_enu.x, coord_enu.y).into();
     if let Some(points_tree) = &internal.points_rtree {

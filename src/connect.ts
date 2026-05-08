@@ -1,4 +1,4 @@
-import init from "@pkgs/gen";
+import init, { SubgraphSelection } from "@pkgs/gen";
 import i18next from "i18next";
 import maplibregl, { LngLat } from "maplibre-gl";
 import {
@@ -315,33 +315,54 @@ function openAdvancedSettings() {
     prefs.overpass_server;
   (document.getElementById("overpass-query") as HTMLInputElement).value =
     prefs.overpass_query;
+  (document.getElementById("subgraph-selection") as HTMLInputElement).value =
+    prefs.subgraph_selection.toString();
   (
     document.getElementById("advanced-settings-dialog") as HTMLDialogElement
   ).showModal();
 }
 
 function saveAdvancedSettings(ev: PointerEvent) {
-  if (
-    (
-      document.getElementById("advanced-settings-form") as HTMLFormElement
-    ).checkValidity()
-  ) {
+  const advanced_settings_form = document.getElementById(
+    "advanced-settings-form",
+  ) as HTMLFormElement;
+  if (advanced_settings_form.checkValidity()) {
     ev.preventDefault();
 
-    prefs.overpass_server = (
-      document.getElementById("overpass-server") as HTMLInputElement
-    ).value;
+    const overpass_query =
+      (
+        advanced_settings_form.elements.namedItem(
+          "overpass-query",
+        ) as HTMLTextAreaElement
+      ).value || DEFAULT_OVERPASS_QUERY;
+    const overpass_server =
+      (
+        advanced_settings_form.elements.namedItem(
+          "overpass-server",
+        ) as HTMLInputElement
+      ).value || prefs.overpass_server;
+    const subgraph_selection = parseInt(
+      (
+        advanced_settings_form.elements.namedItem(
+          "subgraph-selection",
+        ) as HTMLTextAreaElement
+      ).value,
+      10,
+    );
 
-    const overpassQueryBox = document.getElementById(
-      "overpass-query",
-    ) as HTMLTextAreaElement;
-    if (overpassQueryBox.value) {
-      prefs.overpass_query = overpassQueryBox.value;
-    } else {
-      prefs.overpass_query = DEFAULT_OVERPASS_QUERY;
+    if (
+      overpass_query !== prefs.overpass_query ||
+      overpass_server !== prefs.overpass_server ||
+      subgraph_selection !== prefs.subgraph_selection
+    ) {
+      prefs.overpass_query = overpass_query;
+      prefs.overpass_server = overpass_server;
+      prefs.subgraph_selection = subgraph_selection;
+      saveConnectInfo();
+      game_data.points.clear();
+      saveGame();
     }
 
-    saveConnectInfo();
     (
       document.getElementById("advanced-settings-dialog") as HTMLDialogElement
     ).close();
@@ -423,7 +444,7 @@ export function setUpConnectPage() {
       }
 
       const overpass_server_json = prefs_json.overpass_server;
-      if (typeof overpass_server_json === "string") {
+      if (overpass_server_json && typeof overpass_server_json === "string") {
         prefs.overpass_server = overpass_server_json;
       }
 
@@ -444,6 +465,14 @@ export function setUpConnectPage() {
               prefs.overpass_query = overpass_query_json;
             }
           });
+      }
+
+      const subgraph_selection_json = prefs_json.subgraph_selection;
+      if (
+        typeof subgraph_selection_json === "number" &&
+        SubgraphSelection[subgraph_selection_json]
+      ) {
+        prefs.subgraph_selection = subgraph_selection_json;
       }
     } else {
       localStorage.removeItem(PREFS_KEY);
@@ -506,6 +535,7 @@ function saveConnectInfo() {
       password: password.value,
       player: player.value,
       port: port.value,
+      subgraph_selection: prefs.subgraph_selection,
     }),
   );
 }

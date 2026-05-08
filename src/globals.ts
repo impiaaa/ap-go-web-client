@@ -1,4 +1,4 @@
-import type { Internal } from "@pkgs/gen/gen";
+import { type Internal, SubgraphSelection } from "@pkgs/gen/gen";
 import { Client, type NetworkItem } from "archipelago.js";
 import { type APGoSlotData, GameState, ItemType } from "./types";
 
@@ -100,10 +100,12 @@ export const prefs: {
   home: [number, number] | null;
   overpass_server: string;
   overpass_query: string;
+  subgraph_selection: SubgraphSelection;
 } = {
   home: null,
   overpass_query: DEFAULT_OVERPASS_QUERY,
   overpass_server: "https://overpass.private.coffee/api/interpreter",
+  subgraph_selection: SubgraphSelection.FullGraph,
 };
 export let slot_data: APGoSlotData | null = null;
 export function setSlotData(new_slot_data: APGoSlotData) {

@@ -65,7 +65,7 @@ export function generate(seed_name: string, slot: number) {
           resolve(event.data);
         };
         worker.postMessage({
-          home: prefs.home,
+          home: new Float64Array(prefs.home!),
           locations: new Map<number, string>(
             client.room.allLocations.map((location_id) => [
               location_id,
@@ -76,6 +76,7 @@ export function generate(seed_name: string, slot: number) {
           seed_name: seed_name,
           slot: slot,
           slot_data: slot_data,
+          subgraph_selection: prefs.subgraph_selection,
         });
       });
       req.addEventListener("abort", () => {

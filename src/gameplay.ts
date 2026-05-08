@@ -144,46 +144,53 @@ export function loadGame() {
   const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
   game_data.scouted_locations.clear();
   game_data.displayed_trap_locations = [];
-  if (saved_game_json) {
-    const saved_game = JSON.parse(saved_game_json);
-    if (saved_game && saved_game.seed === client.room.seedName) {
-      if (saved_game.scouted_locations) {
-        for (const location_id_str in saved_game.scouted_locations) {
-          game_data.scouted_locations.set(
-            parseInt(location_id_str, 10),
-            saved_game.scouted_locations[location_id_str],
-          );
-        }
-      }
-      if (
-        saved_game.displayed_trap_locations &&
-        Array.isArray(saved_game.displayed_trap_locations)
-      ) {
-        game_data.displayed_trap_locations =
-          saved_game.displayed_trap_locations;
-      }
-      if (
-        saved_game.points &&
-        saved_game.home &&
-        Array.isArray(saved_game.home) &&
-        saved_game.home.length === 2 &&
-        prefs.home &&
-        coordinatesApproximatelyEqual(saved_game.home, prefs.home)
-      ) {
-        game_data.points.clear();
-        for (const location_id_str in saved_game.points) {
-          game_data.points.set(
-            parseInt(location_id_str, 10),
-            saved_game.points[location_id_str],
-          );
-        }
-        game_data.points.forEach((_, location_id) => {
-          updateMarker(location_id);
-        });
-        return true;
-      }
+  if (!saved_game_json) return false;
+
+  const saved_game = JSON.parse(saved_game_json);
+  if (!saved_game || saved_game.seed !== client.room.seedName) return false;
+
+  if (saved_game.scouted_locations) {
+    for (const location_id_str in saved_game.scouted_locations) {
+      game_data.scouted_locations.set(
+        parseInt(location_id_str, 10),
+        saved_game.scouted_locations[location_id_str],
+      );
     }
   }
+
+  if (
+    saved_game.displayed_trap_locations &&
+    Array.isArray(saved_game.displayed_trap_locations)
+  ) {
+    game_data.displayed_trap_locations = saved_game.displayed_trap_locations;
+  }
+
+  const saved_game_point_names = Object.getOwnPropertyNames(saved_game.points);
+  if (
+    saved_game.points &&
+    saved_game_point_names.length === client.room.allLocations.length &&
+    saved_game_point_names.every((v) =>
+      client.room.allLocations.includes(parseInt(v, 10)),
+    ) &&
+    saved_game.home &&
+    Array.isArray(saved_game.home) &&
+    saved_game.home.length === 2 &&
+    prefs.home &&
+    coordinatesApproximatelyEqual(saved_game.home, prefs.home)
+  ) {
+    game_data.points.clear();
+    for (const location_id_str in saved_game.points) {
+      game_data.points.set(
+        parseInt(location_id_str, 10),
+        saved_game.points[location_id_str],
+      );
+    }
+    game_data.points.forEach((_, location_id) => {
+      updateMarker(location_id);
+    });
+    return true;
+  }
+
   return false;
 }
 
