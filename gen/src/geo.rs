@@ -77,7 +77,7 @@ pub fn geo_to_enu(point_ecef: &Coord, ref_ecef: &Coord3d, ecef_mat: &AffineTrans
 }
 
 #[allow(non_snake_case)]
-pub fn ecef_to_geo(ecef: Coord3d) -> Coord {
+pub fn ecef_to_geo(ecef: &Coord3d) -> Coord {
     let r = (ecef.x * ecef.x + ecef.y * ecef.y).sqrt();
     let ep2 = (EQUATORIAL_RADIUS * EQUATORIAL_RADIUS - POLAR_RADIUS * POLAR_RADIUS)
         / (POLAR_RADIUS * POLAR_RADIUS);
@@ -102,15 +102,15 @@ pub fn ecef_to_geo(ecef: Coord3d) -> Coord {
     }
 }
 
-pub fn enu_to_geo(point_enu: Coord3d, ref_ecef: Coord3d, geo_mat: AffineTransform3d) -> Coord {
+pub fn enu_to_geo(point_enu: &Coord3d, ref_ecef: &Coord3d, geo_mat: &AffineTransform3d) -> Coord {
     // geo_mat = ecef_mat.transposed()
-    let v = geo_mat.apply3d(&point_enu);
+    let v = geo_mat.apply3d(point_enu);
     let point_ecef = Coord3d {
         x: v.x + ref_ecef.x,
         y: v.y + ref_ecef.y,
         z: v.z + ref_ecef.z,
     };
-    ecef_to_geo(point_ecef)
+    ecef_to_geo(&point_ecef)
 }
 
 #[cfg(test)]
@@ -130,7 +130,7 @@ mod tests {
         assert!((home_ecef.y - -4300075.106).abs() < epsilon);
         assert!((home_ecef.z - 3852376.514).abs() < epsilon);
 
-        let home_geo_2 = ecef_to_geo(home_ecef);
+        let home_geo_2 = ecef_to_geo(&home_ecef);
         assert!((home_geo_2.x - home_geo.x).abs() < (std::f32::EPSILON as f64));
         assert!((home_geo_2.y - home_geo.y).abs() < (std::f32::EPSILON as f64));
     }

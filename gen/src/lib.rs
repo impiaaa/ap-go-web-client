@@ -8,6 +8,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
 mod geo;
 use geo::{enu_to_geo, geo_ref_ecef_mat, geo_to_enu};
+mod osm_types;
 
 use crate::geo::{AffineTransform3d, Coord3d};
 
@@ -26,30 +27,30 @@ extern "C" {
     pub type OverpassResponse;
 
     #[wasm_bindgen(structural, method, getter)]
-    pub fn elements(this: &OverpassResponse) -> Vec<OsmElement>;
+    pub fn elements(this: &OverpassResponse) -> Vec<JsOsmElement>;
 
     #[derive(Debug)]
-    pub type OsmElement;
+    pub type JsOsmElement;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn r#type(this: &OsmElement) -> String;
+    pub fn r#type(this: &JsOsmElement) -> String;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn id(this: &OsmElement) -> f64;
+    pub fn id(this: &JsOsmElement) -> f64;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn tags(this: &OsmElement) -> Option<js_sys::Object>;
+    pub fn tags(this: &JsOsmElement) -> Option<js_sys::Object>;
 
     #[derive(Debug)]
-    #[wasm_bindgen(extends = OsmElement)]
-    pub type OsmNode;
+    #[wasm_bindgen(extends = JsOsmElement)]
+    pub type JsOsmNode;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn lat(this: &OsmNode) -> f64;
+    pub fn lat(this: &JsOsmNode) -> f64;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn lon(this: &OsmNode) -> f64;
+    pub fn lon(this: &JsOsmNode) -> f64;
 
     #[derive(Debug)]
-    #[wasm_bindgen(extends = OsmElement)]
-    pub type OsmWay;
+    #[wasm_bindgen(extends = JsOsmElement)]
+    pub type JsOsmWay;
     #[wasm_bindgen(structural, method, getter)]
-    pub fn nodes(this: &OsmWay) -> Vec<f64>;
+    pub fn nodes(this: &JsOsmWay) -> Vec<f64>;
 
     pub type GenerateParams;
     #[wasm_bindgen(structural, method, getter)]
@@ -123,7 +124,7 @@ macro_rules! console_log {
     ($($t:tt)*) => (println!($($t)*))
 }
 
-type SegmentsTree = RTree<GeomWithData<LineString, (u64, u64)>>;
+type SegmentsTree = RTree<GeomWithData<LineString, (i64, i64)>>;
 
 fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotData) -> f64 {
     let max_dist = (slot_data.maximum_distance() / 10.0) * distance_tier;
@@ -135,30 +136,32 @@ fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotDat
 }
 
 fn build_segments_tree(
-    elements: &[OsmElement],
+    elements: &[osm_types::Element],
     ref_ecef: &Coord3d,
     ecef_mat: &AffineTransform3d,
 ) -> SegmentsTree {
     console_log!("{} elements", elements.len());
-    let coords: HashMap<u64, Coord> = elements
+    let coords: HashMap<i64, Coord> = elements
         .iter()
         .filter_map(|el| {
-            if el.r#type() == "node" {
-                let node = el.unchecked_ref::<OsmNode>();
-                let point_geo: Coord = (node.lon(), node.lat()).into();
+            if let osm_types::Element::Node(node) = el {
+                let point_geo = Coord {
+                    x: node.lon,
+                    y: node.lat,
+                };
                 let point_enu = geo_to_enu(&point_geo, ref_ecef, ecef_mat);
-                Some((el.id() as u64, (point_enu.x, point_enu.y).into()))
+                Some((node.id.0, (point_enu.x, point_enu.y).into()))
             } else {
                 None
             }
         })
         .collect();
     console_log!("{} nodes", coords.len());
-    let ways: Vec<&OsmWay> = elements
+    let ways: Vec<Vec<i64>> = elements
         .iter()
         .filter_map(|el| {
-            if el.r#type() == "way" {
-                Some(el.unchecked_ref::<OsmWay>())
+            if let osm_types::Element::Way(way) = el {
+                Some(way.nodes.iter().map(|r| r.0).collect())
             } else {
                 None
             }
@@ -166,18 +169,14 @@ fn build_segments_tree(
         .collect();
     console_log!("{} ways", ways.len());
 
-    let mut node_use_count: HashMap<u64, u32> = HashMap::new();
+    let mut node_use_count: HashMap<i64, u32> = HashMap::new();
     for way in &ways {
-        for node_id_float in way.nodes() {
-            let node_id_int = node_id_float as u64;
-            node_use_count.insert(
-                node_id_int,
-                node_use_count.get(&node_id_int).unwrap_or(&0u32) + 1,
-            );
+        for node_id in way {
+            node_use_count.insert(*node_id, node_use_count.get(node_id).unwrap_or(&0u32) + 1);
         }
     }
 
-    let junction_nodes: HashSet<u64> = node_use_count
+    let junction_nodes: HashSet<i64> = node_use_count
         .iter()
         .filter_map(
             |(node_id, count)| {
@@ -188,30 +187,29 @@ fn build_segments_tree(
     drop(node_use_count);
     console_log!("{} junction nodes", junction_nodes.len());
 
-    let mut way_linestrings = Vec::<GeomWithData<LineString, (u64, u64)>>::new();
+    let mut way_linestrings = Vec::<GeomWithData<LineString, (i64, i64)>>::new();
     for way in ways {
         let mut segment_coords: Vec<Coord> = Vec::new();
-        let mut first_node: u64 = way.nodes()[0] as u64;
-        for node_id_float in way.nodes() {
-            let node_id_int = node_id_float as u64;
-            if let Some(coord) = coords.get(&node_id_int) {
+        let mut first_node = way.first().unwrap();
+        for node_id in &way {
+            if let Some(coord) = coords.get(node_id) {
                 segment_coords.push(*coord);
-                if junction_nodes.contains(&node_id_int) {
+                if junction_nodes.contains(node_id) {
                     if segment_coords.len() >= 2 {
                         way_linestrings.push(GeomWithData::new(
                             LineString::from(segment_coords),
-                            (first_node, node_id_int),
+                            (*first_node, *node_id),
                         ));
                     }
                     segment_coords = vec![*coord];
-                    first_node = node_id_int;
+                    first_node = node_id;
                 }
             }
         }
         if segment_coords.len() >= 2 {
             way_linestrings.push(GeomWithData::new(
                 LineString::from(segment_coords),
-                (first_node, *way.nodes().last().unwrap() as u64),
+                (*first_node, *(way.last().unwrap())),
             ));
         }
     }
@@ -221,24 +219,18 @@ fn build_segments_tree(
     segments_tree
 }
 
-fn trim_tree_to_graph(
+fn trim_tree_to_graph<T>(
     segments_tree: &SegmentsTree,
-    elements: &[OsmElement],
+    node_ids: T,
     mode: SubgraphSelection,
     maximum_distance: f64,
-) -> Result<Option<HashSet<u64>>, &'static str> {
-    let mut graph = petgraph::graph::Graph::<u64, f64, petgraph::Undirected>::new_undirected();
-    let osm_id_to_graph_id: HashMap<u64, petgraph::graph::NodeIndex> = elements
-        .iter()
-        .filter_map(|el| {
-            if el.r#type() == "node" {
-                let node = el.unchecked_ref::<OsmNode>();
-                let node_int = node.id() as u64;
-                Some((node_int, graph.add_node(node_int)))
-            } else {
-                None
-            }
-        })
+) -> Result<Option<HashSet<i64>>, &'static str>
+where
+    T: Iterator<Item = i64>,
+{
+    let mut graph = petgraph::graph::Graph::<i64, f64, petgraph::Undirected>::new_undirected();
+    let osm_id_to_graph_id: HashMap<i64, petgraph::graph::NodeIndex> = node_ids
+        .map(|node_int| (node_int, graph.add_node(node_int)))
         .collect();
     console_log!("{} nodes", graph.node_count());
 
@@ -408,7 +400,73 @@ pub fn generate(
     */
 
     // (first node ID, last node ID)
-    let mut segments_tree = build_segments_tree(&params.osm().elements(), &ref_ecef, &ecef_mat);
+    let mut segments_tree = build_segments_tree(
+        &params
+            .osm()
+            .elements()
+            .iter()
+            .filter_map(|el| {
+                if el.r#type() == "node" {
+                    let node = el.unchecked_ref::<JsOsmNode>();
+                    Some(osm_types::Element::Node(osm_types::Node {
+                        id: osm_types::Id(node.id() as i64),
+                        tags: node
+                            .tags()
+                            .map(|a| js_sys::Reflect::own_keys(&a))
+                            .and_then(|b| js_sys::try_iter(&b.unwrap()).unwrap())
+                            .map(|c| {
+                                c.map(|key| {
+                                    let key2 = key.unwrap();
+                                    (
+                                        key2.as_string().unwrap(),
+                                        js_sys::Reflect::get(&node.tags().unwrap(), &key2)
+                                            .unwrap()
+                                            .as_string()
+                                            .unwrap(),
+                                    )
+                                })
+                                .collect()
+                            }),
+                        info: None,
+                        lat: node.lat(),
+                        lon: node.lon(),
+                    }))
+                } else if el.r#type() == "way" {
+                    let way = el.unchecked_ref::<JsOsmWay>();
+                    Some(osm_types::Element::Way(osm_types::Way {
+                        id: osm_types::Id(way.id() as i64),
+                        tags: way
+                            .tags()
+                            .map(|a| js_sys::Reflect::own_keys(&a))
+                            .and_then(|b| js_sys::try_iter(&b.unwrap()).unwrap())
+                            .map(|c| {
+                                c.map(|key| {
+                                    let key2 = key.unwrap();
+                                    (
+                                        key2.as_string().unwrap(),
+                                        js_sys::Reflect::get(&way.tags().unwrap(), &key2)
+                                            .unwrap()
+                                            .as_string()
+                                            .unwrap(),
+                                    )
+                                })
+                                .collect()
+                            }),
+                        info: None,
+                        nodes: way
+                            .nodes()
+                            .iter()
+                            .map(|node_id_float| osm_types::Id(*node_id_float as i64))
+                            .collect(),
+                    }))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<osm_types::Element>>(),
+        &ref_ecef,
+        &ecef_mat,
+    );
     if segments_tree.size() == 0 {
         return Err("No segments");
     }
@@ -417,7 +475,14 @@ pub fn generate(
         || params.subgraph_selection() == SubgraphSelection::ClosestSubgraph)
         && let Some(new_nodes) = trim_tree_to_graph(
             &segments_tree,
-            &params.osm().elements(),
+            params.osm().elements().iter().filter_map(|el| {
+                if el.r#type() == "node" {
+                    let node = el.unchecked_ref::<JsOsmNode>();
+                    Some(node.id() as i64)
+                } else {
+                    None
+                }
+            }),
             params.subgraph_selection(),
             params.slot_data().maximum_distance(),
         )?
@@ -497,7 +562,7 @@ pub fn generate(
                     y: selected_point.y(),
                     z: 0.0,
                 };
-                let geo_coord = enu_to_geo(enu_coord, ref_ecef, geo_mat);
+                let geo_coord = enu_to_geo(&enu_coord, &ref_ecef, &geo_mat);
                 let arr: js_sys::Array<js_sys::Number> =
                     js_sys::Array::new_with_length_typed(2);
                 arr.set(0, geo_coord.x.into());
@@ -599,5 +664,111 @@ pub fn points_in_radius(
         ret.into()
     } else {
         JsValue::null()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+    use ::geo::{Buffer, MapCoords};
+    use geojson::{Feature, FeatureCollection, GeoJson, Geometry};
+
+    fn segments_to_geojson(
+        ref_ecef: &Coord3d,
+        geo_mat: &AffineTransform3d,
+        segments_tree: &SegmentsTree,
+    ) -> GeoJson {
+        let boppables: Vec<::geo::MultiPolygon> = segments_tree
+            .iter()
+            .map(|segment| segment.geom().buffer(COLLECTION_DISTANCE_BASE))
+            .collect();
+        GeoJson::Feature(Feature::from(Geometry::from(
+            &::geo::algorithm::unary_union(boppables.iter().by_ref()).map_coords(|coord| {
+                let enu_coord = Coord3d {
+                    x: coord.x,
+                    y: coord.y,
+                    z: 0.0,
+                };
+                enu_to_geo(&enu_coord, ref_ecef, geo_mat)
+            }),
+        )))
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OsmDoc {
+        elements: Vec<osm_types::Element>,
+    }
+
+    #[test]
+    pub fn test_graphs() {
+        let home = Coord {
+            x: -116.88429227615799,
+            y: 32.55584395634817,
+        };
+        let doc: OsmDoc =
+            serde_json::from_str(&std::fs::read_to_string("testdata.json").unwrap()).unwrap();
+
+        let (ref_ecef, ecef_mat) = geo_ref_ecef_mat(&home);
+        let geo_mat = ecef_mat.transposed();
+
+        {
+            let segments_tree = build_segments_tree(&doc.elements, &ref_ecef, &ecef_mat);
+            let geojson = GeoJson::FeatureCollection(FeatureCollection::from_iter(
+                segments_tree.iter().map(|seg| {
+                    Feature::from(Geometry::from(&seg.geom().map_coords(|coord| {
+                        let enu_coord = Coord3d {
+                            x: coord.x,
+                            y: coord.y,
+                            z: 0.0,
+                        };
+                        enu_to_geo(&enu_coord, &ref_ecef, &geo_mat)
+                    })))
+                }),
+            ));
+            let geojson_string = geojson.to_string();
+            std::fs::write("segments.geojson", geojson_string).unwrap();
+        }
+
+        for (filter_type, filter_name) in [
+            (SubgraphSelection::FullGraph, "FullGraph"),
+            (SubgraphSelection::BiggestSubgraph, "BiggestSubgraph"),
+            (SubgraphSelection::ClosestSubgraph, "ClosestSubgraph"),
+        ] {
+            println!("{}", filter_name);
+
+            // I'd like to build the tree outside of the loop but I can't figure out the borrow
+            // mechanics right now
+            let segments_tree = build_segments_tree(&doc.elements, &ref_ecef, &ecef_mat);
+
+            let trimmed_tree = if let Some(new_nodes) = trim_tree_to_graph(
+                &segments_tree,
+                doc.elements.iter().filter_map(|e| {
+                    if let osm_types::Element::Node(n) = e {
+                        Some(n.id.0)
+                    } else {
+                        None
+                    }
+                }),
+                filter_type,
+                5000.0,
+            )
+            .unwrap()
+            {
+                RTree::bulk_load(
+                    segments_tree
+                        .into_iter()
+                        .filter(|segment| {
+                            new_nodes.contains(&segment.data.0)
+                                || new_nodes.contains(&segment.data.1)
+                        })
+                        .collect(),
+                )
+            } else {
+                segments_tree.clone()
+            };
+            let geojson_string =
+                segments_to_geojson(&ref_ecef, &geo_mat, &trimmed_tree).to_string();
+            std::fs::write(format!("{}.geojson", filter_name), geojson_string).unwrap();
+        }
     }
 }
