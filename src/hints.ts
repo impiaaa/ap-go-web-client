@@ -2,7 +2,6 @@ import type { Hint } from "archipelago.js";
 import { saveGame } from "./gameplay";
 import { client, game_data } from "./globals";
 import { stylePlayerElement } from "./log";
-import { updateMarker } from "./map";
 import { styleItemElement } from "./utils";
 
 const hint_table = document
@@ -57,7 +56,6 @@ function addHint(hint: Hint) {
       });
       saveGame();
     }
-    updateMarker(hint.item.locationId, true);
   }
 }
 

@@ -25,9 +25,9 @@ import {
   createMap,
   fitMapToPoints,
   setUpHomeMarker,
+  setUpMapLocations,
   updateMapLocation,
   updateMapLocationError,
-  updateMarker,
 } from "./map";
 import { type APGoSlotData, GameState } from "./types";
 import { roundCoordinates } from "./utils";
@@ -149,6 +149,7 @@ function doLogin(thenShowMap: boolean) {
       setSlotData(new_slot_info);
 
       const doneGenerating = () => {
+        setUpMapLocations();
         moveGameState(GameState.ReadyNotTracking);
         setConnectionMessage("");
 
@@ -193,9 +194,6 @@ function doLogin(thenShowMap: boolean) {
             return;
           }
           game_data.points = generate_results as Map<number, [number, number]>;
-          client.room.allLocations.forEach((location_id) => {
-            updateMarker(location_id);
-          });
 
           saveGame();
 

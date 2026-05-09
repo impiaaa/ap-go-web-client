@@ -26,7 +26,7 @@ import {
   setGeneratorInternal,
   slot_data,
 } from "./globals";
-import { clearMarkers, hideMapPage, showMapPage, updateMarker } from "./map";
+import { clearMarkers, hideMapPage, showMapPage } from "./map";
 import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
@@ -185,9 +185,6 @@ export function loadGame() {
         saved_game.points[location_id_str],
       );
     }
-    game_data.points.forEach((_, location_id) => {
-      updateMarker(location_id);
-    });
     return true;
   }
 
@@ -223,19 +220,10 @@ export function setUpGameplay() {
     }
   });
   client.items.on("itemsReceived", receiveItems);
-  client.room.on("locationsChecked", (locations) => {
-    if (slot_data) {
-      locations.forEach((location_id) => {
-        updateMarker(location_id, true);
-      });
-
-      ensureLocationsScouted(locations);
-    }
-  });
+  client.room.on("locationsChecked", ensureLocationsScouted);
   client.socket.on("locationInfo", (location_info) => {
     location_info.locations.forEach((item) => {
       game_data.scouted_locations.set(item.location, item);
-      updateMarker(item.location);
     });
     saveGame();
   });
@@ -247,21 +235,7 @@ function receiveItems(items: Item[]) {
       case ItemType.DistanceReduction:
         console.error("DistanceReduction unimplemented"); // TODO
         break;
-      case ItemType.Key: {
-        const key_progression = getKeyProgress();
-        client.room.missingLocations.forEach((location_id) => {
-          const location_name = client.package.lookupLocationName(
-            client.game,
-            location_id,
-          );
-          const trip = slot_data?.trips[location_name];
-          if (trip && key_progression >= trip.key_needed) {
-            updateMarker(location_id);
-          }
-        });
-        checkLastKnownLocation();
-        break;
-      }
+      case ItemType.Key:
       case ItemType.ScoutingDistance:
       case ItemType.CollectionDistance:
         checkLastKnownLocation();

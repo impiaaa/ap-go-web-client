@@ -1,4 +1,9 @@
-import { type ConnectedPacket, Item } from "archipelago.js";
+import {
+  type ConnectedPacket,
+  type Hint,
+  Item,
+  itemClassifications,
+} from "archipelago.js";
 import i18next from "i18next";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
@@ -30,13 +35,8 @@ import icons_question_mark_svg from "./icons/question_mark.svg?raw";
 import icons_star_svg from "./icons/star.svg?raw";
 import { stylePlayerElement } from "./log";
 import marker_svg from "./marker.svg?raw";
-import {
-  type APGoSlotData,
-  GameState,
-  Goal,
-  ItemType,
-  type Trip,
-} from "./types";
+import { type APGoSlotData, GameState, Goal, ItemType } from "./types";
+
 import { styleItemElement } from "./utils";
 
 const icon_parser = new DOMParser();
@@ -63,7 +63,83 @@ const icons: Record<string, Document> = {
 
 export let game_map: maplibregl.Map | null = null;
 let home_marker: maplibregl.Marker | null = null;
-export const location_markers = new Map<number, maplibregl.Marker>();
+type LocationFlagsObject = {
+  progression: boolean;
+  useful: boolean;
+  trap: boolean;
+};
+type LocationGeoJSON = {
+  checked: boolean;
+  hinted: boolean;
+  item?: LocationFlagsObject;
+  key_needed: number;
+  random: number;
+};
+let location_features = new Map<
+  number,
+  GeoJSON.Feature<GeoJSON.Point, LocationGeoJSON>
+>();
+const locations_geojson: GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  LocationGeoJSON
+> = {
+  features: [],
+  type: "FeatureCollection",
+};
+const locations_layer: maplibregl.SymbolLayerSpecification = {
+  id: "locations",
+  layout: {
+    "icon-allow-overlap": true,
+    "icon-image": [
+      "case",
+      ["<", ["global-state", "key_progression"], ["get", "key_needed"]],
+      "marker-locked",
+      ["get", "checked"],
+      "marker-checked",
+      ["!", ["to-boolean", ["get", "item"]]],
+      "marker-available",
+      ["get", "progression", ["get", "item"]],
+      "marker-progression",
+      ["get", "useful", ["get", "item"]],
+      "marker-useful",
+      ["all", ["get", "trap", ["get", "item"]], ["get", "hinted"]],
+      "marker-trap",
+      ["get", "trap", ["get", "item"]],
+      [
+        "step",
+        ["get", "random"],
+        "marker-progression-trap",
+        1,
+        "marker-useful-trap",
+        4,
+        "marker-filler-trap",
+      ],
+      "marker-filler",
+    ],
+    "icon-offset": [0, -14],
+    "symbol-sort-key": [
+      "case",
+      ["<", ["global-state", "key_progression"], ["get", "key_needed"]],
+      5,
+      ["get", "checked"],
+      6,
+      ["!", ["to-boolean", ["get", "item"]]],
+      3,
+      ["get", "progression", ["get", "item"]],
+      0,
+      ["get", "useful", ["get", "item"]],
+      1,
+      ["all", ["get", "trap", ["get", "item"]], ["get", "hinted"]],
+      2,
+      ["get", "trap", ["get", "item"]],
+      ["step", ["get", "random"], 0, 1, 1, 4, 4],
+      4,
+    ],
+    "symbol-z-order": "viewport-y",
+  },
+  source: "locations",
+  type: "symbol",
+};
 let wake_lock: WakeLockSentinel | null = null;
 let geolocate_control: MyGeolocateControl | null = null;
 const circles_geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
@@ -87,15 +163,51 @@ const circles_geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
   ],
   type: "FeatureCollection",
 };
+const circles_layer: maplibregl.CircleLayerSpecification = {
+  id: "circles",
+  layout: { visibility: client.socket.connected ? "visible" : "none" },
+  paint: {
+    "circle-color": "transparent",
+    "circle-radius": [
+      "let",
+      "mpp0",
+      ["*", 78271.517, ["cos", ["*", ["get", "lat"], Math.PI / 180]]],
+      [
+        "interpolate",
+        ["exponential", 2],
+        ["zoom"],
+        0,
+        ["/", ["get", "radius"], ["var", "mpp0"]],
+        24,
+        ["/", ["*", ["get", "radius"], 2 ** 24], ["var", "mpp0"]],
+      ],
+    ],
+    "circle-stroke-color": window.matchMedia?.("(prefers-color-scheme: dark)")
+      ?.matches
+      ? "white"
+      : "black",
+    "circle-stroke-opacity": ["match", ["get", "type"], "collection", 0.8, 0.4],
+    "circle-stroke-width": 1,
+  },
+  source: "circles",
+  type: "circle",
+};
 
 export function clearMarkers() {
-  location_markers.forEach((marker) => {
-    marker.remove();
-  });
-  location_markers.clear();
+  locations_geojson.features = [];
+  game_map
+    ?.getSource<GeoJSONSource>("locations")
+    ?.updateData({ removeAll: true }, false);
+  location_features.clear();
 }
 
-export function createMap(container: string) {
+export function createMap(
+  container: string,
+  layers: maplibregl.LayerSpecification[] = [],
+  sources: {
+    [_: string]: maplibregl.SourceSpecification;
+  } = {},
+) {
   const darkModeMql = window.matchMedia?.("(prefers-color-scheme: dark)");
   const map = new maplibregl.Map({
     container: container,
@@ -108,59 +220,65 @@ export function createMap(container: string) {
     .addEventListener("change", (event) => {
       map.setStyle(
         `https://tiles.versatiles.org/assets/styles/${event.matches ? "eclipse" : "colorful"}/style.json`,
-        { diff: true, validate: import.meta.env.DEV },
+        {
+          diff: true,
+          transformStyle: (_, next) => ({
+            ...next,
+            layers: [...next.layers, ...layers],
+            sources: { ...next.sources, ...sources },
+          }),
+          validate: import.meta.env.DEV,
+        },
       );
     });
   return map;
 }
 
-function setUpCircles(dark: boolean) {
-  // The matchMedia event listener in createMap removes all added layers, so we need to recreate it
-  if (!game_map?.getSource("circles")) {
-    game_map!.addSource("circles", {
-      data: circles_geojson,
-      type: "geojson",
-    });
-    updateCircleRadii();
+function getFlagsObjectFromNumber(flags: number): LocationFlagsObject {
+  return {
+    progression:
+      (flags & itemClassifications.progression) ===
+      itemClassifications.progression,
+    trap: (flags & itemClassifications.trap) === itemClassifications.trap,
+    useful: (flags & itemClassifications.useful) === itemClassifications.useful,
+  };
+}
+
+function hintReceived(hint: Hint) {
+  const feat = location_features.get(hint.item.locationId);
+  const flags = getFlagsObjectFromNumber(hint.item.flags);
+  if (feat?.properties) {
+    feat.properties.item = flags;
+    feat.properties.hinted = true;
   }
-  if (!game_map?.getLayer("circles")) {
-    game_map!.addLayer({
-      id: "circles",
-      layout: { visibility: client.socket.connected ? "visible" : "none" },
-      paint: {
-        "circle-color": "transparent",
-        "circle-radius": [
-          "let",
-          "mpp0",
-          ["*", 78271.517, ["cos", ["*", ["get", "lat"], Math.PI / 180]]],
-          [
-            "interpolate",
-            ["exponential", 2],
-            ["zoom"],
-            0,
-            ["/", ["get", "radius"], ["var", "mpp0"]],
-            24,
-            ["/", ["*", ["get", "radius"], 2 ** 24], ["var", "mpp0"]],
-          ],
-        ],
-        "circle-stroke-color": dark ? "white" : "black",
-        "circle-stroke-opacity": [
-          "match",
-          ["get", "type"],
-          "collection",
-          0.8,
-          0.4,
-        ],
-        "circle-stroke-width": 1,
-      },
-      source: "circles",
-      type: "circle",
-    });
-  }
+  return {
+    addOrUpdateProperties: [
+      { key: "item", value: flags },
+      { key: "hinted", value: true },
+    ],
+    id: hint.item.locationId,
+  };
 }
 
 function lateSetUpMap() {
-  game_map = createMap("map");
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", (event) => {
+      circles_layer.paint!["circle-stroke-color"] = event.matches
+        ? "white"
+        : "black";
+    });
+  game_map = createMap("map", [circles_layer, locations_layer], {
+    circles: {
+      data: circles_geojson,
+      type: "geojson",
+    },
+    locations: {
+      data: locations_geojson,
+      type: "geojson",
+    },
+  });
+
   setUpHomeMarker();
   game_map.addControl(new MacguffinDisplayControl());
   game_map.addControl(new KeyDisplayControl());
@@ -168,46 +286,168 @@ function lateSetUpMap() {
   game_map.addControl(geolocate_control);
   game_map.addControl(new FitMapToPointsControl());
 
-  game_map?.on("styledata", () => {
-    setUpCircles(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches);
+  client.items.on("itemsReceived", () => {
+    updateCircleRadii();
+    game_map!.setGlobalStateProperty("key_progression", getKeyProgress());
   });
-  game_map.on("load", () => {
-    location_markers.forEach((marker) => {
-      if (marker.getLngLat()) {
-        marker.addTo(game_map!);
-      }
+  client.socket.on("connected", () => {
+    updateCircleRadii();
+    game_map!.setGlobalStateProperty("key_progression", getKeyProgress());
+    game_map!.setLayoutProperty("circles", "visibility", "visible");
+  });
+  client.socket.on("disconnected", () => {
+    game_map!.setLayoutProperty("circles", "visibility", "none");
+  });
+  client.room.on("locationsChecked", (locations) => {
+    game_map!.getSource<GeoJSONSource>("locations")?.updateData(
+      {
+        update: locations.map((location_id) => {
+          const feat = location_features.get(location_id);
+          if (feat?.properties) {
+            feat.properties.checked = true;
+          }
+          return {
+            addOrUpdateProperties: [{ key: "checked", value: true }],
+            id: location_id,
+          };
+        }),
+      },
+      false,
+    );
+  });
+  client.socket.on("locationInfo", (location_info) => {
+    game_map!.getSource<GeoJSONSource>("locations")?.updateData(
+      {
+        update: location_info.locations.map((item) => {
+          const feat = location_features.get(item.location);
+          const flags = getFlagsObjectFromNumber(item.flags);
+          if (feat?.properties) {
+            feat.properties.item = flags;
+          }
+          return {
+            addOrUpdateProperties: [{ key: "item", value: flags }],
+            id: item.location,
+          };
+        }),
+      },
+      false,
+    );
+  });
+  client.items.on("hintsInitialized", (hints) => {
+    game_map!.getSource<GeoJSONSource>("locations")?.updateData(
+      {
+        update: hints.map(hintReceived),
+      },
+      false,
+    );
+  });
+  client.items.on("hintReceived", (hint) => {
+    game_map!.getSource<GeoJSONSource>("locations")?.updateData(
+      {
+        update: [hintReceived(hint)],
+      },
+      false,
+    );
+  });
+
+  const marker_icons: [string, string, string | null, boolean?][] = [
+    ["marker-locked", "gray", "locked_lock"],
+    ["marker-checked", "black", "checkmark"],
+    ["marker-available", "green", "question_mark"],
+    ["marker-progression", "purple", "star"],
+    ["marker-useful", "blue", "exclamation_mark"],
+    ["marker-filler", "darkturquoise", null],
+    ["marker-trap", "crimson", "caution"],
+    ["marker-progression-trap", "#802080", "star", true],
+    ["marker-useful-trap", "#4040ff", "exclamation_mark", true],
+    ["marker-filler-trap", "#34ced1", null, true],
+  ];
+  marker_icons.forEach(([marker_name, color, icon_name, trap]) => {
+    const marker_svg = getMarkerSvg(color, icon_name, trap);
+    const svg =
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(marker_svg.documentElement.outerHTML);
+    const image = new Image();
+    image.addEventListener("load", () => {
+      game_map!.addImage(marker_name, image);
     });
+    image.src = svg;
+  });
+
+  game_map.on("load", () => {
+    game_map!.addSource("circles", {
+      data: circles_geojson,
+      type: "geojson",
+    });
+    if (client.socket.connected) {
+      updateCircleRadii();
+      game_map!.setGlobalStateProperty("key_progression", getKeyProgress());
+    }
+
+    game_map!.addSource("locations", {
+      data: locations_geojson,
+      type: "geojson",
+    });
+    if (game_data.points.size > 0) {
+      setUpMapLocations();
+    }
+
+    game_map!.addLayer(circles_layer);
+    game_map!.addLayer(locations_layer);
+
+    game_map!.on("click", "locations", (e) => {
+      if (!e.features) {
+        return;
+      }
+      if (typeof e.features[0].id !== "number") {
+        throw `Unexpected ID ${e.features[0].id}`;
+      }
+      const coordinates = (e.features[0].geometry as GeoJSON.Point)
+        .coordinates as [number, number];
+
+      // Ensure that if the map is zoomed out such that multiple
+      // copies of the feature are visible, the popup appears
+      // over the copy being pointed to.
+      while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+        coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+      }
+
+      makePopup(e.features[0].id, e.features[0].properties as LocationGeoJSON)
+        .setLngLat(coordinates)
+        .addTo(game_map!);
+    });
+    game_map!.on("mouseenter", "locations", () => {
+      game_map!.getCanvas().style.cursor = "pointer";
+    });
+    game_map!.on("mouseleave", "locations", () => {
+      game_map!.getCanvas().style.cursor = "";
+    });
+
     if (game_data.points.size > 0) {
       fitMapToPoints(false);
     } else if (prefs.home) {
       game_map!.jumpTo({ center: prefs.home, zoom: 9 });
     }
-
-    client.socket.on("connected", () => {
-      game_map?.setLayoutProperty("circles", "visibility", "visible");
-    });
-    client.socket.on("disconnected", () => {
-      game_map?.setLayoutProperty("circles", "visibility", "none");
-    });
-    client.items.on("itemsReceived", () => updateCircleRadii);
   });
 }
 
 function updateCircleCenters(lng: number, lat: number) {
-  if (game_map) {
-    circles_geojson.features.forEach((feat) => {
-      feat.geometry.coordinates[0] = lng;
-      feat.geometry.coordinates[1] = lat;
-      feat.properties!.lat = lat;
-    });
-    game_map.getSource<GeoJSONSource>("circles")?.setData(circles_geojson);
-  }
+  circles_geojson.features.forEach((feat) => {
+    feat.geometry.coordinates[0] = lng;
+    feat.geometry.coordinates[1] = lat;
+    feat.properties!.lat = lat;
+  });
+  game_map
+    ?.getSource<GeoJSONSource>("circles")
+    ?.setData(circles_geojson, false);
 }
 
 function updateCircleRadii() {
   circles_geojson.features[0].properties!.radius = getCollectionDistance();
   circles_geojson.features[1].properties!.radius = getScoutingDistance();
-  game_map?.getSource<GeoJSONSource>("circles")?.setData(circles_geojson);
+  game_map
+    ?.getSource<GeoJSONSource>("circles")
+    ?.setData(circles_geojson, false);
 }
 
 export function updateMapLocation(position: GeolocationPosition) {
@@ -252,7 +492,7 @@ export function hideMapPage() {
   }
 }
 
-function getMarkerElement(
+function getMarkerSvg(
   color: string,
   icon_name: string | null,
   trap: boolean = false,
@@ -273,9 +513,7 @@ function getMarkerElement(
       svg_doc.getElementById("icon")?.replaceWith(icon_path);
     }
   }
-  const el = document.createElement("div");
-  el.appendChild(svg_doc.firstElementChild!);
-  return el;
+  return svg_doc;
 }
 
 export function setUpHomeMarker() {
@@ -292,8 +530,10 @@ export function setUpHomeMarker() {
   if (home_marker) {
     home_marker.setLngLat(prefs.home);
   } else {
+    const el = document.createElement("div");
+    el.appendChild(getMarkerSvg("goldenrod", "home").firstElementChild!);
     home_marker = new maplibregl.Marker({
-      element: getMarkerElement("goldenrod", "home"),
+      element: el,
       offset: [0, -14],
     });
     home_marker.setLngLat(prefs.home);
@@ -301,36 +541,73 @@ export function setUpHomeMarker() {
   }
 }
 
-function getItemMarker(
-  location_id: number,
-  trip: Trip,
-  key_progression: number,
-  item: Item | null,
-  hinted: boolean,
-): HTMLDivElement {
-  if (key_progression < trip.key_needed)
-    return getMarkerElement("gray", "locked_lock");
-  else if (client.room.checkedLocations.includes(location_id))
-    return getMarkerElement("black", "checkmark");
-  else if (item === null)
-    // available but not scouted or hinted
-    return getMarkerElement("green", "question_mark");
-  else if (item.progression) return getMarkerElement("purple", "star");
-  else if (item.useful) return getMarkerElement("blue", "exclamation_mark");
-  else if (item.trap && hinted) return getMarkerElement("crimson", "caution");
-  else if (item.trap) {
-    // Don't totally give away that a location is a trap.
-    // Instead, choose a random other classification, and alter the color slightly.
-    const rng = xoroshiro128plus(item.locationId);
-    const n = uniformInt(rng, 0, 13);
-    if (n < 1) return getMarkerElement("#802080", "star", true);
-    else if (n < 4)
-      return getMarkerElement("#4040ff", "exclamation_mark", true);
-    else return getMarkerElement("#34ced1", null, true);
-  } else return getMarkerElement("darkturquoise", null);
+export function setUpMapLocations() {
+  if (!slot_data) {
+    throw "setUpLocations called without being connected";
+  }
+  const checked_locations = new Set<number>(client.room.checkedLocations);
+  const hinted_locations = new Set<number>(
+    client.items.hints
+      .map((h) => h.item)
+      .filter((i) => i.locationGame === client.game)
+      .map((i) => i.locationId),
+  );
+  const generator = xoroshiro128plus(parseInt(client.room.seedName, 10));
+  location_features = new Map<
+    number,
+    GeoJSON.Feature<GeoJSON.Point, LocationGeoJSON>
+  >(
+    client.room.allLocations.map((location_id) => {
+      const location_name = client.package.lookupLocationName(
+        client.game,
+        location_id,
+        false,
+      );
+      if (!location_name) {
+        throw new Error(`Unknown local location_id ${location_id}`);
+      }
+
+      const trip = slot_data!.trips[location_name];
+      if (!trip) {
+        throw new Error(`Unknown trip ${location_name}`);
+      }
+
+      const point = game_data.points.get(location_id);
+      if (!point) {
+        throw new Error(
+          `Location ID ${location_id} "${location_name}" has no point`,
+        );
+      }
+
+      const scouted_location = game_data.scouted_locations.get(location_id);
+      const props: LocationGeoJSON = {
+        checked: checked_locations.has(location_id),
+        hinted: hinted_locations.has(location_id),
+        item: scouted_location
+          ? getFlagsObjectFromNumber(scouted_location.flags)
+          : undefined,
+        key_needed: trip.key_needed,
+        random: uniformInt(generator, 0, 13),
+      };
+
+      return [
+        location_id,
+        {
+          geometry: { coordinates: point, type: "Point" },
+          id: location_id,
+          properties: props,
+          type: "Feature",
+        },
+      ];
+    }),
+  );
+  locations_geojson.features = Array.from(location_features.values());
+  game_map
+    ?.getSource<GeoJSONSource>("locations")
+    ?.setData(locations_geojson, false);
 }
 
-export function updateMarker(location_id: number, hinted: boolean = false) {
+function makePopup(location_id: number, props: LocationGeoJSON) {
   if (!slot_data) {
     throw "updateMarker called without being connected";
   }
@@ -347,91 +624,64 @@ export function updateMarker(location_id: number, hinted: boolean = false) {
     client.game,
     location_id,
   );
-  if (!hinted) {
-    hinted = client.items.hints.some(
-      (hint) => hint.item.locationId === location_id,
-    );
-  }
   const trip = slot_data.trips[location_name];
   if (!trip) {
     throw `Unknown trip ${location_name}`;
   }
-  const key_progression = getKeyProgress();
-  let point = game_data.points.get(location_id);
-  const icon = getItemMarker(location_id, trip, key_progression, item, hinted);
-  const existing_marker = location_markers.get(location_id);
-  if (existing_marker) {
-    if (point === undefined) {
-      point = existing_marker.getLngLat().toArray();
-    }
-    existing_marker.remove();
-  }
-  const marker = new maplibregl.Marker({ element: icon, offset: [0, -14] });
-  const checked = client.room.checkedLocations.includes(location_id);
-  if (point !== undefined) {
-    marker.setLngLat(point);
-  }
-  {
-    const popup = document.createElement("div");
-    popup.appendChild(document.createTextNode(location_name));
-    if (key_progression < trip.key_needed) {
-      popup.appendChild(document.createElement("br"));
-      popup.appendChild(
-        document.createTextNode(
-          i18next.t("map.popup.requires-key", {
-            defaultValue: "Requires key {{trip.key_needed}}",
-            trip: trip,
-          }),
-        ),
-      );
-    }
-    if ((hinted || checked) && item) {
-      popup.appendChild(document.createElement("br"));
 
-      const player_el = document.createElement("span");
-      player_el.appendChild(document.createTextNode(item.receiver.name));
-      player_el.classList.add("player");
-      stylePlayerElement(player_el, item.receiver);
-      popup.appendChild(player_el);
-
-      popup.appendChild(document.createTextNode(" "));
-
-      const item_el = document.createElement("span");
-      item_el.appendChild(document.createTextNode(item.name));
-      item_el.classList.add("item");
-      styleItemElement(item_el, item);
-      popup.appendChild(item_el);
-    }
-    const markerHeight = 41 - 5.8 / 2;
-    const markerRadius = 13.5;
-    const linearOffset = Math.abs(markerRadius) / Math.SQRT2;
-    const offset: maplibregl.Offset = {
-      bottom: [0, -markerHeight],
-      "bottom-left": [
-        linearOffset,
-        (markerHeight - markerRadius + linearOffset) * -1,
-      ],
-      "bottom-right": [
-        -linearOffset,
-        (markerHeight - markerRadius + linearOffset) * -1,
-      ],
-      center: [0, 0],
-      left: [markerRadius, (markerHeight - markerRadius) * -1],
-      right: [-markerRadius, (markerHeight - markerRadius) * -1],
-      top: [0, 0],
-      "top-left": [0, 0],
-      "top-right": [0, 0],
-    };
-    marker.setPopup(
-      new maplibregl.Popup({
-        offset: offset,
-      }).setDOMContent(popup),
+  const popup = document.createElement("div");
+  popup.appendChild(document.createTextNode(location_name));
+  if (getKeyProgress() < trip.key_needed) {
+    popup.appendChild(document.createElement("br"));
+    popup.appendChild(
+      document.createTextNode(
+        i18next.t("map.popup.requires-key", {
+          defaultValue: "Requires key {{trip.key_needed}}",
+          trip: trip,
+        }),
+      ),
     );
   }
-  if (game_map && point) {
-    marker.addTo(game_map);
+  if ((props.hinted || props.checked) && item) {
+    popup.appendChild(document.createElement("br"));
+
+    const player_el = document.createElement("span");
+    player_el.appendChild(document.createTextNode(item.receiver.name));
+    player_el.classList.add("player");
+    stylePlayerElement(player_el, item.receiver);
+    popup.appendChild(player_el);
+
+    popup.appendChild(document.createTextNode(" "));
+
+    const item_el = document.createElement("span");
+    item_el.appendChild(document.createTextNode(item.name));
+    item_el.classList.add("item");
+    styleItemElement(item_el, item);
+    popup.appendChild(item_el);
   }
-  location_markers.set(location_id, marker);
+  const markerHeight = 41 - 5.8 / 2;
+  const markerRadius = 13.5;
+  const linearOffset = Math.abs(markerRadius) / Math.SQRT2;
+  const offset: maplibregl.Offset = {
+    bottom: [0, -markerHeight],
+    "bottom-left": [
+      linearOffset,
+      (markerHeight - markerRadius + linearOffset) * -1,
+    ],
+    "bottom-right": [
+      -linearOffset,
+      (markerHeight - markerRadius + linearOffset) * -1,
+    ],
+    center: [0, 0],
+    left: [markerRadius, (markerHeight - markerRadius) * -1],
+    right: [-markerRadius, (markerHeight - markerRadius) * -1],
+    top: [0, 0],
+    "top-left": [0, 0],
+    "top-right": [0, 0],
+  };
+  return new maplibregl.Popup({
+    offset: offset,
+  }).setDOMContent(popup);
 }
 
 // Source - https://stackoverflow.com/a/2450976
