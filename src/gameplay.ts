@@ -198,6 +198,10 @@ export function loadGame() {
 }
 
 export function ensureLocationsScouted(locations: number[]) {
+  if (!slot_data) {
+    // Haven't loaded the saved game yet
+    return;
+  }
   // Ensure that we can display the item from checked locations.
   // During normal gameplay, scouted_locations is updated as we get near, but it's possible for
   // the scouting circle to be smaller than the collection circle, or for another client to have
@@ -235,7 +239,7 @@ export function setUpGameplay() {
   });
 }
 
-function receiveItems(items: Item[]) {
+export function receiveItems(items: Item[]) {
   items.forEach((item) => {
     switch (item.id as ItemType) {
       case ItemType.DistanceReduction:
@@ -324,8 +328,13 @@ function receiveItems(items: Item[]) {
 }
 
 function hasDisplayedTrap(item: Item): boolean {
-  return game_data.displayed_trap_locations.some(
-    ([game, id]) => item.locationGame === game && item.locationId === id,
+  // If slot_data is undefined, we haven't loaded a game yet, so we don't know which traps have
+  // been displayed, so hold off from displaying any traps until after loading.
+  return (
+    !slot_data ||
+    game_data.displayed_trap_locations.some(
+      ([game, id]) => item.locationGame === game && item.locationId === id,
+    )
   );
 }
 

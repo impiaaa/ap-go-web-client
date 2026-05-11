@@ -35,6 +35,19 @@ export const LONG_MACGUFFIN_ITEMS = [
   ItemType.MacguffinO,
   ItemType.MacguffinExclamation,
 ];
+export const TRAP_ITEMS = [
+  // Not just traps, anything that has a temporary effect
+  ItemType.ShuffleTrap,
+  ItemType.SilenceTrap,
+  ItemType.FogOfWarTrap,
+  ItemType.PushUpTrap,
+  ItemType.SocializingTrap,
+  ItemType.SitUpTrap,
+  ItemType.JumpingJackTrap,
+  ItemType.TouchGrassTrap,
+  ItemType.Hydrate,
+  ItemType.TakeBreather,
+];
 
 export const DEFAULT_OVERPASS_QUERY = `[out:json][timeout:{{timeout}}][maxsize:{{maxsize}}][bbox:{{bbox}}];
 (

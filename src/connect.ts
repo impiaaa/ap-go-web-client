@@ -6,6 +6,7 @@ import {
   ensureLocationsScouted,
   loadGame,
   moveGameState,
+  receiveItems,
   saveGame,
 } from "./gameplay";
 import { generate } from "./generate";
@@ -20,6 +21,7 @@ import {
   PREFS_KEY,
   prefs,
   setSlotData,
+  TRAP_ITEMS,
 } from "./globals";
 import {
   createMap,
@@ -29,7 +31,7 @@ import {
   updateMapLocation,
   updateMapLocationError,
 } from "./map";
-import { type APGoSlotData, GameState } from "./types";
+import { type APGoSlotData, GameState, type ItemType } from "./types";
 import { roundCoordinates } from "./utils";
 
 const setup_form = document.forms.namedItem("connect-form")!;
@@ -146,7 +148,20 @@ function doLogin(thenShowMap: boolean) {
         }
       }
 
+      const did_load_points = loadGame();
+
       setSlotData(new_slot_info);
+
+      // Normally these functions are called from the locationsChecked and itemsReceived events, but
+      // they depend on information loaded in loadGame, and during initial connection, those events
+      // are fired before we call loadGame here. So we need to call the functions here ourselves
+      // after loadGame.
+      ensureLocationsScouted(client.room.checkedLocations);
+      receiveItems(
+        client.items.received.filter((i) =>
+          TRAP_ITEMS.includes(i.id as ItemType),
+        ),
+      );
 
       const doneGenerating = () => {
         setUpMapLocations();
@@ -165,12 +180,6 @@ function doLogin(thenShowMap: boolean) {
           );
         }
       };
-
-      const did_load_points = loadGame();
-
-      // Normally this is called from the locationsChecked event, but during initial connect, that
-      // happens before loadGame, so we need to do it here as well.
-      ensureLocationsScouted(client.room.checkedLocations);
 
       if (did_load_points) {
         console.log("Successfully loaded saved game, skipping generation");
