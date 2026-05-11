@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 128 128"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="compass-icon.svg"
+   inkscape:export-filename="compass-icon.png"
+   inkscape:export-xdpi="384"
+   inkscape:export-ydpi="384"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showgrid="true"
+     inkscape:zoom="4.3843001"
+     inkscape:cx="78.689869"
+     inkscape:cy="68.654059"
+     inkscape:window-width="1460"
+     inkscape:window-height="827"
+     inkscape:window-x="1986"
+     inkscape:window-y="216"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1">
+    <sodipodi:guide
+       position="0,115.2"
+       orientation="0,1"
+       id="guide686"
+       inkscape:locked="false"
+       inkscape:label=""
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="115.2,0"
+       orientation="-1,0"
+       id="guide688"
+       inkscape:locked="false"
+       inkscape:label=""
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="128,12.8"
+       orientation="0,1"
+       id="guide690"
+       inkscape:locked="false"
+       inkscape:label=""
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="12.8,128"
+       orientation="-1,0"
+       id="guide692"
+       inkscape:locked="false"
+       inkscape:label=""
+       inkscape:color="rgb(0,134,229)" />
+    <inkscape:grid
+       type="xygrid"
+       id="grid8110"
+       empspacing="4" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <circle
+       style="fill:#faebd7;fill-opacity:1;stroke:#8b4513;stroke-width:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path954"
+       cx="64"
+       cy="-64"
+       transform="rotate(90)"
+       r="53.200001"
+       inkscape:transform-center-y="0.48384314" />
+    <text
+       xml:space="preserve"
+       style="font-weight:600;font-size:37.3333px;line-height:1;font-family:'EB Garamond';-inkscape-font-specification:'EB Garamond Semi-Bold';fill:#000000;fill-opacity:1"
+       x="-13.309321"
+       y="67.595497"
+       id="text5954"
+       transform="rotate(-45)"><tspan
+         sodipodi:role="line"
+         id="tspan5952"
+         x="-13.309321"
+         y="67.595497">A</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:600;font-size:37.3333px;line-height:1;font-family:'EB Garamond';-inkscape-font-specification:'EB Garamond Semi-Bold';fill:#000000;fill-opacity:1"
+       x="79.627014"
+       y="-22.914165"
+       id="text5958"
+       transform="rotate(45)"><tspan
+         sodipodi:role="line"
+         id="tspan5956"
+         x="79.627014"
+         y="-22.914165">P</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:600;font-size:37.3333px;line-height:1;font-family:'EB Garamond';-inkscape-font-specification:'EB Garamond Semi-Bold';fill:#000000;fill-opacity:1"
+       x="76.920341"
+       y="47.180824"
+       id="text5962"
+       transform="rotate(45)"><tspan
+         sodipodi:role="line"
+         id="tspan5960"
+         x="76.920341"
+         y="47.180824">G</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:600;font-size:37.3333px;line-height:1;font-family:'EB Garamond';-inkscape-font-specification:'EB Garamond Semi-Bold';fill:#000000;fill-opacity:1"
+       x="-14.205324"
+       y="137.69049"
+       id="text5966"
+       transform="rotate(-45)"><tspan
+         sodipodi:role="line"
+         id="tspan5964"
+         x="-14.205324"
+         y="137.69049">O</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 64,18 V 28"
+       id="path6189"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 18,64 H 28"
+       id="path6238"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 64,110 V 100"
+       id="path6242"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 110,64 H 100"
+       id="path6244"
+       sodipodi:nodetypes="cc" />
+    <rect
+       style="fill:#8b4513;fill-opacity:1;stroke:none;stroke-width:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect7028"
+       width="2"
+       height="3"
+       x="-1"
+       y="32.509666"
+       transform="rotate(-45)" />
+    <ellipse
+       style="fill:none;fill-opacity:1;stroke:#8b4513;stroke-width:2;stroke-dasharray:none;stroke-opacity:1"
+       id="path7289"
+       cx="0"
+       cy="30.499016"
+       rx="5"
+       ry="3"
+       transform="rotate(-45)" />
+    <path
+       style="fill:#dc143c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 69.464102,65.464102 64,64 69.856406,42.143594 Z"
+       id="path10341"
+       sodipodi:nodetypes="cccc" />
+    <path
+       style="fill:#0000ff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 58.535898,62.535898 64,64 69.856406,42.143594 Z"
+       id="path10343" />
+    <path
+       style="fill:#dc143c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 64,64 58.535898,62.535898 58.143594,85.856406 Z"
+       id="path13975" />
+    <path
+       style="fill:#0000ff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 64,64 5.464102,1.464102 -11.320508,20.392304 z"
+       id="path14253" />
+  </g>
+</svg>
