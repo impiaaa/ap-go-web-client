@@ -7,10 +7,11 @@ export const PREFS_KEY = "connection_info";
 export const SAVED_GAME_KEY = "saved_game";
 export const DEFAULT_PAGE = "connect";
 
-export const SCOUTING_DISTANCE_BASE = 30;
-export const SCOUTING_DISTANCE_INCREMENT = 15;
-export const COLLECTION_DISTANCE_BASE = 20;
-export const COLLECTION_DISTANCE_INCREMENT = 10;
+export const SCOUTING_DISTANCE_BASE_M = 30;
+export const SCOUTING_DISTANCE_INCREMENT_M = 15;
+export const COLLECTION_DISTANCE_BASE_M = 20;
+export const COLLECTION_DISTANCE_INCREMENT_M = 10;
+export const APP_TRAP_DURATION_S = 60;
 export const SHORT_MACGUFFIN_ITEMS = [
   ItemType.MacguffinA,
   ItemType.MacguffinP,

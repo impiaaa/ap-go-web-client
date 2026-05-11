@@ -151,25 +151,30 @@ const circles_geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
   ],
   type: "FeatureCollection",
 };
+function real_world_radius(
+  radius: maplibregl.ExpressionSpecification | number,
+): maplibregl.ExpressionSpecification {
+  return [
+    "let",
+    "mpp0",
+    ["*", 78271.517, ["cos", ["*", ["get", "lat"], Math.PI / 180]]],
+    [
+      "interpolate",
+      ["exponential", 2],
+      ["zoom"],
+      0,
+      ["/", radius, ["var", "mpp0"]],
+      24,
+      ["/", ["*", radius, 2 ** 24], ["var", "mpp0"]],
+    ],
+  ];
+}
 const circles_layer: maplibregl.CircleLayerSpecification = {
   id: "circles",
   layout: { visibility: "none" },
   paint: {
     "circle-color": "transparent",
-    "circle-radius": [
-      "let",
-      "mpp0",
-      ["*", 78271.517, ["cos", ["*", ["get", "lat"], Math.PI / 180]]],
-      [
-        "interpolate",
-        ["exponential", 2],
-        ["zoom"],
-        0,
-        ["/", ["get", "radius"], ["var", "mpp0"]],
-        24,
-        ["/", ["*", ["get", "radius"], 2 ** 24], ["var", "mpp0"]],
-      ],
-    ],
+    "circle-radius": real_world_radius(["get", "radius"]),
     "circle-stroke-color": window.matchMedia?.("(prefers-color-scheme: dark)")
       ?.matches
       ? "white"
@@ -179,6 +184,40 @@ const circles_layer: maplibregl.CircleLayerSpecification = {
   },
   source: "circles",
   type: "circle",
+};
+const fog_of_war_geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+  features: [
+    {
+      geometry: {
+        coordinates: [0, 0],
+        type: "Point",
+      },
+      properties: { lat: 0 },
+      type: "Feature",
+    },
+  ],
+  type: "FeatureCollection",
+};
+const fow_fade_duration_ms = 1000;
+const fog_of_war_layer: maplibregl.HeatmapLayerSpecification = {
+  id: "fog_of_war",
+  layout: { visibility: "none" },
+  paint: {
+    "heatmap-color": [
+      "interpolate",
+      ["linear"],
+      ["heatmap-density"],
+      0,
+      "dimgray",
+      1,
+      "transparent",
+    ],
+    "heatmap-opacity": 0.0,
+    "heatmap-opacity-transition": { duration: fow_fade_duration_ms },
+    "heatmap-radius": real_world_radius(300),
+  },
+  source: "fog_of_war",
+  type: "heatmap",
 };
 
 export function clearMarkers() {
@@ -248,6 +287,31 @@ function hintReceived(hint: Hint) {
   };
 }
 
+let fow_timeout: number = -1;
+export function setFogOfWarVisible(visible: boolean) {
+  if (fow_timeout >= 0) {
+    window.clearTimeout(fow_timeout);
+    fow_timeout = -1;
+  }
+
+  if (visible) {
+    fog_of_war_layer.layout!.visibility = "visible";
+    game_map?.setLayoutProperty("fog_of_war", "visibility", "visible");
+  }
+
+  const opacity = visible ? 1.0 : 0.0;
+  fog_of_war_layer.paint!["heatmap-opacity"] = opacity;
+  game_map?.setPaintProperty("fog_of_war", "heatmap-opacity", opacity);
+
+  if (!visible) {
+    fow_timeout = window.setTimeout(() => {
+      fog_of_war_layer.layout!.visibility = "none";
+      game_map?.setLayoutProperty("fog_of_war", "visibility", "none");
+      fow_timeout = -1;
+    }, fow_fade_duration_ms);
+  }
+}
+
 function lateSetUpMap() {
   window
     .matchMedia("(prefers-color-scheme: dark)")
@@ -256,16 +320,24 @@ function lateSetUpMap() {
         ? "white"
         : "black";
     });
-  game_map = createMap("map", [circles_layer, locations_layer], {
-    circles: {
-      data: circles_geojson,
-      type: "geojson",
+  game_map = createMap(
+    "map",
+    [circles_layer, locations_layer, fog_of_war_layer],
+    {
+      circles: {
+        data: circles_geojson,
+        type: "geojson",
+      },
+      fog_of_war: {
+        data: fog_of_war_geojson,
+        type: "geojson",
+      },
+      locations: {
+        data: locations_geojson,
+        type: "geojson",
+      },
     },
-    locations: {
-      data: locations_geojson,
-      type: "geojson",
-    },
-  });
+  );
 
   setUpHomeMarker();
   game_map.addControl(new MacguffinDisplayControl());
@@ -287,6 +359,7 @@ function lateSetUpMap() {
   client.socket.on("disconnected", () => {
     circles_layer.layout!.visibility = "none";
     game_map!.setLayoutProperty("circles", "visibility", "none");
+    setFogOfWarVisible(false);
   });
   client.room.on("locationsChecked", (locations) => {
     game_map!.getSource<GeoJSONSource>("locations")?.updateData(
@@ -369,6 +442,10 @@ function lateSetUpMap() {
       data: circles_geojson,
       type: "geojson",
     });
+    game_map!.addSource("fog_of_war", {
+      data: fog_of_war_geojson,
+      type: "geojson",
+    });
     if (client.socket.connected) {
       updateCircleRadii();
       game_map!.setGlobalStateProperty("key_progression", getKeyProgress());
@@ -384,6 +461,7 @@ function lateSetUpMap() {
 
     game_map!.addLayer(circles_layer);
     game_map!.addLayer(locations_layer);
+    game_map!.addLayer(fog_of_war_layer);
 
     game_map!.on("click", "locations", (e) => {
       if (!e.features) {
@@ -430,6 +508,14 @@ export function updateCircleCenters(lng: number, lat: number) {
   game_map
     ?.getSource<GeoJSONSource>("circles")
     ?.setData(circles_geojson, false);
+  fog_of_war_geojson.features.forEach((feat) => {
+    feat.geometry.coordinates[0] = lng;
+    feat.geometry.coordinates[1] = lat;
+    feat.properties!.lat = lat;
+  });
+  game_map
+    ?.getSource<GeoJSONSource>("fog_of_war")
+    ?.setData(fog_of_war_geojson, false);
 }
 
 function updateCircleRadii() {

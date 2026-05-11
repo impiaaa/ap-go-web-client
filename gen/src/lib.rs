@@ -12,9 +12,9 @@ mod osm_types;
 
 use crate::geo::{AffineTransform3d, Coord3d};
 
-const DISTANCE_LENIENCY: f64 = 0.1;
-const COLLECTION_DISTANCE_BASE: f64 = 20.0;
-const GENERATED_DISTANCE_THRESHOLD_SQ: f64 = COLLECTION_DISTANCE_BASE * COLLECTION_DISTANCE_BASE;
+const DISTANCE_LENIENCY_M: f64 = 0.1;
+const COLLECTION_DISTANCE_BASE_M: f64 = 20.0;
+const GENERATED_DISTANCE_THRESHOLD_M_2: f64 = COLLECTION_DISTANCE_BASE_M * COLLECTION_DISTANCE_BASE_M;
 
 #[wasm_bindgen(start)]
 pub fn my_init_function() {
@@ -129,7 +129,7 @@ type SegmentsTree = RTree<GeomWithData<LineString, (i64, i64)>>;
 fn distance_tier_to_maximum_distance(distance_tier: f64, slot_data: &APGoSlotData) -> f64 {
     let max_dist = (slot_data.maximum_distance() / 10.0) * distance_tier;
     if max_dist < slot_data.minimum_distance() {
-        slot_data.minimum_distance() * (1.0 + DISTANCE_LENIENCY)
+        slot_data.minimum_distance() * (1.0 + DISTANCE_LENIENCY_M)
     } else {
         max_dist
     }
@@ -361,7 +361,7 @@ pub fn generate(
 
     let mut min_dist = params.slot_data().minimum_distance();
     if min_dist > params.slot_data().maximum_distance() {
-        min_dist = params.slot_data().maximum_distance() * (1.0 - DISTANCE_LENIENCY);
+        min_dist = params.slot_data().maximum_distance() * (1.0 - DISTANCE_LENIENCY_M);
     }
 
     let mut max_dist_tier_number_locations_per_area = HashMap::<u8, (f64, usize)>::new();
@@ -524,7 +524,7 @@ pub fn generate(
             if attempt < MAX_ATTEMPTS / 2
                 && let Some(nearest_other_point) = points_tree.nearest_neighbor(&random_point)
                 && random_point.distance_2(nearest_other_point.geom())
-                    < GENERATED_DISTANCE_THRESHOLD_SQ
+                    < GENERATED_DISTANCE_THRESHOLD_M_2
             {
                 continue;
             }
@@ -538,9 +538,9 @@ pub fn generate(
                 ::geo::Closest::Intersection(point) => point,
                 ::geo::Closest::SinglePoint(point) => point,
             };
-            let distance_to_nearest_point_sq =
+            let distance_to_nearest_point_m_2 =
                 random_point.distance_2(&nearest_point_on_segment);
-            if distance_to_nearest_point_sq < GENERATED_DISTANCE_THRESHOLD_SQ
+            if distance_to_nearest_point_m_2 < GENERATED_DISTANCE_THRESHOLD_M_2
                 || attempt >= MAX_ATTEMPTS
             {
                 let selected_point = if attempt < MAX_ATTEMPTS {
@@ -680,7 +680,7 @@ mod tests {
     ) -> GeoJson {
         let boppables: Vec<::geo::MultiPolygon> = segments_tree
             .iter()
-            .map(|segment| segment.geom().buffer(COLLECTION_DISTANCE_BASE))
+            .map(|segment| segment.geom().buffer(COLLECTION_DISTANCE_BASE_M))
             .collect();
         GeoJson::Feature(Feature::from(Geometry::from(
             &::geo::algorithm::unary_union(boppables.iter().by_ref()).map_coords(|coord| {

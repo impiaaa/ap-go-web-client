@@ -2,7 +2,7 @@ import type { ConnectedPacket, Item } from "archipelago.js";
 import maplibregl from "maplibre-gl";
 import { checkLocations, getKeyProgress, moveGameState } from "./gameplay";
 import {
-  COLLECTION_DISTANCE_BASE,
+  COLLECTION_DISTANCE_BASE_M,
   cheat,
   client,
   game_state,
@@ -485,7 +485,7 @@ export class MyGeolocateControl
     if (cheat) {
       this.onSuccess({
         coords: {
-          accuracy: COLLECTION_DISTANCE_BASE,
+          accuracy: COLLECTION_DISTANCE_BASE_M,
           altitude: null,
           altitudeAccuracy: null,
           heading: null,

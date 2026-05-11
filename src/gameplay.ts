@@ -10,8 +10,9 @@ import {
   stopTracking,
 } from "./connect";
 import {
-  COLLECTION_DISTANCE_BASE,
-  COLLECTION_DISTANCE_INCREMENT,
+  APP_TRAP_DURATION_S,
+  COLLECTION_DISTANCE_BASE_M,
+  COLLECTION_DISTANCE_INCREMENT_M,
   client,
   game_data,
   game_state,
@@ -19,14 +20,19 @@ import {
   LONG_MACGUFFIN_ITEMS,
   prefs,
   SAVED_GAME_KEY,
-  SCOUTING_DISTANCE_BASE,
-  SCOUTING_DISTANCE_INCREMENT,
+  SCOUTING_DISTANCE_BASE_M,
+  SCOUTING_DISTANCE_INCREMENT_M,
   SHORT_MACGUFFIN_ITEMS,
   setGameState,
   setGeneratorInternal,
   slot_data,
 } from "./globals";
-import { clearMarkers, hideMapPage, showMapPage } from "./map";
+import {
+  clearMarkers,
+  hideMapPage,
+  setFogOfWarVisible,
+  showMapPage,
+} from "./map";
 import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
@@ -43,8 +49,8 @@ export function getScoutingDistance(): number {
     client.items.received.filter(
       (item) => item.id === ItemType.ScoutingDistance,
     ).length *
-      SCOUTING_DISTANCE_INCREMENT +
-    SCOUTING_DISTANCE_BASE
+      SCOUTING_DISTANCE_INCREMENT_M +
+    SCOUTING_DISTANCE_BASE_M
   );
 }
 
@@ -53,8 +59,8 @@ export function getCollectionDistance(): number {
     client.items.received.filter(
       (item) => item.id === ItemType.CollectionDistance,
     ).length *
-      COLLECTION_DISTANCE_INCREMENT +
-    COLLECTION_DISTANCE_BASE
+      COLLECTION_DISTANCE_INCREMENT_M +
+    COLLECTION_DISTANCE_BASE_M
   );
 }
 
@@ -250,8 +256,20 @@ function receiveItems(items: Item[]) {
         // "Lowers your phone's media volume (your music, if applicable)"
         break;
       case ItemType.FogOfWarTrap:
-        console.error("FogOfWarTrap unimplemented"); // TODO
-        // "Temporarily hides part of the map"
+        if (!hasDisplayedTrap(item)) {
+          setFogOfWarVisible(true);
+          const timer = window.setTimeout(() => {
+            setFogOfWarVisible(false);
+            game_data.displayed_trap_locations.push([
+              item.locationGame,
+              item.locationId,
+            ]);
+            saveGame();
+          }, APP_TRAP_DURATION_S * 1000);
+          client.socket.wait("disconnected").then(() => {
+            window.clearTimeout(timer);
+          });
+        }
         break;
 
       case ItemType.PushUpTrap:
@@ -305,13 +323,14 @@ function receiveItems(items: Item[]) {
   });
 }
 
+function hasDisplayedTrap(item: Item): boolean {
+  return game_data.displayed_trap_locations.some(
+    ([game, id]) => item.locationGame === game && item.locationId === id,
+  );
+}
+
 function displayTrap(item: Item) {
-  if (
-    game_data.displayed_trap_locations.includes([
-      item.locationGame,
-      item.locationId,
-    ])
-  ) {
+  if (hasDisplayedTrap(item)) {
     return;
   }
 
