@@ -127,7 +127,7 @@ export function setSlotData(new_slot_data: APGoSlotData) {
 }
 export const client = new Client();
 export const game_data: {
-  displayed_trap_locations: [string, number][];
+  displayed_trap_locations: [number, number][];
   points: Map<number, [number, number]>;
   scouted_locations: Map<number, NetworkItem>;
 } = {

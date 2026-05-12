@@ -37,7 +37,7 @@ import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
 const trap_queue: Item[] = [];
-let displaying_trap: [string, number];
+let displaying_trap: [number, number];
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -265,7 +265,7 @@ export function receiveItems(items: Item[]) {
           const timer = window.setTimeout(() => {
             setFogOfWarVisible(false);
             game_data.displayed_trap_locations.push([
-              item.locationGame,
+              item.sender.slot,
               item.locationId,
             ]);
             saveGame();
@@ -333,7 +333,7 @@ function hasDisplayedTrap(item: Item): boolean {
   return (
     !slot_data ||
     game_data.displayed_trap_locations.some(
-      ([game, id]) => item.locationGame === game && item.locationId === id,
+      ([slot, id]) => item.sender.slot === slot && item.locationId === id,
     )
   );
 }
@@ -390,7 +390,7 @@ function displayTrap(item: Item) {
     trap_dialog.querySelector("img")?.setAttribute("src", img_src);
   }
 
-  displaying_trap = [item.locationGame, item.locationId];
+  displaying_trap = [item.sender.slot, item.locationId];
 
   trap_dialog.showModal();
 }
