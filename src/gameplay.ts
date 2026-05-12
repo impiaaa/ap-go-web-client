@@ -224,6 +224,7 @@ export function setUpGameplay() {
   });
   trap_dialog?.addEventListener("close", () => {
     game_data.displayed_trap_locations.push(displaying_trap);
+    saveGame();
     const item = trap_queue.pop();
     if (item) {
       displayTrap(item);
