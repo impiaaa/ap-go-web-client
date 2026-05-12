@@ -46,7 +46,7 @@ function addHint(hint: Hint) {
 
   hint_table.appendChild(row);
 
-  if (hint.item.locationGame === client.game) {
+  if (hint.item.sender.slot === client.players.self.slot) {
     if (!game_data.scouted_locations.has(hint.item.locationId)) {
       game_data.scouted_locations.set(hint.item.locationId, {
         flags: hint.item.flags,

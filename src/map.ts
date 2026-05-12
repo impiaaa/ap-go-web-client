@@ -625,7 +625,7 @@ export function setUpMapLocations() {
   const hinted_locations = new Set<number>(
     client.items.hints
       .map((h) => h.item)
-      .filter((i) => i.locationGame === client.game)
+      .filter((i) => i.sender.slot === client.players.self.slot)
       .map((i) => i.locationId),
   );
   const generator = xoroshiro128plus(parseInt(client.room.seedName, 10));
