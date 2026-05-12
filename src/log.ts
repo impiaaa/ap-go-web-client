@@ -76,6 +76,38 @@ export function setUpLogPage() {
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
     }
   });
+
+  const countdown_dialog = document.getElementById("countdown-dialog")!;
+  const fadeout = countdown_dialog
+    .getAnimations()
+    .find((a) => a instanceof CSSAnimation && a.animationName === "fadeout")!;
+  const counter_element = countdown_dialog.firstElementChild!;
+  const countdown = counter_element
+    .getAnimations()
+    .find((a) => a instanceof CSSAnimation && a.animationName === "countdown")!;
+
+  client.messages.on("countdown", (text, value) => {
+    if (text.includes(": ")) {
+      text = text.substring(text.indexOf(": ") + 2);
+    }
+
+    counter_element.textContent = text;
+    countdown.currentTime = 0;
+    countdown.play();
+
+    countdown_dialog.style.visibility = "visible";
+    fadeout.currentTime = 0;
+    if (value > 0) {
+      fadeout.pause();
+    } else {
+      fadeout.play();
+    }
+  });
+
+  fadeout.addEventListener("finish", () => {
+    countdown_dialog.style.visibility = "hidden";
+  });
+
   client.socket.on("connected", () => {
     text_log.childNodes.forEach((c) => {
       text_log.removeChild(c);
