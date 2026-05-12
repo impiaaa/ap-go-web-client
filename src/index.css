@@ -50,7 +50,10 @@ a:visited {
 
 @media (pointer: coarse) {
   input,
-  button {
+  label,
+  button,
+  select,
+  textarea {
     font-size: large;
   }
 }
@@ -116,18 +119,11 @@ section {
 }
 
 @media (prefers-color-scheme: dark) {
-  button {
+  button, select {
     padding: 4px;
     color: #123052;
     background-color: #80baff;
     border: 0;
-    border-radius: 4px;
-  }
-  input {
-    padding: 4px;
-    color: #9db1d5;
-    background-color: #000920;
-    border: 1px solid #9db1d5;
     border-radius: 4px;
   }
 }

@@ -13,11 +13,13 @@ h1 {
   max-width: 600px;
 }
 
-input:invalid {
+input:invalid,
+textarea:invalid {
   border: 2px red solid;
 }
 
-button.invalid {
+button.invalid,
+select:invalid {
   background-color: tomato;
 }
 
@@ -61,8 +63,10 @@ button.invalid {
   flex-grow: 1;
 }
 
-.gridform .spacer {
+.gridform hr {
+  grid-column-start: 1;
   grid-column-end: -1;
+  width: 100%;
 }
 
 .license {
