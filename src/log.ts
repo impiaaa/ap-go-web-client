@@ -78,15 +78,12 @@ export function setUpLogPage() {
   });
 
   const countdown_dialog = document.getElementById("countdown-dialog")!;
-  const fadeout = countdown_dialog
-    .getAnimations()
-    .find((a) => a instanceof CSSAnimation && a.animationName === "fadeout")!;
   const counter_element = countdown_dialog.firstElementChild!;
-  const countdown = counter_element
+  const countdown = countdown_dialog
     .getAnimations()
     .find((a) => a instanceof CSSAnimation && a.animationName === "countdown")!;
 
-  client.messages.on("countdown", (text, value) => {
+  client.messages.on("countdown", (text) => {
     if (text.includes(": ")) {
       text = text.substring(text.indexOf(": ") + 2);
     }
@@ -94,17 +91,10 @@ export function setUpLogPage() {
     counter_element.textContent = text;
     countdown.currentTime = 0;
     countdown.play();
-
     countdown_dialog.style.visibility = "visible";
-    fadeout.currentTime = 0;
-    if (value > 0) {
-      fadeout.pause();
-    } else {
-      fadeout.play();
-    }
   });
 
-  fadeout.addEventListener("finish", () => {
+  countdown.addEventListener("finish", () => {
     countdown_dialog.style.visibility = "hidden";
   });
 

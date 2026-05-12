@@ -157,33 +157,20 @@ section {
   font-size: 50vmin;
   font-weight: bolder;
   color: white;
-  background-color: rgba(0, 0, 0, 50%);
-  animation: fadeout 1s linear;
+  animation: countdown 1s linear;
   animation-fill-mode: forwards;
   animation-play-state: paused;
   pointer-events: none;
-}
-
-@keyframes fadeout {
-  from {
-    opacity: 100%;
-  }
-  to {
-    opacity: 0%;
-  }
-}
-
-#countdown-dialog span {
-  animation: countdown 1s linear;
-  animation-fill-mode: backwards;
-  animation-play-state: paused;
+  -webkit-text-stroke: 1vmin black;
 }
 
 @keyframes countdown {
   from {
+    opacity: 100%;
     scale: 100%;
   }
   to {
+    opacity: 0%;
     scale: 50%;
   }
 }
