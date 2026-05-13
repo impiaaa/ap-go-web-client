@@ -1,6 +1,7 @@
 import type { MessageNode, Player } from "archipelago.js";
 import i18next from "i18next";
 import { client } from "./globals";
+import { start as start_particles } from "./particles";
 import { styleItemElement } from "./utils";
 
 export const text_log = document.getElementById("text-log")!;
@@ -113,6 +114,7 @@ export function setUpLogPage() {
     countdown_dialog.classList.add("victory");
     victory.currentTime = 0;
     victory.play();
+    start_particles();
   });
 
   client.socket.on("connected", () => {
