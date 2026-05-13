@@ -97,3 +97,82 @@
     color: #391899;
   }
 }
+
+#notification-popup {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  max-width: 450px;
+  padding: 1em;
+  margin: 1em;
+  color: black;
+  background-color: white;
+  border: 1px lightgray solid;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 50%);
+}
+
+#text-overlay {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  visibility: hidden;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: bolder;
+  color: white;
+  -webkit-text-stroke: 1vmin black;
+  pointer-events: none;
+  animation:
+    1s linear countdown none,
+    4s linear victory none;
+}
+
+#text-overlay.countdown {
+  font-size: 50vmin;
+}
+
+@keyframes countdown {
+  from {
+    visibility: visible;
+    opacity: 100%;
+    scale: 100%;
+    animation-timing-function: linear;
+  }
+  to {
+    opacity: 0%;
+    scale: 50%;
+  }
+}
+
+#text-overlay.victory {
+  font-size: 25vmin;
+}
+
+@keyframes victory {
+  from {
+    visibility: visible;
+    opacity: 0;
+    scale: 50%;
+    animation-timing-function: ease-out;
+  }
+  6.25% {
+    scale: 125%;
+    animation-timing-function: ease-in-out;
+  }
+  12.5% {
+    scale: 100%;
+    opacity: 100%;
+  }
+  87.5% {
+    scale: 100%;
+    opacity: 100%;
+    animation-timing-function: linear;
+  }
+  to {
+    opacity: 0;
+    scale: 50%;
+  }
+}

@@ -1,4 +1,5 @@
 import type { MessageNode, Player } from "archipelago.js";
+import i18next from "i18next";
 import { client } from "./globals";
 import { styleItemElement } from "./utils";
 
@@ -77,25 +78,41 @@ export function setUpLogPage() {
     }
   });
 
-  const countdown_dialog = document.getElementById("countdown-dialog")!;
-  const counter_element = countdown_dialog.firstElementChild!;
+  const countdown_dialog = document.getElementById("text-overlay")!;
+  const counter_element = countdown_dialog.firstElementChild as HTMLElement;
   const countdown = countdown_dialog
     .getAnimations()
     .find((a) => a instanceof CSSAnimation && a.animationName === "countdown")!;
+  const victory = countdown_dialog
+    .getAnimations()
+    .find((a) => a instanceof CSSAnimation && a.animationName === "victory")!;
 
   client.messages.on("countdown", (text) => {
     if (text.includes(": ")) {
       text = text.substring(text.indexOf(": ") + 2);
     }
+    if (text.length > 3) {
+      // ignore the first "Starting countdown" message
+      return;
+    }
 
     counter_element.textContent = text;
+    countdown_dialog.classList.remove("victory");
+    countdown_dialog.classList.add("countdown");
     countdown.currentTime = 0;
     countdown.play();
-    countdown_dialog.style.visibility = "visible";
   });
 
-  countdown.addEventListener("finish", () => {
-    countdown_dialog.style.visibility = "hidden";
+  client.messages.on("goaled", (_, player) => {
+    if (player.slot !== client.players.self.slot) {
+      return;
+    }
+
+    counter_element.textContent = i18next.t("text-overlay.victory", "Victory!");
+    countdown_dialog.classList.remove("countdown");
+    countdown_dialog.classList.add("victory");
+    victory.currentTime = 0;
+    victory.play();
   });
 
   client.socket.on("connected", () => {

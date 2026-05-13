@@ -71,6 +71,9 @@
       "log": "Log",
       "map": "Map"
     },
+    "text-overlay": {
+      "victory": "Victory!"
+    },
     "title": "Archipela-GO!",
     "trap-dialog": {
       "dismiss": "Tap to dismiss"

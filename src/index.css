@@ -119,54 +119,12 @@ section {
 }
 
 @media (prefers-color-scheme: dark) {
-  button, select {
+  button,
+  select {
     padding: 4px;
     color: #123052;
     background-color: #80baff;
     border: 0;
     border-radius: 4px;
-  }
-}
-
-#notification-popup {
-  position: absolute;
-  z-index: 2;
-  max-width: 450px;
-  padding: 1em;
-  margin: 1em;
-  color: black;
-  background-color: white;
-  border: 1px lightgray solid;
-  border-radius: 6px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 50%);
-}
-
-#countdown-dialog {
-  position: absolute;
-  z-index: 2;
-  display: flex;
-  visibility: hidden;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 50vmin;
-  font-weight: bolder;
-  color: white;
-  animation: countdown 1s linear;
-  animation-fill-mode: forwards;
-  animation-play-state: paused;
-  pointer-events: none;
-  -webkit-text-stroke: 1vmin black;
-}
-
-@keyframes countdown {
-  from {
-    opacity: 100%;
-    scale: 100%;
-  }
-  to {
-    opacity: 0%;
-    scale: 50%;
   }
 }
