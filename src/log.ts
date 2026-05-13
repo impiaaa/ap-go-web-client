@@ -81,10 +81,10 @@ export function setUpLogPage() {
 
   const countdown_dialog = document.getElementById("text-overlay")!;
   const counter_element = countdown_dialog.firstElementChild as HTMLElement;
-  const countdown = countdown_dialog
+  const countdown = counter_element
     .getAnimations()
     .find((a) => a instanceof CSSAnimation && a.animationName === "countdown")!;
-  const victory = countdown_dialog
+  const victory = counter_element
     .getAnimations()
     .find((a) => a instanceof CSSAnimation && a.animationName === "victory")!;
 
@@ -98,8 +98,8 @@ export function setUpLogPage() {
     }
 
     counter_element.textContent = text;
-    countdown_dialog.classList.remove("victory");
-    countdown_dialog.classList.add("countdown");
+    counter_element.classList.remove("victory");
+    counter_element.classList.add("countdown");
     countdown.currentTime = 0;
     countdown.play();
   });
@@ -110,8 +110,8 @@ export function setUpLogPage() {
     }
 
     counter_element.textContent = i18next.t("text-overlay.victory", "Victory!");
-    countdown_dialog.classList.remove("countdown");
-    countdown_dialog.classList.add("victory");
+    counter_element.classList.remove("countdown");
+    counter_element.classList.add("victory");
     victory.currentTime = 0;
     victory.play();
     start_particles();
