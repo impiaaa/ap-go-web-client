@@ -118,12 +118,9 @@ export function setUpLogPage() {
   });
 
   client.socket.on("connected", () => {
-    text_log.childNodes.forEach((c) => {
-      text_log.removeChild(c);
-    });
+    text_log.innerHTML = "";
     client.messages.log.forEach((line) => {
       addMessages(line.nodes);
-      text_log.appendChild(document.createElement("br"));
     });
     text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
   });
