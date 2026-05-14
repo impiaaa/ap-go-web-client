@@ -345,7 +345,7 @@ function displayTrap(item: Item) {
   }
   if (
     document
-      .querySelector(".victory")
+      .querySelector("#text-overlay")
       ?.getAnimations()
       .some((a) => a.playState === "running")
   ) {
