@@ -11,6 +11,7 @@ h1 {
   display: grid;
   gap: 5px;
   max-width: 600px;
+  text-align: left;
 }
 
 input:invalid,
@@ -72,4 +73,12 @@ select:invalid {
 .license {
   font-size: small;
   text-align: right;
+}
+
+.range-group {
+  display: flex;
+}
+
+.range-group input {
+  flex-grow: 1;
 }

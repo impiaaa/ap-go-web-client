@@ -11,7 +11,6 @@ export const SCOUTING_DISTANCE_BASE_M = 30;
 export const SCOUTING_DISTANCE_INCREMENT_M = 15;
 export const COLLECTION_DISTANCE_BASE_M = 20;
 export const COLLECTION_DISTANCE_INCREMENT_M = 10;
-export const APP_TRAP_DURATION_S = 60;
 export const SHORT_MACGUFFIN_ITEMS = [
   ItemType.MacguffinA,
   ItemType.MacguffinP,
@@ -116,12 +115,14 @@ export const prefs: {
   overpass_server: string;
   show_checked_locations: boolean;
   subgraph_selection: SubgraphSelection;
+  trap_duration: number;
 } = {
   home: null,
   overpass_query: DEFAULT_OVERPASS_QUERY,
   overpass_server: "https://overpass.private.coffee/api/interpreter",
   show_checked_locations: true,
   subgraph_selection: SubgraphSelection.FullGraph,
+  trap_duration: 60,
 };
 export let slot_data: APGoSlotData | null = null;
 export function setSlotData(new_slot_data: APGoSlotData) {

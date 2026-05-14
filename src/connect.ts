@@ -324,6 +324,9 @@ function openAdvancedSettings() {
     prefs.overpass_query;
   (document.getElementById("subgraph-selection") as HTMLInputElement).value =
     prefs.subgraph_selection.toString();
+  (document.getElementById("trap-duration") as HTMLInputElement).valueAsNumber =
+    prefs.trap_duration;
+  updateTrapDuration();
   (
     document.getElementById("advanced-settings-dialog") as HTMLDialogElement
   ).showModal();
@@ -352,19 +355,27 @@ function saveAdvancedSettings(ev: PointerEvent) {
       (
         advanced_settings_form.elements.namedItem(
           "subgraph-selection",
-        ) as HTMLTextAreaElement
+        ) as HTMLInputElement
       ).value,
       10,
     );
+    const trap_duration =
+      (
+        advanced_settings_form.elements.namedItem(
+          "trap-duration",
+        ) as HTMLInputElement
+      ).valueAsNumber || prefs.trap_duration;
 
     if (
       overpass_query !== prefs.overpass_query ||
       overpass_server !== prefs.overpass_server ||
-      subgraph_selection !== prefs.subgraph_selection
+      subgraph_selection !== prefs.subgraph_selection ||
+      trap_duration !== prefs.trap_duration
     ) {
       prefs.overpass_query = overpass_query;
       prefs.overpass_server = overpass_server;
       prefs.subgraph_selection = subgraph_selection;
+      prefs.trap_duration = trap_duration;
       saveConnectInfo();
       game_data.points.clear();
       saveGame();
@@ -486,6 +497,11 @@ export function setUpConnectPage() {
       if (typeof show_checked_locations_json === "boolean") {
         prefs.show_checked_locations = show_checked_locations_json;
       }
+
+      const trap_duration_json = prefs_json.trap_duration;
+      if (typeof trap_duration_json === "number" && trap_duration_json > 0) {
+        prefs.trap_duration = trap_duration_json;
+      }
     } else {
       localStorage.removeItem(PREFS_KEY);
     }
@@ -528,6 +544,22 @@ export function setUpConnectPage() {
   password.addEventListener("change", () => {
     if (setup_form.checkValidity()) saveConnectInfo();
   });
+
+  trap_duration.addEventListener("input", updateTrapDuration);
+}
+
+const trap_duration = document.getElementById(
+  "trap-duration",
+) as HTMLInputElement;
+const trap_duration_value = document.getElementById("trap-duration-value")!;
+function updateTrapDuration() {
+  trap_duration_value.innerText = i18next.t(
+    "connect.advanced-settings-dialog.trap-duration-value",
+    {
+      defaultValue: "{{trap_duration.value}} sec",
+      trap_duration: trap_duration,
+    },
+  );
 }
 
 export function saveConnectInfo() {
@@ -549,6 +581,7 @@ export function saveConnectInfo() {
       port: port.value,
       show_checked_locations: prefs.show_checked_locations,
       subgraph_selection: prefs.subgraph_selection,
+      trap_duration: prefs.trap_duration,
     }),
   );
 }

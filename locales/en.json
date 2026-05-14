@@ -13,7 +13,9 @@
           "full-graph": "No Limits",
           "selection": "Ensure Reachable"
         },
-        "title": "Advanced Settings"
+        "title": "Advanced Settings",
+        "trap-duration": "Trap Duration",
+        "trap-duration-value": "{{trap_duration.value}} sec"
       },
       "connect": "Connect",
       "disconnect": "Disconnect",

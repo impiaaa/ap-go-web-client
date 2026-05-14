@@ -10,7 +10,6 @@ import {
   stopTracking,
 } from "./connect";
 import {
-  APP_TRAP_DURATION_S,
   COLLECTION_DISTANCE_BASE_M,
   COLLECTION_DISTANCE_INCREMENT_M,
   client,
@@ -270,7 +269,7 @@ export function receiveItems(items: Item[]) {
               item.locationId,
             ]);
             saveGame();
-          }, APP_TRAP_DURATION_S * 1000);
+          }, prefs.trap_duration * 1000);
           client.socket.wait("disconnected").then(() => {
             window.clearTimeout(timer);
           });

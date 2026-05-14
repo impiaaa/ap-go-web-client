@@ -33,6 +33,11 @@
             <dialog id="advanced-settings-dialog" closedby="any">
                 <h2 data-i18n="connect.advanced-settings-dialog.title">Advanced Settings</h2>
                 <form class="gridform" id="advanced-settings-form">
+                    <label for="trap-duration" data-i18n="connect.advanced-settings-dialog.trap-duration">Trap Duration</label>
+                    <span class="range-group">
+                        <input id="trap-duration" max="300" min="1" type="range" value="60">
+                        <output id="trap-duration-value" for="trap-duration" style="width: 7ch; text-align: right;"></output>
+                    </span>
                     <label for="subgraph-selection" data-i18n="connect.advanced-settings-dialog.subgraph.selection">Ensure Reachable</label>
                     <select id="subgraph-selection" name="subgraph-selection">
                         <option data-i18n="connect.advanced-settings-dialog.subgraph.full-graph" selected value="0">No Limits</option>
