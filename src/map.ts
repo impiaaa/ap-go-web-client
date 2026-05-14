@@ -786,7 +786,7 @@ function makePopup(location_id: number, props: LocationGeoJSON) {
 }
 
 export function fitMapToPoints(animated: boolean) {
-  if (!game_map || !game_map.loaded || !game_data.points) {
+  if (!game_map?.loaded || !game_data.points) {
     return;
   }
   const bounds = new maplibregl.LngLatBounds();
