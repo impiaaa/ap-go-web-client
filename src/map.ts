@@ -433,13 +433,15 @@ function lateSetUpMap() {
     ["marker-filler-trap", "#34ced1", null, true],
   ];
   marker_icons.forEach(([marker_name, color, icon_name, trap]) => {
-    const marker_svg = getMarkerSvg(color, icon_name, trap);
+    const marker_svg = getMarkerSvg(color, icon_name, trap, true);
     const svg =
       "data:image/svg+xml;charset=utf-8," +
       encodeURIComponent(marker_svg.documentElement.outerHTML);
     const image = new Image();
     image.addEventListener("load", () => {
-      game_map!.addImage(marker_name, image);
+      game_map!.addImage(marker_name, image, {
+        pixelRatio: window.devicePixelRatio,
+      });
     });
     image.src = svg;
   });
@@ -579,9 +581,25 @@ function getMarkerSvg(
   color: string,
   icon_name: string | null,
   trap: boolean = false,
+  scale: boolean = false,
 ) {
   const svg_doc = marker_svg_doc.cloneNode(true) as Document;
   svg_doc.getElementById("background")?.setAttribute("fill", color);
+  if (scale) {
+    const width = parseInt(svg_doc.documentElement.getAttribute("width")!, 10);
+    svg_doc.documentElement.setAttribute(
+      "width",
+      `${width * window.devicePixelRatio}px`,
+    );
+    const height = parseInt(
+      svg_doc.documentElement.getAttribute("height")!,
+      10,
+    );
+    svg_doc.documentElement.setAttribute(
+      "height",
+      `${height * window.devicePixelRatio}px`,
+    );
+  }
   if (icon_name) {
     const icon_svg = icons[icon_name].firstElementChild;
     const icon_path = icon_svg?.firstElementChild?.cloneNode(true) as
