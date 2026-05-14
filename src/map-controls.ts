@@ -1,5 +1,7 @@
 import type { ConnectedPacket, Item } from "archipelago.js";
+import i18next from "i18next";
 import maplibregl from "maplibre-gl";
+import { saveConnectInfo } from "./connect";
 import { checkLocations, getKeyProgress, moveGameState } from "./gameplay";
 import {
   COLLECTION_DISTANCE_BASE_M,
@@ -668,7 +670,7 @@ export class FitMapToPointsControl implements maplibregl.IControl {
   }
 
   _getTitle() {
-    return "Center map";
+    return i18next.t("map.fit-to-points", "Center Map");
   }
 
   onRemove() {
@@ -677,5 +679,69 @@ export class FitMapToPointsControl implements maplibregl.IControl {
 
   _onClick() {
     fitMapToPoints(true);
+  }
+}
+
+export class FilterControl implements maplibregl.IControl {
+  private _container?: HTMLDivElement;
+  private _button?: HTMLButtonElement;
+  private _icon?: HTMLImageElement;
+  private _map?: maplibregl.Map;
+
+  onAdd(_map: maplibregl.Map) {
+    this._container = document.createElement("div");
+    this._container.classList.add("maplibregl-ctrl");
+    this._container.classList.add("maplibregl-ctrl-group");
+    this._button = document.createElement("button");
+    this._container.appendChild(this._button);
+    this._icon = document.createElement("img");
+    this._icon.src = prefs.show_checked_locations
+      ? "ctrl-filter.svg"
+      : "ctrl-filter-enabled.svg";
+    this._button.appendChild(this._icon);
+    this._icon.setAttribute("aria-hidden", "true");
+    this._button.type = "button";
+    this._updateTitle();
+    this._button.addEventListener("click", this._onClick.bind(this));
+    _map.on("load", () => {
+      _map.setGlobalStateProperty(
+        "show_checked_locations",
+        prefs.show_checked_locations,
+      );
+    });
+    this._map = _map;
+    return this._container;
+  }
+
+  _updateTitle() {
+    if (this._button) {
+      const title = this._getTitle();
+      this._button.setAttribute("aria-label", title);
+      this._button.title = title;
+    }
+  }
+
+  _getTitle() {
+    return i18next.t("map.show-checked-locations", "Show/Hide Checked");
+  }
+
+  onRemove() {
+    this._container?.parentNode?.removeChild(this._container);
+  }
+
+  _onClick() {
+    prefs.show_checked_locations = !prefs.show_checked_locations;
+    saveConnectInfo();
+    if (this._map?.loaded()) {
+      this._map.setGlobalStateProperty(
+        "show_checked_locations",
+        prefs.show_checked_locations,
+      );
+    }
+    if (this._icon) {
+      this._icon.src = prefs.show_checked_locations
+        ? "ctrl-filter.svg"
+        : "ctrl-filter-enabled.svg";
+    }
   }
 }

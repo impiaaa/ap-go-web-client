@@ -18,6 +18,7 @@ import icons_question_mark_svg from "./icons/question_mark.svg?raw";
 import icons_star_svg from "./icons/star.svg?raw";
 import { stylePlayerElement } from "./log";
 import {
+  FilterControl,
   FitMapToPointsControl,
   KeyDisplayControl,
   MacguffinDisplayControl,
@@ -75,6 +76,11 @@ const locations_geojson: GeoJSON.FeatureCollection<
   type: "FeatureCollection",
 };
 const locations_layer: maplibregl.SymbolLayerSpecification = {
+  filter: [
+    "any",
+    ["!", ["get", "checked"]],
+    ["global-state", "show_checked_locations"],
+  ],
   id: "locations",
   layout: {
     "icon-allow-overlap": true,
@@ -345,6 +351,7 @@ function lateSetUpMap() {
   geolocate_control = new MyGeolocateControl();
   game_map.addControl(geolocate_control);
   game_map.addControl(new FitMapToPointsControl());
+  game_map.addControl(new FilterControl());
 
   client.items.on("itemsReceived", () => {
     updateCircleRadii();

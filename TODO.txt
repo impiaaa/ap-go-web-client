@@ -14,5 +14,4 @@ from discord:
 - location doesn't update
 - checks in range don't check
 - light/dark mode override
-- option to hide checked locations
 - configurable app trap duration

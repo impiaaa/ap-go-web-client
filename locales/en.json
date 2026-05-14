@@ -61,9 +61,11 @@
       "text-input": "Send text or a command to the Archipelago server"
     },
     "map": {
+      "fit-to-points": "Center Map",
       "popup": {
         "requires-key": "Requires key {{trip.key_needed}}"
-      }
+      },
+      "show-checked-locations": "Show/Hide Checked"
     },
     "nav": {
       "connect": "Connect",

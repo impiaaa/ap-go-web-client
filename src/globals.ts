@@ -112,13 +112,15 @@ export const OLD_QUERY_DIGESTS: string[] = [
 
 export const prefs: {
   home: [number, number] | null;
-  overpass_server: string;
   overpass_query: string;
+  overpass_server: string;
+  show_checked_locations: boolean;
   subgraph_selection: SubgraphSelection;
 } = {
   home: null,
   overpass_query: DEFAULT_OVERPASS_QUERY,
   overpass_server: "https://overpass.private.coffee/api/interpreter",
+  show_checked_locations: true,
   subgraph_selection: SubgraphSelection.FullGraph,
 };
 export let slot_data: APGoSlotData | null = null;

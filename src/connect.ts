@@ -481,6 +481,11 @@ export function setUpConnectPage() {
       ) {
         prefs.subgraph_selection = subgraph_selection_json;
       }
+
+      const show_checked_locations_json = prefs_json.show_checked_locations;
+      if (typeof show_checked_locations_json === "boolean") {
+        prefs.show_checked_locations = show_checked_locations_json;
+      }
     } else {
       localStorage.removeItem(PREFS_KEY);
     }
@@ -525,7 +530,7 @@ export function setUpConnectPage() {
   });
 }
 
-function saveConnectInfo() {
+export function saveConnectInfo() {
   const ip = setup_form.elements.namedItem("ip") as HTMLInputElement;
   const port = setup_form.elements.namedItem("port") as HTMLInputElement;
   const player = setup_form.elements.namedItem("player") as HTMLInputElement;
@@ -542,6 +547,7 @@ function saveConnectInfo() {
       password: password.value,
       player: player.value,
       port: port.value,
+      show_checked_locations: prefs.show_checked_locations,
       subgraph_selection: prefs.subgraph_selection,
     }),
   );
