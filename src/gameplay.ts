@@ -36,7 +36,7 @@ import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
 const trap_queue: Item[] = [];
-let displaying_trap: [number, number];
+let displaying_trap: number;
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -136,8 +136,8 @@ export function saveGame() {
   localStorage.setItem(
     SAVED_GAME_KEY,
     JSON.stringify({
-      displayed_trap_locations: game_data.displayed_trap_locations,
       home: prefs.home,
+      last_displayed_trap: game_data.last_displayed_trap,
       points: Object.fromEntries(game_data.points),
       scouted_locations: Object.fromEntries(game_data.scouted_locations),
       seed: client.room.seedName,
@@ -148,13 +148,18 @@ export function saveGame() {
 export function loadGame() {
   const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
   game_data.scouted_locations.clear();
-  game_data.displayed_trap_locations = [];
+  game_data.last_displayed_trap = -1;
   if (!saved_game_json) return false;
 
   const saved_game = JSON.parse(saved_game_json);
-  if (!saved_game || saved_game.seed !== client.room.seedName) return false;
+  if (
+    typeof saved_game !== "object" ||
+    saved_game.seed !== client.room.seedName
+  ) {
+    return false;
+  }
 
-  if (saved_game.scouted_locations) {
+  if (typeof saved_game.scouted_locations === "object") {
     for (const location_id_str in saved_game.scouted_locations) {
       game_data.scouted_locations.set(
         parseInt(location_id_str, 10),
@@ -163,34 +168,48 @@ export function loadGame() {
     }
   }
 
-  if (
-    saved_game.displayed_trap_locations &&
-    Array.isArray(saved_game.displayed_trap_locations)
-  ) {
-    game_data.displayed_trap_locations = saved_game.displayed_trap_locations;
+  if (typeof saved_game.last_displayed_trap === "number") {
+    game_data.last_displayed_trap = saved_game.last_displayed_trap;
+  } else if (Array.isArray(saved_game.displayed_trap_locations)) {
+    // find the last index of client.items.received where item in saved_game.displayed_trap_locations
+    game_data.last_displayed_trap = Math.max(
+      ...client.items.received.map((item, index) =>
+        saved_game.displayed_trap_locations.some(
+          (trap: any) =>
+            Array.isArray(trap) &&
+            trap.length === 2 &&
+            item.sender.slot === trap[0] &&
+            item.locationId === trap[1],
+        )
+          ? index
+          : -1,
+      ),
+    );
   }
 
-  const saved_game_point_names = Object.getOwnPropertyNames(saved_game.points);
-  if (
-    saved_game.points &&
-    saved_game_point_names.length === client.room.allLocations.length &&
-    saved_game_point_names.every((v) =>
-      client.room.allLocations.includes(parseInt(v, 10)),
-    ) &&
-    saved_game.home &&
-    Array.isArray(saved_game.home) &&
-    saved_game.home.length === 2 &&
-    prefs.home &&
-    coordinatesApproximatelyEqual(saved_game.home, prefs.home)
-  ) {
-    game_data.points.clear();
-    for (const location_id_str in saved_game.points) {
-      game_data.points.set(
-        parseInt(location_id_str, 10),
-        saved_game.points[location_id_str],
-      );
+  if (typeof saved_game.points === "object") {
+    const saved_game_point_names = Object.getOwnPropertyNames(
+      saved_game.points,
+    );
+    if (
+      saved_game_point_names.length === client.room.allLocations.length &&
+      saved_game_point_names.every((v) =>
+        client.room.allLocations.includes(parseInt(v, 10)),
+      ) &&
+      Array.isArray(saved_game.home) &&
+      saved_game.home.length === 2 &&
+      prefs.home &&
+      coordinatesApproximatelyEqual(saved_game.home, prefs.home)
+    ) {
+      game_data.points.clear();
+      for (const location_id_str in saved_game.points) {
+        game_data.points.set(
+          parseInt(location_id_str, 10),
+          saved_game.points[location_id_str],
+        );
+      }
+      return true;
     }
-    return true;
   }
 
   return false;
@@ -222,7 +241,10 @@ export function setUpGameplay() {
     trap_dialog.close();
   });
   trap_dialog?.addEventListener("close", () => {
-    game_data.displayed_trap_locations.push(displaying_trap);
+    game_data.last_displayed_trap = Math.max(
+      game_data.last_displayed_trap,
+      displaying_trap,
+    );
     saveGame();
     const item = trap_queue.pop();
     if (item) {
@@ -264,10 +286,7 @@ export function receiveItems(items: Item[]) {
           setFogOfWarVisible(true);
           const timer = window.setTimeout(() => {
             setFogOfWarVisible(false);
-            game_data.displayed_trap_locations.push([
-              item.sender.slot,
-              item.locationId,
-            ]);
+            game_data.last_displayed_trap = client.items.received.indexOf(item);
             saveGame();
           }, prefs.trap_duration * 1000);
           client.socket.wait("disconnected").then(() => {
@@ -330,11 +349,13 @@ export function receiveItems(items: Item[]) {
 function hasDisplayedTrap(item: Item): boolean {
   // If slot_data is undefined, we haven't loaded a game yet, so we don't know which traps have
   // been displayed, so hold off from displaying any traps until after loading.
+  console.log(client.items.received);
+  console.log(item);
+  console.log(client.items.received.indexOf(item));
+  console.log(game_data.last_displayed_trap);
   return (
     !slot_data ||
-    game_data.displayed_trap_locations.some(
-      ([slot, id]) => item.sender.slot === slot && item.locationId === id,
-    )
+    client.items.received.indexOf(item) <= game_data.last_displayed_trap
   );
 }
 
@@ -401,7 +422,7 @@ function displayTrap(item: Item) {
     trap_dialog.querySelector("img")?.setAttribute("src", img_src);
   }
 
-  displaying_trap = [item.sender.slot, item.locationId];
+  displaying_trap = client.items.received.indexOf(item);
 
   trap_dialog.showModal();
 }
