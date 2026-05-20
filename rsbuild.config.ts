@@ -15,7 +15,7 @@ export default defineConfig({
         "describe",
         "--always",
         "--dirty=*",
-        "--match= ",
+        "--tags",
       ]),
     },
   },
