@@ -16,16 +16,18 @@ h1 {
 
 input:invalid,
 textarea:invalid {
-  border: 2px red solid;
+  border: 2px var(--error) solid;
+  border-radius: 1px;
 }
 
 button.invalid,
 select:invalid {
-  background-color: tomato;
+  color: var(--on-error-container);
+  background-color: var(--error-container);
 }
 
 .error {
-  color: red;
+  color: var(--error);
 }
 
 @media (width >= 450px) {
@@ -41,16 +43,8 @@ select:invalid {
   position: absolute;
 }
 
-@media (prefers-color-scheme: dark) {
-  .crosshair {
-    background-color: white;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  .crosshair {
-    background-color: black;
-  }
+.crosshair {
+  background-color: var(--outline);
 }
 
 #overpass-query {

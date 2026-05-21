@@ -6,7 +6,6 @@ allow stop playing but remain connected by pressing geolocate control
 add timeout to geo updates
 pop-up notifications when not on text log screen
 in-app credits screen
-procedurally generate color scheme in the same way kv does
 
 bugs:
 - reconnecting makes circles disappear

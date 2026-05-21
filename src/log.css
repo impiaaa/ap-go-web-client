@@ -9,18 +9,9 @@
   overflow-y: scroll;
 }
 
-@media (prefers-color-scheme: dark) {
-  .log {
-    color: white;
-    background-color: black;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  .log {
-    color: black;
-    background-color: white;
-  }
+.log {
+  color: var(--on-surface-container);
+  background-color: var(--surface-container-lowest);
 }
 
 .log span {
@@ -105,11 +96,10 @@
   max-width: 450px;
   padding: 1em;
   margin: 1em;
-  color: black;
-  background-color: white;
-  border: 1px lightgray solid;
+  color: var(--on-surface-container);
+  background-color: var(--surface-container-highest);
   border-radius: 6px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 50%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 25%);
 }
 
 #text-overlay {
@@ -128,8 +118,8 @@
 #text-overlay > * {
   overflow: hidden;
   font-weight: bolder;
-  color: white;
-  -webkit-text-stroke: 1vmin black;
+  color: var(--surface);
+  -webkit-text-stroke: 1vmin var(--on-surface);
   animation:
     1s linear countdown none,
     4s linear victory none;

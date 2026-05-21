@@ -1,3 +1,4 @@
+@import "colors.css";
 @import "maplibre-gl";
 @import "connect.css";
 @import "dialog.css";
@@ -9,23 +10,13 @@ html {
   height: 100%;
   padding: 0;
   margin: 0;
-  font-family:
-    system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell,
-    "Helvetica Neue", sans-serif;
+  font-family: system-ui;
+  color: var(--on-background);
+  background-color: var(--background);
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color: #80baff;
-    background-color: #000920;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  html {
-    color: #003a7f;
-    background-color: #dfe8ff;
-  }
+dialog hr {
+  border: 1px solid var(--on-background);
 }
 
 body {
@@ -37,15 +28,11 @@ body {
 }
 
 a {
-  color: #3390ff;
+  color: var(--primary);
 }
 
 a:visited {
-  color: #2465b3;
-}
-
-*:disabled {
-  color: gray;
+  color: var(--primary-dim);
 }
 
 @media (pointer: coarse) {
@@ -88,28 +75,14 @@ nav li a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  nav li a,
-  nav li a:visited {
-    color: white;
-    background-color: #031736;
-  }
-  nav li a.active {
-    color: #80baff;
-    background-color: #2968b8;
-  }
+nav li a,
+nav li a:visited {
+  color: var(--on-surface-variant);
+  background-color: var(--surface-container);
 }
-
-@media (prefers-color-scheme: light) {
-  nav li a,
-  nav li a:visited {
-    color: black;
-    background-color: #c9ddfc;
-  }
-  nav li a.active {
-    color: #031736;
-    background-color: #4786d6;
-  }
+nav li a.active {
+  color: var(--on-secondary-container);
+  background-color: var(--secondary-container);
 }
 
 section {
@@ -118,13 +91,15 @@ section {
   padding: 1rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  button,
-  select {
-    padding: 4px;
-    color: #123052;
-    background-color: #80baff;
-    border: 0;
-    border-radius: 4px;
-  }
+button,
+select {
+  padding: 4px;
+  color: var(--on-primary);
+  background-color: var(--primary);
+  border: 0;
+  border-radius: 4px;
+}
+
+button:disabled {
+  opacity: 50%;
 }

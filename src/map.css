@@ -1,5 +1,29 @@
-.maplibregl-popup {
-  color: black;
+.maplibregl-popup,
+.maplibregl-popup-close-button {
+  color: var(--on-surface);
+}
+
+.maplibregl-popup-content {
+  background-color: var(--surface);
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: var(--surface);
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface);
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--surface);
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--primary-fixed);
+}
+.maplibregl-ctrl-attrib a:visited {
+  color: var(--primary-fixed-dim);
 }
 
 #map {
@@ -33,19 +57,4 @@
   width: 24px;
   height: 24px;
   margin: 5px;
-}
-
-/* override text colors in popups since popups always have a light background */
-/* copied from light scheme in log.css */
-.maplibregl-popup .player {
-  color: darkgoldenrod;
-}
-.maplibregl-popup .player.self {
-  color: mediumorchid;
-}
-.maplibregl-popup .item {
-  color: darkturquoise;
-}
-.maplibregl-popup .item.progression {
-  color: #391899;
 }
