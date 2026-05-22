@@ -49,7 +49,7 @@ export default defineConfig({
   plugins: [
     pluginHtmlMinifierTerser({
       collapseBooleanAttributes: true,
-      collapseInlineTagWhitespace: true,
+      collapseInlineTagWhitespace: false,
       collapseWhitespace: true,
       decodeEntities: true,
       minifyCSS: true,
