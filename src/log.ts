@@ -81,13 +81,13 @@ export function setUpLogPage() {
 
   const countdown_dialog = document.getElementById("text-overlay")!;
   const counter_element = countdown_dialog.firstElementChild as HTMLElement;
+
   const countdown = counter_element
     .getAnimations()
     .find((a) => a instanceof CSSAnimation && a.animationName === "countdown")!;
-  const victory = counter_element
-    .getAnimations()
-    .find((a) => a instanceof CSSAnimation && a.animationName === "victory")!;
-
+  countdown.addEventListener("finish", () => {
+    countdown_dialog.style.visibility = "hidden";
+  });
   client.messages.on("countdown", (text) => {
     if (text.includes(": ")) {
       text = text.substring(text.indexOf(": ") + 2);
@@ -101,9 +101,16 @@ export function setUpLogPage() {
     counter_element.classList.remove("victory");
     counter_element.classList.add("countdown");
     countdown.currentTime = 0;
+    countdown_dialog.style.visibility = "visible";
     countdown.play();
   });
 
+  const victory = counter_element
+    .getAnimations()
+    .find((a) => a instanceof CSSAnimation && a.animationName === "victory")!;
+  victory.addEventListener("finish", () => {
+    countdown_dialog.style.visibility = "hidden";
+  });
   client.messages.on("goaled", (_, player) => {
     if (player.slot !== client.players.self.slot) {
       return;
@@ -113,6 +120,7 @@ export function setUpLogPage() {
     counter_element.classList.remove("countdown");
     counter_element.classList.add("victory");
     victory.currentTime = 0;
+    countdown_dialog.style.visibility = "visible";
     victory.play();
     start_particles();
   });

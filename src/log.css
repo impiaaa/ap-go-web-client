@@ -106,7 +106,6 @@
   position: absolute;
   z-index: 2;
   display: flex;
-  visibility: hidden;
   align-items: center;
   justify-content: center;
   width: 100%;
@@ -131,7 +130,6 @@
 
 @keyframes countdown {
   from {
-    visibility: visible;
     opacity: 100%;
     scale: 100%;
     animation-timing-function: linear;
@@ -148,7 +146,6 @@
 
 @keyframes victory {
   from {
-    visibility: visible;
     opacity: 0;
     scale: 50%;
     animation-timing-function: ease-out;
@@ -185,7 +182,6 @@
 @media (prefers-reduced-motion: reduce) {
   @keyframes countdown {
     from {
-      visibility: visible;
       opacity: 100%;
       scale: 100%;
       animation-timing-function: step-end;
@@ -197,7 +193,6 @@
   }
   @keyframes victory {
     from {
-      visibility: visible;
       scale: 100%;
       opacity: 100%;
       animation-timing-function: step-end;
