@@ -19,11 +19,9 @@
   border-left-color: var(--surface);
 }
 
-.maplibregl-ctrl-attrib a {
-  color: var(--primary-fixed);
-}
+.maplibregl-ctrl-attrib a,
 .maplibregl-ctrl-attrib a:visited {
-  color: var(--primary-fixed-dim);
+  color: var(--on-secondary-fixed-variant);
 }
 
 #map {

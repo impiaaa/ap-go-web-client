@@ -15,10 +15,6 @@ html {
   background-color: var(--background);
 }
 
-dialog hr {
-  border: 1px solid var(--on-background);
-}
-
 body {
   display: flex;
   flex-direction: column;
@@ -27,12 +23,9 @@ body {
   margin: 0;
 }
 
-a {
-  color: var(--primary);
-}
-
+a,
 a:visited {
-  color: var(--primary-dim);
+  color: var(--primary);
 }
 
 @media (pointer: coarse) {

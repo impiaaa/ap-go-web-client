@@ -20,6 +20,7 @@
   "html": {
     "formatter": {
       "enabled": true,
+      "lineWidth": 100,
       "whitespaceSensitivity": "ignore"
     }
   },

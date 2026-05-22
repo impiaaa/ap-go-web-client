@@ -18,6 +18,10 @@
         "trap-duration-value": "{{trap_duration.value}} sec"
       },
       "connect": "Connect",
+      "credits": "Credits",
+      "credits-dialog": {
+        "title": "Credits"
+      },
       "disconnect": "Disconnect",
       "error": {
         "aborted": "Request aborted",
@@ -34,7 +38,6 @@
         "reload": "Please reload and reconnect."
       },
       "ip": "Address",
-      "license": "Source code",
       "message": {
         "connecting": "Connecting…",
         "generating": "Generating…"
@@ -48,6 +51,7 @@
         "label": "Set home location on map",
         "save": "Save"
       },
+      "source-code": "Source code",
       "subtitle": "Connect to Server",
       "title": "Archipela-GO!"
     },

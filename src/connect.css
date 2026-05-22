@@ -64,9 +64,28 @@ select:invalid {
   width: 100%;
 }
 
-.license {
+footer {
+  margin-left: auto;
   font-size: small;
-  text-align: right;
+}
+
+footer ul {
+  margin: 0;
+}
+
+footer li {
+  display: inline-block;
+}
+
+footer li::before {
+  display: inline-block;
+  margin-right: 1ch;
+  margin-left: 1ch;
+  content: "•";
+}
+
+footer li:first-child::before {
+  display: none;
 }
 
 .range-group {
