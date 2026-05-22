@@ -22,6 +22,16 @@
       "type": "image/svg"
     }
   ],
+  "protocol_handlers": [
+    {
+      "protocol": "archipelago",
+      "url": "?connecturl=%s"
+    },
+    {
+      "protocol": "web+archipelago",
+      "url": "?connecturl=%s"
+    }
+  ],
   "start_url": "index.html#connect",
   "theme_color": "lightsteelblue"
 }
