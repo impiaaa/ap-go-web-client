@@ -1,12 +1,6 @@
-goals: One Hard Travel
-
-speed requirements
-for debugging, redirect console.log etc to AP log window
-allow stop playing but remain connected by pressing geolocate control
-add timeout to geo updates
-pop-up notifications when not on text log screen
-in-app credits screen
-offline mode, queue collected locations when GPS active but no internet, then send when back online
+AP world features:
+- goals: One Hard Travel
+- speed requirements
 
 bugs:
 - reconnecting makes circles disappear
@@ -16,3 +10,11 @@ from discord:
 - location doesn't update
 - checks in range don't check
 - light/dark mode override
+
+other:
+- for debugging, redirect console.log etc to AP log window
+- allow stop playing but remain connected by pressing geolocate control
+- add timeout to geo updates
+- pop-up notifications when not on text log screen
+- in-app credits screen
+- offline mode, queue collected locations when GPS active but no internet, then send when back online
