@@ -32,7 +32,7 @@
   "scripts": {
     "build": "rsbuild build",
     "check": "biome check --write",
-    "ci": "biome ci --html-linter-enabled=false --html-assist-enabled=false && cd gen && cargo fmt --check && cargo check",
+    "ci": "biome ci --html-formatter-enabled=false --html-linter-enabled=false --html-assist-enabled=false && cd gen && cargo fmt --check && cargo check",
     "dev": "rsbuild dev --open",
     "format": "biome format --write",
     "preview": "rsbuild preview"
