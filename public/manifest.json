@@ -1,24 +1,24 @@
 {
-  "background_color": "#000920",
+  "background_color": "#000e25",
   "categories": ["games", "travel"],
   "display": "standalone",
   "icons": [
     {
       "purpose": "any",
       "sizes": "any",
-      "src": "map-ap-icon-circled.svg",
+      "src": "compass-icon-fit.svg",
       "type": "image/svg"
     },
     {
       "purpose": "maskable",
       "sizes": "any",
-      "src": "map-ap-icon-circled.svg",
+      "src": "compass-icon-circled.svg",
       "type": "image/svg"
     },
     {
       "purpose": "monochrome",
       "sizes": "any",
-      "src": "map-ap-icon-monochrome.svg",
+      "src": "compass-icon-monochrome.svg",
       "type": "image/svg"
     }
   ],

@@ -14,7 +14,14 @@
     }
   },
   "formatter": {
+    "formatWithErrors": true,
     "indentStyle": "space"
+  },
+  "html": {
+    "formatter": {
+      "enabled": true,
+      "whitespaceSensitivity": "ignore"
+    }
   },
   "javascript": {
     "formatter": {}
