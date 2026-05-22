@@ -11,6 +11,7 @@ import {
 } from "./gameplay";
 import { generate } from "./generate";
 import {
+  AP_GAME_NAME,
   cheat,
   client,
   DATAPACKAGE_KEY,
@@ -116,7 +117,7 @@ function doLogin(thenShowMap: boolean) {
     .login<APGoSlotData>(
       `${ip.value}:${port.value}`,
       player.value,
-      "Archipela-Go!",
+      AP_GAME_NAME,
       { password: password.value },
     )
     .then((new_slot_info) => {
@@ -546,6 +547,28 @@ export function setUpConnectPage() {
   });
 
   trap_duration.addEventListener("input", updateTrapDuration);
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const connecturl = URL.parse(document.URL)?.searchParams.get("connecturl");
+    if (connecturl) {
+      const connect_url = URL.parse(connecturl);
+      if (
+        connect_url &&
+        connect_url.searchParams.get("game") === AP_GAME_NAME
+      ) {
+        window.location.hash = "#connect";
+        player.value = connect_url.username;
+        password.value =
+          connect_url.password === "None" ? "" : connect_url.password;
+        ip.value = connect_url.hostname;
+        port.value = connect_url.port;
+        if (setup_form.checkValidity()) {
+          saveConnectInfo();
+          doLogin(true);
+        }
+      }
+    }
+  });
 }
 
 const trap_duration = document.getElementById(

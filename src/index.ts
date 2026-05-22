@@ -57,7 +57,7 @@ window.addEventListener("hashchange", (ev) => {
   showPage(old_hash, new_hash);
 });
 
-window.addEventListener("load", () => {
+window.addEventListener("DOMContentLoaded", () => {
   localize("html");
   if (i18next.resolvedLanguage) {
     document.documentElement.setAttribute("lang", i18next.resolvedLanguage);

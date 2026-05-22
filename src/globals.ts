@@ -6,6 +6,7 @@ export const DATAPACKAGE_KEY = "datapackage_cache";
 export const PREFS_KEY = "connection_info";
 export const SAVED_GAME_KEY = "saved_game";
 export const DEFAULT_PAGE = "connect";
+export const AP_GAME_NAME = "Archipela-Go!";
 
 export const SCOUTING_DISTANCE_BASE_M = 30;
 export const SCOUTING_DISTANCE_INCREMENT_M = 15;
