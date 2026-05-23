@@ -36,7 +36,7 @@
     "dev": "rsbuild dev --open",
     "format": "biome format --write ; sed -i'' 's/< %=/<%=/g' src/index.html",
     "preview": "rsbuild preview",
-    "zip": "ASSET_PREFIX=./ rsbuild build; cd dist; zip ../dist.zip *"
+    "zip": "ASSET_PREFIX=./ rsbuild build; cd dist; zip -r ../ap-go-web-client-$(git describe --always --dirty='*' --tags).zip ./"
   },
   "type": "module",
   "version": "0.0.1"

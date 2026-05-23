@@ -8,6 +8,7 @@
 node_modules
 dist/
 gen/target
+/ap-go-web-client-v*.*.zip
 
 # Profile
 .rspack-profile-*/
