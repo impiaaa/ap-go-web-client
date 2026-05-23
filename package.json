@@ -35,7 +35,8 @@
     "ci": "biome ci --html-formatter-enabled=false --html-linter-enabled=false --html-assist-enabled=false && cd gen && cargo fmt --check && cargo check",
     "dev": "rsbuild dev --open",
     "format": "biome format --write ; sed -i'' 's/< %=/<%=/g' src/index.html",
-    "preview": "rsbuild preview"
+    "preview": "rsbuild preview",
+    "zip": "ASSET_PREFIX=./ rsbuild build; cd dist; zip ../dist.zip *"
   },
   "type": "module",
   "version": "0.0.1"
