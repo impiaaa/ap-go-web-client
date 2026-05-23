@@ -44,12 +44,20 @@
           Set Home Location…
         </button>
         <button
-          id="open-advanced-settings"
+          id="open-generation-settings"
           type="button"
           aria-haspopup="dialog"
-          data-i18n="connect.open-advanced-settings"
+          data-i18n="connect.open-generation-settings"
         >
-          Advanced Settings…
+          Generation Settings…
+        </button>
+        <button
+          id="open-app-settings"
+          type="button"
+          aria-haspopup="dialog"
+          data-i18n="connect.open-app-settings"
+        >
+          App Settings…
         </button>
         <button id="connect" type="submit"></button>
       </form>
@@ -86,47 +94,38 @@
         <div id="set-home-map" class="map-container"></div>
         <button id="save-home" data-i18n="connect.set-home-dialog.save" type="submit">Save</button>
       </dialog>
-      <dialog id="advanced-settings-dialog" closedby="any">
-        <h2 data-i18n="connect.advanced-settings-dialog.title">Advanced Settings</h2>
-        <form class="gridform" id="advanced-settings-form">
-          <label for="trap-duration" data-i18n="connect.advanced-settings-dialog.trap-duration"
-            >Trap Duration</label
-          >
-          <span class="range-group">
-            <input id="trap-duration" max="300" min="1" type="range" value="60">
-            <output
-              id="trap-duration-value"
-              for="trap-duration"
-              style="width: 7ch; text-align: right;"
-            ></output>
-          </span>
+      <dialog id="generation-settings-dialog" closedby="any">
+        <h2 data-i18n="connect.generation-settings-dialog.title">Generation Settings</h2>
+        <form class="gridform" id="generation-settings-form">
           <label
             for="subgraph-selection"
-            data-i18n="connect.advanced-settings-dialog.subgraph.selection"
+            data-i18n="connect.generation-settings-dialog.subgraph.selection"
             >Ensure Reachable</label
           >
           <select id="subgraph-selection" name="subgraph-selection">
             <option
-              data-i18n="connect.advanced-settings-dialog.subgraph.full-graph"
+              data-i18n="connect.generation-settings-dialog.subgraph.full-graph"
               selected
               value="0"
             >
               No Limits
             </option>
             <option
-              data-i18n="connect.advanced-settings-dialog.subgraph.biggest-subgraph"
+              data-i18n="connect.generation-settings-dialog.subgraph.biggest-subgraph"
               value="1"
             >
               Most Roads
             </option>
             <option
-              data-i18n="connect.advanced-settings-dialog.subgraph.closest-subgraph"
+              data-i18n="connect.generation-settings-dialog.subgraph.closest-subgraph"
               value="2"
             >
               Closest Roads
             </option>
           </select>
-          <label for="overpass-server" data-i18n="connect.advanced-settings-dialog.overpass-server"
+          <label
+            for="overpass-server"
+            data-i18n="connect.generation-settings-dialog.overpass-server"
             >Overpass Server</label
           >
           <input
@@ -147,7 +146,7 @@
             <option>https://overpass.maprva.org/api/interpreter</option>
             <option>https://ethiopia.overpass.openplaceguide.org/api/interpreter</option>
           </datalist>
-          <label for="overpass-query" data-i18n="connect.advanced-settings-dialog.overpass-query"
+          <label for="overpass-query" data-i18n="connect.generation-settings-dialog.overpass-query"
             >Overpass Query</label
           >
           <textarea
@@ -160,20 +159,39 @@
             spellcheck="false"
             wrap="off"
           ></textarea>
+          <button
+            id="save-generation-settings"
+            data-i18n="connect.generation-settings-dialog.save"
+            type="submit"
+          >
+            Save
+          </button>
+        </form>
+      </dialog>
+      <dialog id="app-settings-dialog" closedby="any">
+        <h2 data-i18n="connect.app-settings-dialog.title">App Settings</h2>
+        <form class="gridform" id="app-settings-form">
+          <label for="trap-duration" data-i18n="connect.app-settings-dialog.trap-duration"
+            >Trap Duration</label
+          >
+          <span class="range-group">
+            <input id="trap-duration" max="300" min="1" type="range" value="60">
+            <output
+              id="trap-duration-value"
+              for="trap-duration"
+              style="width: 7ch; text-align: right;"
+            ></output>
+          </span>
           <hr>
           <button
             id="clear-all"
             class="invalid"
-            data-i18n="connect.advanced-settings-dialog.clear-all"
+            data-i18n="connect.app-settings-dialog.clear-all"
             type="button"
           >
             Erase All Settings and Data
           </button>
-          <button
-            id="save-advanced-settings"
-            data-i18n="connect.advanced-settings-dialog.save"
-            type="submit"
-          >
+          <button id="save-app-settings" data-i18n="connect.app-settings-dialog.save" type="submit">
             Save
           </button>
         </form>

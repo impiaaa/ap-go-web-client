@@ -1,19 +1,11 @@
 {
   "translation": {
     "connect": {
-      "advanced-settings-dialog": {
+      "app-settings-dialog": {
         "clear-all": "Erase All Settings and Data",
         "clear-all-confirm": "Erase all settings and data?",
-        "overpass-query": "Overpass Query",
-        "overpass-server": "Overpass Server",
         "save": "Save",
-        "subgraph": {
-          "biggest-subgraph": "Most Roads",
-          "closest-subgraph": "Closest Roads",
-          "full-graph": "No Limits",
-          "selection": "Ensure Reachable"
-        },
-        "title": "Advanced Settings",
+        "title": "App Settings",
         "trap-duration": "Trap Duration",
         "trap-duration-value": "{{trap_duration.value}} sec"
       },
@@ -33,6 +25,18 @@
         "no-home": "Set a home location",
         "tracking": "Lost tracking"
       },
+      "generation-settings-dialog": {
+        "overpass-query": "Overpass Query",
+        "overpass-server": "Overpass Server",
+        "save": "Save",
+        "subgraph": {
+          "biggest-subgraph": "Most Roads",
+          "closest-subgraph": "Closest Roads",
+          "full-graph": "No Limits",
+          "selection": "Ensure Reachable"
+        },
+        "title": "Generation Settings"
+      },
       "geolocation-error": {
         "cheat": "Enable cheat mode?",
         "reload": "Please reload and reconnect."
@@ -42,7 +46,8 @@
         "connecting": "Connecting…",
         "generating": "Generating…"
       },
-      "open-advanced-settings": "Advanced Settings…",
+      "open-app-settings": "App Settings…",
+      "open-generation-settings": "Generation Settings…",
       "password": "Password",
       "player": "Player Name",
       "port": "Port",

@@ -57,15 +57,6 @@ window.addEventListener("hashchange", (ev) => {
   showPage(old_hash, new_hash);
 });
 
-window.addEventListener("DOMContentLoaded", () => {
-  localize("html");
-  if (i18next.resolvedLanguage) {
-    document.documentElement.setAttribute("lang", i18next.resolvedLanguage);
-    document.documentElement.setAttribute("dir", i18next.dir());
-  }
-  showPage("", window.location.hash.substring(1));
-});
-
 /* Connection page */
 
 setUpConnectPage();
@@ -85,3 +76,10 @@ setUpHintsPage();
 /* Other non-page setup */
 
 setUpGameplay();
+
+localize("html");
+if (i18next.resolvedLanguage) {
+  document.documentElement.setAttribute("lang", i18next.resolvedLanguage);
+  document.documentElement.setAttribute("dir", i18next.dir());
+}
+showPage("", window.location.hash.substring(1));

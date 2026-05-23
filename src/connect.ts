@@ -39,8 +39,8 @@ const setup_form = document.forms.namedItem("connect-form")!;
 const set_home_button = document.getElementById(
   "set-home",
 ) as HTMLButtonElement;
-const open_advanced_settings_button = document.getElementById(
-  "open-advanced-settings",
+const open_generation_settings_button = document.getElementById(
+  "open-generation-settings",
 ) as HTMLButtonElement;
 const connect_button = document.getElementById("connect") as HTMLButtonElement;
 const msgbox = document.getElementById("connection-message")!;
@@ -66,7 +66,7 @@ export function setFormDisabled(disabled: boolean) {
   (setup_form.elements.namedItem("password") as HTMLInputElement).disabled =
     disabled;
   set_home_button.disabled = disabled;
-  open_advanced_settings_button.disabled = disabled;
+  open_generation_settings_button.disabled = disabled;
 }
 
 export function setConnectDisabled(disabled: boolean) {
@@ -318,74 +318,84 @@ function setUpSetHomeMap() {
   });
 }
 
-function openAdvancedSettings() {
+function openGenerationSettings() {
   (document.getElementById("overpass-server") as HTMLInputElement).value =
     prefs.overpass_server;
   (document.getElementById("overpass-query") as HTMLInputElement).value =
     prefs.overpass_query;
   (document.getElementById("subgraph-selection") as HTMLInputElement).value =
     prefs.subgraph_selection.toString();
+  (
+    document.getElementById("generation-settings-dialog") as HTMLDialogElement
+  ).showModal();
+}
+
+function openAppSettings() {
   (document.getElementById("trap-duration") as HTMLInputElement).valueAsNumber =
     prefs.trap_duration;
   updateTrapDuration();
   (
-    document.getElementById("advanced-settings-dialog") as HTMLDialogElement
+    document.getElementById("app-settings-dialog") as HTMLDialogElement
   ).showModal();
 }
 
-function saveAdvancedSettings(ev: PointerEvent) {
-  const advanced_settings_form = document.getElementById(
-    "advanced-settings-form",
+function saveGenerationSettings(ev: PointerEvent) {
+  const generation_settings_form = document.getElementById(
+    "generation-settings-form",
   ) as HTMLFormElement;
-  if (advanced_settings_form.checkValidity()) {
+  if (generation_settings_form.checkValidity()) {
     ev.preventDefault();
 
     const overpass_query =
       (
-        advanced_settings_form.elements.namedItem(
+        generation_settings_form.elements.namedItem(
           "overpass-query",
         ) as HTMLTextAreaElement
       ).value || DEFAULT_OVERPASS_QUERY;
     const overpass_server =
       (
-        advanced_settings_form.elements.namedItem(
+        generation_settings_form.elements.namedItem(
           "overpass-server",
         ) as HTMLInputElement
       ).value || prefs.overpass_server;
     const subgraph_selection = parseInt(
       (
-        advanced_settings_form.elements.namedItem(
+        generation_settings_form.elements.namedItem(
           "subgraph-selection",
         ) as HTMLInputElement
       ).value,
       10,
     );
-    const trap_duration =
-      (
-        advanced_settings_form.elements.namedItem(
-          "trap-duration",
-        ) as HTMLInputElement
-      ).valueAsNumber || prefs.trap_duration;
 
     if (
       overpass_query !== prefs.overpass_query ||
       overpass_server !== prefs.overpass_server ||
-      subgraph_selection !== prefs.subgraph_selection ||
-      trap_duration !== prefs.trap_duration
+      subgraph_selection !== prefs.subgraph_selection
     ) {
       prefs.overpass_query = overpass_query;
       prefs.overpass_server = overpass_server;
       prefs.subgraph_selection = subgraph_selection;
-      prefs.trap_duration = trap_duration;
       saveConnectInfo();
       game_data.points.clear();
       saveGame();
     }
 
     (
-      document.getElementById("advanced-settings-dialog") as HTMLDialogElement
+      document.getElementById("generation-settings-dialog") as HTMLDialogElement
     ).close();
   }
+}
+
+function saveAppSettings(ev: PointerEvent) {
+  ev.preventDefault();
+  const app_settings_form = document.getElementById(
+    "app-settings-form",
+  ) as HTMLFormElement;
+  prefs.trap_duration =
+    (app_settings_form.elements.namedItem("trap-duration") as HTMLInputElement)
+      .valueAsNumber || prefs.trap_duration;
+  saveConnectInfo();
+  (document.getElementById("app-settings-dialog") as HTMLDialogElement).close();
 }
 
 export function setUpConnectPage() {
@@ -398,7 +408,13 @@ export function setUpConnectPage() {
       document.getElementById("set-home-dialog") as HTMLDialogElement
     ).showModal();
   });
-  open_advanced_settings_button.addEventListener("click", openAdvancedSettings);
+  open_generation_settings_button.addEventListener(
+    "click",
+    openGenerationSettings,
+  );
+  document
+    .getElementById("open-app-settings")
+    ?.addEventListener("click", openAppSettings);
 
   const datapackage_str = localStorage.getItem(DATAPACKAGE_KEY);
   if (datapackage_str) {
@@ -508,26 +524,26 @@ export function setUpConnectPage() {
     }
   }
 
-  (
-    document.getElementById("save-advanced-settings") as HTMLButtonElement
-  ).addEventListener("click", saveAdvancedSettings);
-  (document.getElementById("clear-all") as HTMLButtonElement).addEventListener(
-    "click",
-    (ev) => {
-      ev.preventDefault();
-      if (
-        confirm(
-          i18next.t(
-            "connect.advanced-settings-dialog.clear-all-confirm",
-            "Erase all settings and data?",
-          ),
-        )
-      ) {
-        localStorage.clear();
-        window.location.reload();
-      }
-    },
-  );
+  document
+    .getElementById("save-generation-settings")
+    ?.addEventListener("click", saveGenerationSettings);
+  document
+    .getElementById("save-app-settings")
+    ?.addEventListener("click", saveAppSettings);
+  document.getElementById("clear-all")?.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    if (
+      confirm(
+        i18next.t(
+          "connect.app-settings-dialog.clear-all-confirm",
+          "Erase all settings and data?",
+        ),
+      )
+    ) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  });
 
   if (!prefs.home) {
     set_home_button.classList.add("invalid");
@@ -577,7 +593,7 @@ const trap_duration = document.getElementById(
 const trap_duration_value = document.getElementById("trap-duration-value")!;
 function updateTrapDuration() {
   trap_duration_value.innerText = i18next.t(
-    "connect.advanced-settings-dialog.trap-duration-value",
+    "connect.app-settings-dialog.trap-duration-value",
     {
       defaultValue: "{{trap_duration.value}} sec",
       trap_duration: trap_duration,
