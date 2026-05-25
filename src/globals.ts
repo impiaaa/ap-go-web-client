@@ -111,22 +111,28 @@ export const OLD_QUERY_DIGESTS: string[] = [
 ];
 
 export const prefs: {
+  countdown_vox: string;
   home: [number, number] | null;
   overpass_query: string;
   overpass_server: string;
+  receive_sfx: string;
+  send_sfx: string;
   show_checked_locations: boolean;
   subgraph_selection: SubgraphSelection;
   trap_duration: number;
 } = {
+  countdown_vox: "",
   home: null,
   overpass_query: DEFAULT_OVERPASS_QUERY,
   overpass_server: "https://overpass.private.coffee/api/interpreter",
+  receive_sfx: "",
+  send_sfx: "",
   show_checked_locations: true,
   subgraph_selection: SubgraphSelection.FullGraph,
   trap_duration: 60,
 };
 export let slot_data: APGoSlotData | null = null;
-export function setSlotData(new_slot_data: APGoSlotData) {
+export function setSlotData(new_slot_data: APGoSlotData | null) {
   slot_data = new_slot_data;
 }
 export const client = new Client();

@@ -47,6 +47,7 @@ let start_time: DOMHighResTimeStamp = 0;
 
 export function start() {
   const initial_max_velocity = Math.min(canvas.width, canvas.height);
+  particles.splice(0);
   for (let i = 0; i < particle_count / 2; i++) {
     particles.push(
       new Particle(
@@ -106,7 +107,6 @@ function animate(timestamp: DOMHighResTimeStamp) {
   });
   if (done) {
     canvas.style.visibility = "hidden";
-    particles.splice(0);
   } else {
     window.requestAnimationFrame(animate);
   }

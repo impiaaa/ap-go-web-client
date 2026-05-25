@@ -4,7 +4,25 @@
       "app-settings-dialog": {
         "clear-all": "Erase All Settings and Data",
         "clear-all-confirm": "Erase all settings and data?",
+        "countdown-vox": {
+          "female": "Female",
+          "label": "Countdown Announcer",
+          "male": "Male",
+          "none": "None"
+        },
+        "item-sfx": {
+          "8bit": "8-bit Synth",
+          "dog": "Dog",
+          "glockenspiel": "Glockenspiel",
+          "harp": "Harp",
+          "marimba": "Marimba",
+          "none": "None",
+          "orchestra": "Orchestra",
+          "piccolo": "Piccolo"
+        },
+        "receive-sfx": "Receiving Sound",
         "save": "Save",
+        "send-sfx": "Finding Sound",
         "title": "App Settings",
         "trap-duration": "Trap Duration",
         "trap-duration-value": "{{trap_duration.value}} sec"
@@ -33,7 +51,7 @@
           "biggest-subgraph": "Most Roads",
           "closest-subgraph": "Closest Roads",
           "full-graph": "No Limits",
-          "selection": "Ensure Reachable"
+          "label": "Ensure Reachable"
         },
         "title": "Generation Settings"
       },

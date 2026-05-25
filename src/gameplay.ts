@@ -349,10 +349,6 @@ export function receiveItems(items: Item[]) {
 function hasDisplayedTrap(item: Item): boolean {
   // If slot_data is undefined, we haven't loaded a game yet, so we don't know which traps have
   // been displayed, so hold off from displaying any traps until after loading.
-  console.log(client.items.received);
-  console.log(item);
-  console.log(client.items.received.indexOf(item));
-  console.log(game_data.last_displayed_trap);
   return (
     !slot_data ||
     client.items.received.indexOf(item) <= game_data.last_displayed_trap

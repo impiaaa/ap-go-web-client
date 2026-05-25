@@ -62,3 +62,19 @@ export enum GameState {
   ReadyNotTracking,
   Tracking,
 }
+
+interface AudioSession {
+  type:
+    | "auto"
+    | "playback"
+    | "transient"
+    | "transient-solo"
+    | "ambient"
+    | "play-and-record";
+}
+
+declare global {
+  interface Navigator {
+    audioSession?: AudioSession;
+  }
+}

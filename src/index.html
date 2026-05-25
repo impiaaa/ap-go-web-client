@@ -99,7 +99,7 @@
         <form class="gridform" id="generation-settings-form">
           <label
             for="subgraph-selection"
-            data-i18n="connect.generation-settings-dialog.subgraph.selection"
+            data-i18n="connect.generation-settings-dialog.subgraph.label"
             >Ensure Reachable</label
           >
           <select id="subgraph-selection" name="subgraph-selection">
@@ -171,6 +171,63 @@
       <dialog id="app-settings-dialog" closedby="any">
         <h2 data-i18n="connect.app-settings-dialog.title">App Settings</h2>
         <form class="gridform" id="app-settings-form">
+          <label for="countdown-vox" data-i18n="connect.app-settings-dialog.countdown-vox.label"
+            >Countdown Announcer</label
+          >
+          <select id="countdown-vox" name="countdown-vox">
+            <option data-i18n="connect.app-settings-dialog.countdown-vox.none" selected value="">
+              None
+            </option>
+            <option data-i18n="connect.app-settings-dialog.countdown-vox.female" value="female">
+              Female
+            </option>
+            <option data-i18n="connect.app-settings-dialog.countdown-vox.male" value="male">
+              Male
+            </option>
+          </select>
+          <label for="receive-sfx" data-i18n="connect.app-settings-dialog.receive-sfx"
+            >Receiving Sound</label
+          >
+          <select id="receive-sfx" name="receive-sfx">
+            <option data-i18n="connect.app-settings-dialog.item-sfx.none" selected value="">
+              None
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.8bit" value="8bit">
+              8-bit Synth
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.dog" value="dog">Dog</option>
+            <option
+              data-i18n="connect.app-settings-dialog.item-sfx.glockenspiel"
+              value="glockenspiel"
+            >
+              Glockenspiel
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.harp" value="harp">Harp</option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.marimba" value="marimba">
+              Marimba
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.orchestra" value="orchestra">
+              Orchestra
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.piccolo" value="piccolo">
+              Piccolo
+            </option>
+          </select>
+          <label for="send-sfx" data-i18n="connect.app-settings-dialog.send-sfx"
+            >Finding Sound</label
+          >
+          <select id="send-sfx" name="send-sfx">
+            <option data-i18n="connect.app-settings-dialog.item-sfx.none" selected value="">
+              None
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.harp" value="harp">Harp</option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.marimba" value="marimba">
+              Marimba
+            </option>
+            <option data-i18n="connect.app-settings-dialog.item-sfx.orchestra" value="orchestra">
+              Orchestra
+            </option>
+          </select>
           <label for="trap-duration" data-i18n="connect.app-settings-dialog.trap-duration"
             >Trap Duration</label
           >
@@ -258,6 +315,11 @@
             >” from <a target="_blank" href="https://github.com/rapideditor/temaki">Temaki</a> are
             under
             <a target="_blank" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+          </li>
+          <li>
+            <a href="https://github.com/NewSoupVi/ArchipelagoJingles">Archipelago Jingles</a>
+            composed, and 8-bit, dog, glockenspiel, orchestra, and piccolo renditions produced, by
+            NewSoupVi.
           </li>
           <%= softwareLicenses %>
         </ul>

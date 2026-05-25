@@ -9,6 +9,7 @@ import { DEFAULT_PAGE } from "./globals";
 import { setUpHintsPage } from "./hints";
 import { setUpLogPage } from "./log";
 import { hideMapPage, showMapPage } from "./map";
+import { setUpNotifs } from "./notifs";
 
 i18next.use(LanguageDetector).init({
   debug: import.meta.env.DEV,
@@ -76,6 +77,12 @@ setUpHintsPage();
 /* Other non-page setup */
 
 setUpGameplay();
+
+/* Notifications */
+
+setUpNotifs();
+
+// Page setup
 
 localize("html");
 if (i18next.resolvedLanguage) {

@@ -1,0 +1,117 @@
+#notification-popup {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  max-width: 450px;
+  padding: 1em;
+  margin: 1em;
+  color: var(--on-surface-container);
+  background-color: var(--surface-container-highest);
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 25%);
+}
+
+#text-overlay {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#text-overlay > * {
+  overflow: hidden;
+  font-weight: bolder;
+  color: var(--surface);
+  -webkit-text-stroke: 1vmin var(--on-surface);
+  animation:
+    1s linear countdown none,
+    4s linear victory none;
+}
+
+#text-overlay .countdown {
+  font-size: 50vmin;
+}
+
+@keyframes countdown {
+  from {
+    opacity: 100%;
+    scale: 100%;
+    animation-timing-function: linear;
+  }
+  to {
+    opacity: 0%;
+    scale: 50%;
+  }
+}
+
+#text-overlay .victory {
+  font-size: 25vmin;
+}
+
+@keyframes victory {
+  from {
+    opacity: 0;
+    scale: 50%;
+    animation-timing-function: ease-out;
+  }
+  6.25% {
+    scale: 125%;
+    animation-timing-function: ease-in-out;
+  }
+  12.5% {
+    scale: 100%;
+    opacity: 100%;
+  }
+  87.5% {
+    scale: 100%;
+    opacity: 100%;
+    animation-timing-function: linear;
+  }
+  to {
+    opacity: 0;
+    scale: 50%;
+  }
+}
+
+#particle-overlay {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  visibility: hidden;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes countdown {
+    from {
+      opacity: 100%;
+      scale: 100%;
+      animation-timing-function: step-end;
+    }
+    to {
+      opacity: 0%;
+      scale: 50%;
+    }
+  }
+  @keyframes victory {
+    from {
+      scale: 100%;
+      opacity: 100%;
+      animation-timing-function: step-end;
+    }
+    to {
+      opacity: 0;
+      scale: 50%;
+    }
+  }
+  #particle-overlay {
+    display: none;
+  }
+}

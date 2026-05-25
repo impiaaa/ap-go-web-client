@@ -1,7 +1,5 @@
 import type { MessageNode, Player } from "archipelago.js";
-import i18next from "i18next";
 import { client } from "./globals";
-import { start as start_particles } from "./particles";
 import { styleItemElement } from "./utils";
 
 export const text_log = document.getElementById("text-log")!;
@@ -57,11 +55,16 @@ function addMessages(nodes: MessageNode[]) {
 }
 
 function logError(message: string) {
+  const is_at_bottom =
+    text_log.scrollTop >= text_log.scrollHeight - text_log.clientHeight - 4;
   const msg_el = document.createElement("span");
   msg_el.appendChild(document.createTextNode(message));
   msg_el.classList.add("error");
   text_log.appendChild(msg_el);
   text_log.appendChild(document.createElement("br"));
+  if (is_at_bottom) {
+    text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
+  }
 }
 
 export function setUpLogPage() {
@@ -78,53 +81,6 @@ export function setUpLogPage() {
       text_log.scrollTop = text_log.scrollHeight - text_log.clientHeight;
     }
   });
-
-  const countdown_dialog = document.getElementById("text-overlay")!;
-  const counter_element = countdown_dialog.firstElementChild as HTMLElement;
-
-  const countdown = counter_element
-    .getAnimations()
-    .find((a) => a instanceof CSSAnimation && a.animationName === "countdown")!;
-  countdown.addEventListener("finish", () => {
-    countdown_dialog.style.visibility = "hidden";
-  });
-  client.messages.on("countdown", (text) => {
-    if (text.includes(": ")) {
-      text = text.substring(text.indexOf(": ") + 2);
-    }
-    if (text.length > 3) {
-      // ignore the first "Starting countdown" message
-      return;
-    }
-
-    counter_element.textContent = text;
-    counter_element.classList.remove("victory");
-    counter_element.classList.add("countdown");
-    countdown.currentTime = 0;
-    countdown_dialog.style.visibility = "visible";
-    countdown.play();
-  });
-
-  const victory = counter_element
-    .getAnimations()
-    .find((a) => a instanceof CSSAnimation && a.animationName === "victory")!;
-  victory.addEventListener("finish", () => {
-    countdown_dialog.style.visibility = "hidden";
-  });
-  client.messages.on("goaled", (_, player) => {
-    if (player.slot !== client.players.self.slot) {
-      return;
-    }
-
-    counter_element.textContent = i18next.t("text-overlay.victory", "Victory!");
-    counter_element.classList.remove("countdown");
-    counter_element.classList.add("victory");
-    victory.currentTime = 0;
-    countdown_dialog.style.visibility = "visible";
-    victory.play();
-    start_particles();
-  });
-
   client.socket.on("connected", () => {
     text_log.innerHTML = "";
     client.messages.log.forEach((line) => {

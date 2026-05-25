@@ -5,6 +5,7 @@
 @import "map.css";
 @import "log.css";
 @import "hints.css";
+@import "notifs.css";
 
 html {
   height: 100%;

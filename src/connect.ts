@@ -32,6 +32,7 @@ import {
   updateMapLocation,
   updateMapLocationError,
 } from "./map";
+import { preloadAudio } from "./notifs";
 import { type APGoSlotData, GameState, type ItemType } from "./types";
 import { roundCoordinates } from "./utils";
 
@@ -112,6 +113,7 @@ function doLogin(thenShowMap: boolean) {
   }
 
   moveGameState(GameState.Connecting);
+  setSlotData(null);
 
   client
     .login<APGoSlotData>(
@@ -321,9 +323,9 @@ function setUpSetHomeMap() {
 function openGenerationSettings() {
   (document.getElementById("overpass-server") as HTMLInputElement).value =
     prefs.overpass_server;
-  (document.getElementById("overpass-query") as HTMLInputElement).value =
+  (document.getElementById("overpass-query") as HTMLTextAreaElement).value =
     prefs.overpass_query;
-  (document.getElementById("subgraph-selection") as HTMLInputElement).value =
+  (document.getElementById("subgraph-selection") as HTMLSelectElement).value =
     prefs.subgraph_selection.toString();
   (
     document.getElementById("generation-settings-dialog") as HTMLDialogElement
@@ -331,6 +333,12 @@ function openGenerationSettings() {
 }
 
 function openAppSettings() {
+  (document.getElementById("countdown-vox") as HTMLSelectElement).value =
+    prefs.countdown_vox;
+  (document.getElementById("receive-sfx") as HTMLSelectElement).value =
+    prefs.receive_sfx;
+  (document.getElementById("send-sfx") as HTMLSelectElement).value =
+    prefs.send_sfx;
   (document.getElementById("trap-duration") as HTMLInputElement).valueAsNumber =
     prefs.trap_duration;
   updateTrapDuration();
@@ -352,12 +360,11 @@ function saveGenerationSettings(ev: PointerEvent) {
           "overpass-query",
         ) as HTMLTextAreaElement
       ).value || DEFAULT_OVERPASS_QUERY;
-    const overpass_server =
-      (
-        generation_settings_form.elements.namedItem(
-          "overpass-server",
-        ) as HTMLInputElement
-      ).value || prefs.overpass_server;
+    const overpass_server = (
+      generation_settings_form.elements.namedItem(
+        "overpass-server",
+      ) as HTMLInputElement
+    ).value;
     const subgraph_selection = parseInt(
       (
         generation_settings_form.elements.namedItem(
@@ -391,10 +398,20 @@ function saveAppSettings(ev: PointerEvent) {
   const app_settings_form = document.getElementById(
     "app-settings-form",
   ) as HTMLFormElement;
-  prefs.trap_duration =
-    (app_settings_form.elements.namedItem("trap-duration") as HTMLInputElement)
-      .valueAsNumber || prefs.trap_duration;
+  prefs.countdown_vox = (
+    app_settings_form.elements.namedItem("countdown-vox") as HTMLSelectElement
+  ).value;
+  prefs.receive_sfx = (
+    app_settings_form.elements.namedItem("receive-sfx") as HTMLSelectElement
+  ).value;
+  prefs.send_sfx = (
+    app_settings_form.elements.namedItem("send-sfx") as HTMLSelectElement
+  ).value;
+  prefs.trap_duration = (
+    app_settings_form.elements.namedItem("trap-duration") as HTMLInputElement
+  ).valueAsNumber;
   saveConnectInfo();
+  preloadAudio();
   (document.getElementById("app-settings-dialog") as HTMLDialogElement).close();
 }
 
@@ -485,21 +502,25 @@ export function setUpConnectPage() {
 
       const overpass_query_json = prefs_json.overpass_query;
       if (typeof overpass_query_json === "string") {
-        window.crypto.subtle
-          .digest("SHA-1", new TextEncoder().encode(overpass_query_json))
-          .then((digest) => {
-            const digest_array = Array.from(new Uint8Array(digest));
-            const digest_hex = digest_array
-              .map((b) => b.toString(16).padStart(2, "0"))
-              .join("");
-            if (OLD_QUERY_DIGESTS.includes(digest_hex)) {
-              console.log(
-                "Old default query detected, ignoring and using new default",
-              );
-            } else {
-              prefs.overpass_query = overpass_query_json;
-            }
-          });
+        if (window.isSecureContext) {
+          window.crypto.subtle
+            .digest("SHA-1", new TextEncoder().encode(overpass_query_json))
+            .then((digest) => {
+              const digest_array = Array.from(new Uint8Array(digest));
+              const digest_hex = digest_array
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+              if (OLD_QUERY_DIGESTS.includes(digest_hex)) {
+                console.log(
+                  "Old default query detected, ignoring and using new default",
+                );
+              } else {
+                prefs.overpass_query = overpass_query_json;
+              }
+            });
+        } else {
+          prefs.overpass_query = overpass_query_json;
+        }
       }
 
       const subgraph_selection_json = prefs_json.subgraph_selection;
@@ -519,6 +540,23 @@ export function setUpConnectPage() {
       if (typeof trap_duration_json === "number" && trap_duration_json > 0) {
         prefs.trap_duration = trap_duration_json;
       }
+
+      const countdown_vox_json = prefs_json.countdown_vox;
+      if (typeof countdown_vox_json === "string") {
+        prefs.countdown_vox = countdown_vox_json;
+      }
+
+      const receive_sfx_json = prefs_json.receive_sfx;
+      if (typeof receive_sfx_json === "string") {
+        prefs.receive_sfx = receive_sfx_json;
+      }
+
+      const send_sfx_json = prefs_json.send_sfx;
+      if (typeof send_sfx_json === "string") {
+        prefs.send_sfx = send_sfx_json;
+      }
+
+      preloadAudio();
     } else {
       localStorage.removeItem(PREFS_KEY);
     }
@@ -564,27 +602,46 @@ export function setUpConnectPage() {
 
   trap_duration.addEventListener("input", updateTrapDuration);
 
-  window.addEventListener("DOMContentLoaded", () => {
-    const connecturl = URL.parse(document.URL)?.searchParams.get("connecturl");
-    if (connecturl) {
-      const connect_url = URL.parse(connecturl);
-      if (
-        connect_url &&
-        connect_url.searchParams.get("game") === AP_GAME_NAME
-      ) {
-        window.location.hash = "#connect";
-        player.value = connect_url.username;
-        password.value =
-          connect_url.password === "None" ? "" : connect_url.password;
-        ip.value = connect_url.hostname;
-        port.value = connect_url.port;
-        if (setup_form.checkValidity()) {
-          saveConnectInfo();
-          doLogin(true);
-        }
-      }
+  const countdown_vox = document.getElementById(
+    "countdown-vox",
+  ) as HTMLSelectElement;
+  countdown_vox.addEventListener("input", () => {
+    if (countdown_vox.value.length > 0) {
+      new Audio(`vox/${countdown_vox.value}/10.ogg`).play();
     }
   });
+  (
+    document.getElementById("receive-sfx") as HTMLSelectElement
+  ).addEventListener("input", testSound);
+  (document.getElementById("send-sfx") as HTMLSelectElement).addEventListener(
+    "input",
+    testSound,
+  );
+
+  const connecturl = URL.parse(document.URL)?.searchParams.get("connecturl");
+  if (connecturl) {
+    const connect_url = URL.parse(connecturl);
+    if (connect_url && connect_url.searchParams.get("game") === AP_GAME_NAME) {
+      window.location.hash = "#connect";
+      player.value = connect_url.username;
+      password.value =
+        connect_url.password === "None" ? "" : connect_url.password;
+      ip.value = connect_url.hostname;
+      port.value = connect_url.port;
+      if (setup_form.checkValidity()) {
+        saveConnectInfo();
+        doLogin(true);
+      }
+    }
+  }
+}
+
+function testSound(this: HTMLSelectElement) {
+  if (this.value.length > 0) {
+    new Audio(
+      `sfx/${this.value}/Useful.${this.value === "8bit" ? "mp3" : "ogg"}`,
+    ).play();
+  }
 }
 
 const trap_duration = document.getElementById(
@@ -611,16 +668,11 @@ export function saveConnectInfo() {
   localStorage.setItem(
     PREFS_KEY,
     JSON.stringify({
-      home: prefs.home,
       ip: ip.value,
-      overpass_query: prefs.overpass_query,
-      overpass_server: prefs.overpass_server,
       password: password.value,
       player: player.value,
       port: port.value,
-      show_checked_locations: prefs.show_checked_locations,
-      subgraph_selection: prefs.subgraph_selection,
-      trap_duration: prefs.trap_duration,
+      ...prefs,
     }),
   );
 }
