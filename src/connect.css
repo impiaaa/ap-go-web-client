@@ -94,4 +94,5 @@ footer li:first-child::before {
 
 .range-group input {
   flex-grow: 1;
+  width: 100px;
 }
