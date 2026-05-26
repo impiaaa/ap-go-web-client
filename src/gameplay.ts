@@ -359,17 +359,6 @@ function displayTrap(item: Item) {
   if (hasDisplayedTrap(item)) {
     return;
   }
-  if (
-    document
-      .querySelector("#text-overlay")
-      ?.getAnimations()
-      .some((a) => a.playState === "running")
-  ) {
-    // HACK: Dialog elements always layer on top of everything, including the victory animation. I
-    // don't want the user to miss the victory animation because of a trap that auto-released. So if
-    // the animation is playing, don't display any traps.
-    return;
-  }
 
   const trap_dialog = document.getElementById(
     "trap-dialog",
