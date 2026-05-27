@@ -16,9 +16,10 @@ const victory_vox: HTMLAudioElement[] = [];
 let receive_sfx: SfxPack | null = null;
 let send_sfx: SfxPack | null = null;
 
-function preloadSound(path: string) {
+function preloadSound(path: string, volume: number) {
   const snd = new Audio(path);
   snd.preload = "auto";
+  snd.volume = volume;
   return snd;
 }
 
@@ -157,17 +158,21 @@ export function setUpNotifs() {
   });
 }
 
-function loadSfxPack(pack_name: string, with_victory: boolean): SfxPack | null {
+function loadSfxPack(
+  pack_name: string,
+  volume: number,
+  with_victory: boolean,
+): SfxPack | null {
   if (pack_name.length > 0) {
     const ext = pack_name === "8bit" ? "mp3" : "ogg";
     return {
-      filler: preloadSound(`sfx/${pack_name}/Filler.${ext}`),
-      progression: preloadSound(`sfx/${pack_name}/Progression.${ext}`),
-      proguseful: preloadSound(`sfx/${pack_name}/ProgUseful.${ext}`),
-      trap: preloadSound(`sfx/${pack_name}/Trap.${ext}`),
-      useful: preloadSound(`sfx/${pack_name}/Useful.${ext}`),
+      filler: preloadSound(`sfx/${pack_name}/Filler.${ext}`, volume),
+      progression: preloadSound(`sfx/${pack_name}/Progression.${ext}`, volume),
+      proguseful: preloadSound(`sfx/${pack_name}/ProgUseful.${ext}`, volume),
+      trap: preloadSound(`sfx/${pack_name}/Trap.${ext}`, volume),
+      useful: preloadSound(`sfx/${pack_name}/Useful.${ext}`, volume),
       victory: with_victory
-        ? preloadSound(`sfx/${pack_name}/Victory.${ext}`)
+        ? preloadSound(`sfx/${pack_name}/Victory.${ext}`, volume)
         : undefined,
     };
   } else {
@@ -179,17 +184,25 @@ export function preloadAudio() {
   countdowns.splice(0);
   victory_vox.splice(0);
   if (prefs.countdown_vox.length > 0) {
-    countdowns[0] = preloadSound(`vox/${prefs.countdown_vox}/go.ogg`);
+    countdowns[0] = preloadSound(
+      `vox/${prefs.countdown_vox}/go.ogg`,
+      prefs.countdown_vox_volume,
+    );
     for (let i = 1; i <= 10; i++) {
-      countdowns[i] = preloadSound(`vox/${prefs.countdown_vox}/${i}.ogg`);
+      countdowns[i] = preloadSound(
+        `vox/${prefs.countdown_vox}/${i}.ogg`,
+        prefs.countdown_vox_volume,
+      );
     }
     victory_vox[0] = preloadSound(
       `vox/${prefs.countdown_vox}/mission_completed.ogg`,
+      prefs.countdown_vox_volume,
     );
     victory_vox[1] = preloadSound(
       `vox/${prefs.countdown_vox}/objective_achieved.ogg`,
+      prefs.countdown_vox_volume,
     );
   }
-  send_sfx = loadSfxPack(prefs.send_sfx, true);
-  receive_sfx = loadSfxPack(prefs.receive_sfx, false);
+  send_sfx = loadSfxPack(prefs.send_sfx, prefs.send_sfx_volume, true);
+  receive_sfx = loadSfxPack(prefs.receive_sfx, prefs.receive_sfx_volume, false);
 }

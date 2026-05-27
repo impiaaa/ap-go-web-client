@@ -335,10 +335,19 @@ function openGenerationSettings() {
 function openAppSettings() {
   (document.getElementById("countdown-vox") as HTMLSelectElement).value =
     prefs.countdown_vox;
+  (
+    document.getElementById("countdown-vox-volume") as HTMLInputElement
+  ).valueAsNumber = prefs.countdown_vox_volume;
   (document.getElementById("receive-sfx") as HTMLSelectElement).value =
     prefs.receive_sfx;
+  (
+    document.getElementById("receive-sfx-volume") as HTMLInputElement
+  ).valueAsNumber = prefs.receive_sfx_volume;
   (document.getElementById("send-sfx") as HTMLSelectElement).value =
     prefs.send_sfx;
+  (
+    document.getElementById("send-sfx-volume") as HTMLInputElement
+  ).valueAsNumber = prefs.send_sfx_volume;
   (document.getElementById("trap-duration") as HTMLInputElement).valueAsNumber =
     prefs.trap_duration;
   updateTrapDuration();
@@ -401,12 +410,25 @@ function saveAppSettings(ev: PointerEvent) {
   prefs.countdown_vox = (
     app_settings_form.elements.namedItem("countdown-vox") as HTMLSelectElement
   ).value;
+  prefs.countdown_vox_volume = (
+    app_settings_form.elements.namedItem(
+      "countdown-vox-volume",
+    ) as HTMLInputElement
+  ).valueAsNumber;
   prefs.receive_sfx = (
     app_settings_form.elements.namedItem("receive-sfx") as HTMLSelectElement
   ).value;
+  prefs.receive_sfx_volume = (
+    app_settings_form.elements.namedItem(
+      "receive-sfx-volume",
+    ) as HTMLInputElement
+  ).valueAsNumber;
   prefs.send_sfx = (
     app_settings_form.elements.namedItem("send-sfx") as HTMLSelectElement
   ).value;
+  prefs.send_sfx_volume = (
+    app_settings_form.elements.namedItem("send-sfx-volume") as HTMLInputElement
+  ).valueAsNumber;
   prefs.trap_duration = (
     app_settings_form.elements.namedItem("trap-duration") as HTMLInputElement
   ).valueAsNumber;
@@ -536,14 +558,17 @@ export function setUpConnectPage() {
         prefs.show_checked_locations = show_checked_locations_json;
       }
 
-      const trap_duration_json = prefs_json.trap_duration;
-      if (typeof trap_duration_json === "number" && trap_duration_json > 0) {
-        prefs.trap_duration = trap_duration_json;
-      }
-
       const countdown_vox_json = prefs_json.countdown_vox;
       if (typeof countdown_vox_json === "string") {
         prefs.countdown_vox = countdown_vox_json;
+      }
+
+      const countdown_vox_volume_json = prefs_json.countdown_vox_volume;
+      if (
+        typeof countdown_vox_volume_json === "number" &&
+        countdown_vox_volume_json >= 0
+      ) {
+        prefs.countdown_vox_volume = countdown_vox_volume_json;
       }
 
       const receive_sfx_json = prefs_json.receive_sfx;
@@ -551,9 +576,30 @@ export function setUpConnectPage() {
         prefs.receive_sfx = receive_sfx_json;
       }
 
+      const receive_sfx_volume_json = prefs_json.receive_sfx_volume;
+      if (
+        typeof receive_sfx_volume_json === "number" &&
+        receive_sfx_volume_json >= 0
+      ) {
+        prefs.receive_sfx_volume = receive_sfx_volume_json;
+      }
+
       const send_sfx_json = prefs_json.send_sfx;
       if (typeof send_sfx_json === "string") {
         prefs.send_sfx = send_sfx_json;
+      }
+
+      const send_sfx_volume_json = prefs_json.send_sfx_volume;
+      if (
+        typeof send_sfx_volume_json === "number" &&
+        send_sfx_volume_json >= 0
+      ) {
+        prefs.send_sfx_volume = send_sfx_volume_json;
+      }
+
+      const trap_duration_json = prefs_json.trap_duration;
+      if (typeof trap_duration_json === "number" && trap_duration_json > 0) {
+        prefs.trap_duration = trap_duration_json;
       }
 
       preloadAudio();
@@ -602,21 +648,20 @@ export function setUpConnectPage() {
 
   trap_duration.addEventListener("input", updateTrapDuration);
 
-  const countdown_vox = document.getElementById(
-    "countdown-vox",
-  ) as HTMLSelectElement;
-  countdown_vox.addEventListener("input", () => {
-    if (countdown_vox.value.length > 0) {
-      new Audio(`vox/${countdown_vox.value}/10.ogg`).play();
-    }
-  });
-  (
-    document.getElementById("receive-sfx") as HTMLSelectElement
-  ).addEventListener("input", testSound);
-  (document.getElementById("send-sfx") as HTMLSelectElement).addEventListener(
-    "input",
-    testSound,
-  );
+  document
+    .getElementById("countdown-vox")
+    ?.addEventListener("input", testSound);
+  document
+    .getElementById("countdown-vox-volume")
+    ?.addEventListener("change", testSound);
+  document.getElementById("receive-sfx")?.addEventListener("input", testSound);
+  document
+    .getElementById("receive-sfx-volume")
+    ?.addEventListener("change", testSound);
+  document.getElementById("send-sfx")?.addEventListener("input", testSound);
+  document
+    .getElementById("send-sfx-volume")
+    ?.addEventListener("change", testSound);
 
   const connecturl = URL.parse(document.URL)?.searchParams.get("connecturl");
   if (connecturl) {
@@ -636,11 +681,42 @@ export function setUpConnectPage() {
   }
 }
 
-function testSound(this: HTMLSelectElement) {
-  if (this.value.length > 0) {
-    new Audio(
-      `sfx/${this.value}/Useful.${this.value === "8bit" ? "mp3" : "ogg"}`,
-    ).play();
+function testSound(this: HTMLElement) {
+  let selection: HTMLSelectElement;
+  let volume: HTMLInputElement;
+  if (this.id.endsWith("-volume")) {
+    const s = document.getElementById(
+      this.id.substring(0, this.id.length - "-volume".length),
+    );
+    if (!(s instanceof HTMLSelectElement)) {
+      throw "Invalid select element";
+    }
+    selection = s;
+
+    if (!(this instanceof HTMLInputElement)) {
+      throw "Invalid volume element";
+    }
+    volume = this;
+  } else {
+    if (!(this instanceof HTMLSelectElement)) {
+      throw "Invalid select element";
+    }
+    selection = this;
+
+    const v = document.getElementById(`${this.id}-volume`);
+    if (!(v instanceof HTMLInputElement)) {
+      throw "Invalid volume element";
+    }
+    volume = v;
+  }
+  if (selection.value.length > 0) {
+    const a = new Audio(
+      selection.id === "countdown-vox"
+        ? `vox/${selection.value}/10.ogg`
+        : `sfx/${selection.value}/Useful.${selection.value === "8bit" ? "mp3" : "ogg"}`,
+    );
+    a.volume = volume.valueAsNumber;
+    a.play();
   }
 }
 

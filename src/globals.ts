@@ -112,21 +112,27 @@ export const OLD_QUERY_DIGESTS: string[] = [
 
 export const prefs: {
   countdown_vox: string;
+  countdown_vox_volume: number;
   home: [number, number] | null;
   overpass_query: string;
   overpass_server: string;
   receive_sfx: string;
+  receive_sfx_volume: number;
   send_sfx: string;
+  send_sfx_volume: number;
   show_checked_locations: boolean;
   subgraph_selection: SubgraphSelection;
   trap_duration: number;
 } = {
   countdown_vox: "",
+  countdown_vox_volume: 1.0,
   home: null,
   overpass_query: DEFAULT_OVERPASS_QUERY,
   overpass_server: "https://overpass.private.coffee/api/interpreter",
   receive_sfx: "",
+  receive_sfx_volume: 0.75,
   send_sfx: "",
+  send_sfx_volume: 1.0,
   show_checked_locations: true,
   subgraph_selection: SubgraphSelection.FullGraph,
   trap_duration: 60,

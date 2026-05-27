@@ -8,7 +8,8 @@
           "female": "Female",
           "label": "Countdown Announcer",
           "male": "Male",
-          "none": "None"
+          "none": "None",
+          "volume": "Countdown Announcer Volume"
         },
         "item-sfx": {
           "8bit": "8-bit Synth",
@@ -21,8 +22,10 @@
           "piccolo": "Piccolo"
         },
         "receive-sfx": "Receiving Sound",
+        "receive-sfx-volume": "Receiving Sound Volume",
         "save": "Save",
         "send-sfx": "Finding Sound",
+        "send-sfx-volume": "Finding Sound Volume",
         "title": "App Settings",
         "trap-duration": "Trap Duration",
         "trap-duration-value": "{{trap_duration.value}} sec"
