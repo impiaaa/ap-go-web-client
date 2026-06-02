@@ -1,6 +1,9 @@
+import type { MessageNode } from "archipelago.js";
 import i18next from "i18next";
 import { client, prefs } from "./globals";
+import { messageNodesToHtml } from "./log";
 import { start as start_particles } from "./particles";
+import { isPopoverOpen } from "./utils";
 
 interface SfxPack {
   filler: HTMLAudioElement;
@@ -15,6 +18,9 @@ const countdowns: HTMLAudioElement[] = [];
 const victory_vox: HTMLAudioElement[] = [];
 let receive_sfx: SfxPack | null = null;
 let send_sfx: SfxPack | null = null;
+const notif_queue: [MessageNode[], HTMLAudioElement?][] = [];
+let notif_timer: number = -1;
+let last_notif_sfx: [string, HTMLAudioElement] | null = null;
 
 function preloadSound(path: string, volume: number) {
   const snd = new Audio(path);
@@ -23,8 +29,49 @@ function preloadSound(path: string, volume: number) {
   return snd;
 }
 
+function showNotification() {
+  if (notif_queue.length <= 0) {
+    throw "showNotification called with empty queue";
+  }
+  const notif_container = document.getElementById("notification-container");
+  if (notif_container === null) {
+    throw "Can't find container";
+  }
+  const [nodes, sound] = notif_queue.shift()!;
+  const notif = document.getElementById("notification");
+  while (notif?.firstChild) {
+    notif.removeChild(notif.firstChild);
+  }
+  notif?.appendChild(messageNodesToHtml(nodes));
+  notif_container.showPopover();
+  notif_timer = window.setTimeout(() => {
+    notif_container.hidePopover();
+  }, 4000);
+
+  if (sound !== undefined) {
+    if (navigator.audioSession !== undefined) {
+      navigator.audioSession.type = "transient";
+    }
+    sound.currentTime = 0;
+    sound.play();
+  }
+}
+
 export function setUpNotifs() {
-  client.messages.on("message", (_message, nodes) => {
+  const notif_container = document.getElementById("notification-container");
+  if (notif_container === null) {
+    throw "Can't find container";
+  }
+  notif_container.addEventListener("toggle", () => {
+    if (!isPopoverOpen(notif_container) && notif_queue.length > 0) {
+      if (notif_timer > -1) {
+        window.clearTimeout(notif_timer);
+      }
+      showNotification();
+    }
+  });
+  // TODO: click to dismiss
+  client.messages.on("message", (message, nodes) => {
     if (
       nodes.some(
         (node) =>
@@ -33,7 +80,19 @@ export function setUpNotifs() {
       ) &&
       window.location.hash !== "#log"
     ) {
-      // TODO: show notification
+      // Archipelago.js, when it receives a PrintJSON packet, first emits the specific event for the
+      // "type" of message, then emits this generic "message" event. Sound effects are only played
+      // for "itemSent" messages, but notifications can be shown for any message. So we need to
+      // determine which sound to play in the "itemSent" event handler, then "remember" it and
+      // recall during the generic "message" handler. Additionally we check that the actual message
+      // matches, just to be sure we aren't mixing any up.
+      const sound =
+        last_notif_sfx?.[0] === message ? last_notif_sfx?.[1] : undefined;
+      last_notif_sfx = null;
+      notif_queue.push([nodes, sound]);
+      if (!isPopoverOpen(notif_container)) {
+        showNotification();
+      }
     }
   });
 
@@ -54,6 +113,7 @@ export function setUpNotifs() {
       if (navigator.audioSession !== undefined) {
         navigator.audioSession.type = "transient";
       }
+      countdowns[value].currentTime = 0;
       countdowns[value].play();
     }
 
@@ -84,24 +144,30 @@ export function setUpNotifs() {
       return;
     }
 
+    const vox =
+      victory_vox.length > 0
+        ? victory_vox[Math.floor(Math.random() * victory_vox.length)]
+        : null;
     if (send_sfx?.victory) {
       if (navigator.audioSession !== undefined) {
         navigator.audioSession.type = "transient-solo";
       }
 
-      if (victory_vox.length > 0) {
-        const vox = victory_vox[Math.floor(Math.random() * victory_vox.length)];
+      if (vox !== null) {
         setTimeout(
           () => {
+            vox.currentTime = 0;
             vox.play();
           },
           (23 / 28) * send_sfx.victory.duration * 1000,
         );
       }
       // TODO: stop all other sfx and prevent them from playing
+      send_sfx.victory.currentTime = 0;
       send_sfx.victory.play();
-    } else if (victory_vox.length > 0) {
-      victory_vox[Math.floor(Math.random() * victory_vox.length)].play();
+    } else if (vox !== null) {
+      vox.currentTime = 0;
+      vox.play();
     }
 
     counter_element.textContent = i18next.t("text-overlay.victory", "Victory!");
@@ -130,30 +196,28 @@ export function setUpNotifs() {
     start_particles();
   });
 
-  client.messages.on("itemSent", (_, item) => {
+  client.messages.on("itemSent", (message, item) => {
     if (
       item.sender.slot !== client.players.self.slot &&
       item.receiver.slot !== client.players.self.slot
     ) {
       return;
     }
-    // TODO: queue sounds, 4 second intervals
     const sfx_pack =
       item.sender.slot === client.players.self.slot ? send_sfx : receive_sfx;
     if (sfx_pack !== null) {
-      const sound = item.trap
-        ? sfx_pack.trap
-        : item.useful
-          ? item.progression
-            ? sfx_pack.proguseful
-            : sfx_pack.useful
-          : item.progression
-            ? sfx_pack.progression
-            : sfx_pack.filler;
-      if (navigator.audioSession !== undefined) {
-        navigator.audioSession.type = "transient";
-      }
-      sound.play();
+      last_notif_sfx = [
+        message,
+        item.trap
+          ? sfx_pack.trap
+          : item.useful
+            ? item.progression
+              ? sfx_pack.proguseful
+              : sfx_pack.useful
+            : item.progression
+              ? sfx_pack.progression
+              : sfx_pack.filler,
+      ];
     }
   });
 }

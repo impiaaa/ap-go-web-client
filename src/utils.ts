@@ -36,3 +36,7 @@ export function styleItemElement(element: HTMLElement, item: Item) {
   if (item.useful) element.classList.add("useful");
   if (item.trap) element.classList.add("trap");
 }
+
+export function isPopoverOpen(popover: HTMLElement) {
+  return popover.matches(":popover-open");
+}

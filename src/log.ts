@@ -15,7 +15,7 @@ export function stylePlayerElement(element: HTMLElement, player: Player) {
   }
 }
 
-function addMessageNode(node: MessageNode) {
+function messageNodeToHtml(node: MessageNode) {
   const msg_el = document.createElement("span");
   msg_el.appendChild(document.createTextNode(node.text));
   msg_el.classList.add(node.type);
@@ -46,11 +46,19 @@ function addMessageNode(node: MessageNode) {
     default:
       break;
   }
-  text_log.appendChild(msg_el);
+  return msg_el;
+}
+
+export function messageNodesToHtml(nodes: MessageNode[]) {
+  const msg_el = document.createElement("span");
+  nodes.forEach((node) => {
+    msg_el.appendChild(messageNodeToHtml(node));
+  });
+  return msg_el;
 }
 
 function addMessages(nodes: MessageNode[]) {
-  nodes.forEach(addMessageNode);
+  text_log.appendChild(messageNodesToHtml(nodes));
   text_log.appendChild(document.createElement("br"));
 }
 
