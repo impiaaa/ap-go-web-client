@@ -5,7 +5,7 @@ import MaplibreGeocoder, {
 } from "@maplibre/maplibre-gl-geocoder";
 import init, { SubgraphSelection } from "@pkgs/gen";
 import i18next from "i18next";
-import maplibregl, { LngLat } from "maplibre-gl";
+import maplibregl, { LngLat, type MapOptions } from "maplibre-gl";
 import {
   checkLocations,
   ensureLocationsScouted,
@@ -297,11 +297,14 @@ const geocoderApi = {
       const response = await fetch(url);
       for (const feature of await response.json()) {
         const bbox = feature.boundingbox.map(parseFloat); // min latitude, max latitude, min longitude, max longitude
-        const center: [number, number] = [parseFloat(feature.lon), parseFloat(feature.lat)];
+        const center: [number, number] = [
+          parseFloat(feature.lon),
+          parseFloat(feature.lat),
+        ];
         const point: CarmenGeojsonFeature = {
           bbox: [bbox[2], bbox[0], bbox[3], bbox[1]],
           center: center,
-          geometry: feature.geojson ?? {"coordinates": center, "type": "Point"},
+          geometry: feature.geojson ?? { coordinates: center, type: "Point" },
           id: feature.place_id,
           place_name: feature.display_name,
           place_type: [feature.category],
@@ -325,11 +328,12 @@ const geocoderApi = {
 
 function setUpSetHomeMap() {
   set_home_button.removeEventListener("click", setUpSetHomeMap);
-  const map = createMap("set-home-map");
+  const options: MapOptions = { container: "set-home-map" };
   if (prefs.home) {
-    map.setZoom(9);
-    map.setCenter(prefs.home);
+    options.zoom = 9;
+    options.center = prefs.home;
   }
+  const map = createMap(options);
   map.addControl(
     new MaplibreGeocoder(geocoderApi, {
       collapsed: true,

@@ -1,6 +1,6 @@
 import { type Hint, Item, itemClassifications } from "archipelago.js";
 import i18next from "i18next";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type MapOptions } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";
 import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
 import {
@@ -235,7 +235,7 @@ export function clearMarkers() {
 }
 
 export function createMap(
-  container: string,
+  options: MapOptions,
   layers: maplibregl.LayerSpecification[] = [],
   sources: {
     [_: string]: maplibregl.SourceSpecification;
@@ -243,10 +243,10 @@ export function createMap(
 ) {
   const darkModeMql = window.matchMedia?.("(prefers-color-scheme: dark)");
   const map = new maplibregl.Map({
-    container: container,
     // https://stackoverflow.com/a/57795495
     style: `https://tiles.versatiles.org/assets/styles/${darkModeMql?.matches ? "eclipse" : "colorful"}/style.json`,
     validateStyle: import.meta.env.DEV,
+    ...options,
   });
   window
     .matchMedia("(prefers-color-scheme: dark)")
@@ -327,7 +327,7 @@ function lateSetUpMap() {
         : "black";
     });
   game_map = createMap(
-    "map",
+    { container: "map" },
     [circles_layer, locations_layer, fog_of_war_layer],
     {
       circles: {

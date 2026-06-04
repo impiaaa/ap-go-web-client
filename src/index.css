@@ -1,5 +1,6 @@
 @import "colors.css";
 @import "maplibre-gl";
+@import "@maplibre/maplibre-gl-geocoder";
 @import "connect.css";
 @import "dialog.css";
 @import "map.css";
