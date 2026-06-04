@@ -78,16 +78,18 @@ export function checkLocations(coords: LngLat) {
 
   last_known_location = coords;
 
+  const scoutingDistance = getScoutingDistance();
+  const collectionDistance = getCollectionDistance();
+
   if (
-    coords.distanceTo(LngLat.convert(prefs.home)) > slot_data.maximum_distance
+    coords.distanceTo(LngLat.convert(prefs.home)) >
+    slot_data.maximum_distance + Math.max(scoutingDistance, collectionDistance)
   ) {
-    // Don't check locations that are too far away from home, since the ENU projection breaks down
-    // and we risk checking incorrect locations.
+    // Don't check for locations that are too far away from home, since the ENU projection breaks
+    // down and we risk checking incorrect locations.
     return;
   }
 
-  const scoutingDistance = getScoutingDistance();
-  const collectionDistance = getCollectionDistance();
   const key_progression = getKeyProgress();
 
   if (!generator_internal) {
