@@ -14,6 +14,7 @@ from discord:
 other:
 - allow stop playing but remain connected by pressing geolocate control
 - add timeout to geo updates
-- pop-up notifications when not on text log screen
 - for debugging, redirect console.log etc to AP log window
 - offline mode, queue collected locations when GPS active but no internet, then send when back online
+- geocoder in "set home location"
+- don't check locations if outside of max radius from home
