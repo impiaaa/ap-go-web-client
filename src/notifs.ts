@@ -29,6 +29,27 @@ function preloadSound(path: string, volume: number) {
   return snd;
 }
 
+function playSound(
+  sound: HTMLAudioElement,
+  audioSessionType?:
+    | "auto"
+    | "playback"
+    | "transient"
+    | "transient-solo"
+    | "ambient"
+    | "play-and-record",
+) {
+  if (audioSessionType !== undefined && navigator.audioSession !== undefined) {
+    navigator.audioSession.type = audioSessionType;
+  }
+  sound.currentTime = 0;
+  try {
+    sound.play();
+  } catch {
+    // In case of NotAllowedError due to sound not coming from a user interaction
+  }
+}
+
 function showNotification() {
   if (notif_queue.length <= 0) {
     throw "showNotification called with empty queue";
@@ -49,11 +70,7 @@ function showNotification() {
   }, 4000);
 
   if (sound !== undefined) {
-    if (navigator.audioSession !== undefined) {
-      navigator.audioSession.type = "transient";
-    }
-    sound.currentTime = 0;
-    sound.play();
+    playSound(sound, "transient");
   }
 }
 
@@ -110,11 +127,7 @@ export function setUpNotifs() {
     }
 
     if (value >= 0 && value < countdowns.length) {
-      if (navigator.audioSession !== undefined) {
-        navigator.audioSession.type = "transient";
-      }
-      countdowns[value].currentTime = 0;
-      countdowns[value].play();
+      playSound(countdowns[value], "transient");
     }
 
     counter_element.textContent = text;
@@ -149,25 +162,18 @@ export function setUpNotifs() {
         ? victory_vox[Math.floor(Math.random() * victory_vox.length)]
         : null;
     if (send_sfx?.victory) {
-      if (navigator.audioSession !== undefined) {
-        navigator.audioSession.type = "transient-solo";
-      }
-
       if (vox !== null) {
         setTimeout(
           () => {
-            vox.currentTime = 0;
-            vox.play();
+            playSound(vox, "transient-solo");
           },
           (23 / 28) * send_sfx.victory.duration * 1000,
         );
       }
       // TODO: stop all other sfx and prevent them from playing
-      send_sfx.victory.currentTime = 0;
-      send_sfx.victory.play();
+      playSound(send_sfx.victory, "transient-solo");
     } else if (vox !== null) {
-      vox.currentTime = 0;
-      vox.play();
+      playSound(vox, "transient");
     }
 
     counter_element.textContent = i18next.t("text-overlay.victory", "Victory!");
