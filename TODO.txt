@@ -8,7 +8,7 @@ bugs:
 
 from discord:
 - location doesn't update
-- checks in range don't check
+- checks in range don't check - maybe due to starting items?
 - light/dark mode override
 
 other:
@@ -17,4 +17,3 @@ other:
 - for debugging, redirect console.log etc to AP log window
 - offline mode, queue collected locations when GPS active but no internet, then send when back online
 - geocoder in "set home location"
-- don't check locations if outside of max radius from home

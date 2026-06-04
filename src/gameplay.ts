@@ -1,7 +1,7 @@
 import { points_in_radius, set_up_with_saved_points } from "@pkgs/gen/gen";
 import { clientStatuses, type Item } from "archipelago.js";
 import i18next from "i18next";
-import type { LngLat } from "maplibre-gl";
+import { LngLat } from "maplibre-gl";
 import {
   setConnectDisabled,
   setConnectionMessage,
@@ -72,10 +72,20 @@ function checkLastKnownLocation() {
 }
 
 export function checkLocations(coords: LngLat) {
-  if (!prefs.home) {
+  if (!prefs.home || !slot_data || game_data.points.size === 0) {
     return;
   }
+
   last_known_location = coords;
+
+  if (
+    coords.distanceTo(LngLat.convert(prefs.home)) > slot_data.maximum_distance
+  ) {
+    // Don't check locations that are too far away from home, since the ENU projection breaks down
+    // and we risk checking incorrect locations.
+    return;
+  }
+
   const scoutingDistance = getScoutingDistance();
   const collectionDistance = getCollectionDistance();
   const key_progression = getKeyProgress();
