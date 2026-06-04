@@ -16,4 +16,3 @@ other:
 - add timeout to geo updates
 - for debugging, redirect console.log etc to AP log window
 - offline mode, queue collected locations when GPS active but no internet, then send when back online
-- geocoder in "set home location"

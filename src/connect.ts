@@ -1,3 +1,8 @@
+import MaplibreGeocoder, {
+  type CarmenGeojsonFeature,
+  type MaplibreGeocoderApiConfig,
+  type MaplibreGeocoderFeatureResults,
+} from "@maplibre/maplibre-gl-geocoder";
 import init, { SubgraphSelection } from "@pkgs/gen";
 import i18next from "i18next";
 import maplibregl, { LngLat } from "maplibre-gl";
@@ -270,6 +275,54 @@ function geoLocationError(error: GeolocationPositionError) {
   updateMapLocationError(error);
 }
 
+const geocoderApi = {
+  forwardGeocode: async (config: MaplibreGeocoderApiConfig) => {
+    const features = [];
+    try {
+      const url = new URL(
+        "https://nominatim.openstreetmap.org/search?format=jsonv2",
+      );
+      if (typeof config.query === "string")
+        url.searchParams.append("q", config.query);
+      if (config.limit !== undefined)
+        url.searchParams.append("limit", config.limit.toString());
+      if (config.language !== undefined)
+        url.searchParams.append("accept-language", config.language);
+      if (config.countries !== undefined)
+        url.searchParams.append("countrycodes", config.countries);
+      if (config.bbox !== undefined) {
+        url.searchParams.append("viewbox", config.bbox.join(","));
+        url.searchParams.append("bounded", "1");
+      }
+      const response = await fetch(url);
+      for (const feature of await response.json()) {
+        const bbox = feature.boundingbox.map(parseFloat); // min latitude, max latitude, min longitude, max longitude
+        const center: [number, number] = [parseFloat(feature.lon), parseFloat(feature.lat)];
+        const point: CarmenGeojsonFeature = {
+          bbox: [bbox[2], bbox[0], bbox[3], bbox[1]],
+          center: center,
+          geometry: feature.geojson ?? {"coordinates": center, "type": "Point"},
+          id: feature.place_id,
+          place_name: feature.display_name,
+          place_type: [feature.category],
+          properties: feature.extratags,
+          text: feature.name ?? feature.display_name,
+          type: "Feature",
+        };
+        features.push(point);
+      }
+    } catch (e) {
+      console.error(`Failed to forwardGeocode with error: ${e}`);
+    }
+
+    const results: MaplibreGeocoderFeatureResults = {
+      features,
+      type: "FeatureCollection",
+    };
+    return results;
+  },
+};
+
 function setUpSetHomeMap() {
   set_home_button.removeEventListener("click", setUpSetHomeMap);
   const map = createMap("set-home-map");
@@ -277,6 +330,13 @@ function setUpSetHomeMap() {
     map.setZoom(9);
     map.setCenter(prefs.home);
   }
+  map.addControl(
+    new MaplibreGeocoder(geocoderApi, {
+      collapsed: true,
+      maplibregl,
+    }),
+    "top-left",
+  );
   map.addControl(new maplibregl.GeolocateControl({}));
 
   const overlay = document.createElement("div");

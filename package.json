@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@maplibre/maplibre-gl-geocoder": "^1.9.4",
     "archipelago.js": "^2.1.0",
     "i18next": "^26.3.0",
     "i18next-browser-languagedetector": "^8.2.1",
