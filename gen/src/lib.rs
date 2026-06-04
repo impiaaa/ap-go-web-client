@@ -68,6 +68,8 @@ extern "C" {
     pub fn slot_data(this: &GenerateParams) -> APGoSlotData;
     #[wasm_bindgen(structural, method, getter)]
     pub fn subgraph_selection(this: &GenerateParams) -> SubgraphSelection;
+    #[wasm_bindgen(structural, method, getter)]
+    pub fn team(this: &GenerateParams) -> f64;
 
     #[derive(Clone)]
     pub type APGoSlotData;
@@ -433,11 +435,15 @@ pub fn generate(
     let Ok(seed) = params
         .seed_name()
         .parse::<u128>()
-        // 1e20 is the maximum as defined by seeddigits in BaseClasses.py
-        // The multiply and divide brings it down from 1e20 range to u64::MAX range
-        // Finally xor with the slot number so that different AP-Go participants in the same AP game
-        // have different sets of trips
-        .map(|x| ((x * 17592186044416 / 95367431640625) as u64) ^ (params.slot() as u64))
+        // 1e20 is the maximum as defined by seeddigits in BaseClasses.py.
+        // Multiply and divide the seed to bring it down from 1e20 range to u64::MAX range.
+        // Finally, xor with the team & slot numbers so that different AP-Go
+        // participants in the same AP game have different sets of trips.
+        .map(|x| {
+            ((x * 17592186044416 / 95367431640625) as u64)
+                ^ ((params.team() as u64) << 32)
+                ^ (params.slot() as u64)
+        })
     else {
         return Err("Couldn't parse seed");
     };

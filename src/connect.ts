@@ -197,7 +197,11 @@ function doLogin(thenShowMap: boolean) {
 
       moveGameState(GameState.Generating);
 
-      generate(client.room.seedName, client.players.self.slot)
+      generate(
+        client.room.seedName,
+        client.players.self.team,
+        client.players.self.slot,
+      )
         .then((generate_results) => {
           if (typeof generate_results === "string") {
             setConnectionError(

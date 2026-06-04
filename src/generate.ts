@@ -2,7 +2,7 @@ import i18next from "i18next";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { client, prefs, slot_data } from "./globals";
 
-export function generate(seed_name: string, slot: number) {
+export function generate(seed_name: string, team: number, slot: number) {
   if (!prefs.home) {
     throw "generate called with no home set";
   }
@@ -77,6 +77,7 @@ export function generate(seed_name: string, slot: number) {
           slot: slot,
           slot_data: slot_data,
           subgraph_selection: prefs.subgraph_selection,
+          team: team,
         });
       });
       req.addEventListener("abort", () => {
