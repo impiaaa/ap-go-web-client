@@ -49,6 +49,8 @@ export const TRAP_ITEMS = [
   ItemType.TakeBreather,
 ];
 
+// NOTE: When updating this, remember to also update OLD_QUERY_DIGESTS below!
+// TODO: try combining highway=*, access!=*, foot!=* into regex
 export const DEFAULT_OVERPASS_QUERY = `[out:json][timeout:{{timeout}}][maxsize:{{maxsize}}][bbox:{{bbox}}];
 (
   way[highway=footway](around:{{maximum_distance}},{{center}});
@@ -61,7 +63,7 @@ export const DEFAULT_OVERPASS_QUERY = `[out:json][timeout:{{timeout}}][maxsize:{
   way[highway=residential](around:{{maximum_distance}},{{center}});
   way[highway=secondary](around:{{maximum_distance}},{{center}});
   way[highway=secondary_link](around:{{maximum_distance}},{{center}});
-  way[highway=service](around:{{maximum_distance}},{{center}});
+  way[highway=service][service=alley](around:{{maximum_distance}},{{center}});
   way[highway=steps](around:{{maximum_distance}},{{center}});
   way[highway=tertiary](around:{{maximum_distance}},{{center}});
   way[highway=tertiary_link](around:{{maximum_distance}},{{center}});
@@ -108,6 +110,7 @@ way._
 out skel qt;`;
 export const OLD_QUERY_DIGESTS: string[] = [
   "2cf5d496485134db8a62fa42c61b2d06b4bad32e",
+  "70fe8057f9e3ceddff08763aa63e98d76fb24c73",
 ];
 
 export const prefs: {
