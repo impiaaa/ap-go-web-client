@@ -32,6 +32,7 @@ import {
   setFogOfWarVisible,
   showMapPage,
 } from "./map";
+import { playSound } from "./notifs";
 import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
@@ -290,8 +291,20 @@ export function receiveItems(items: Item[]) {
         // "Moves some locations around the map, or swaps some locations with each other."
         break;
       case ItemType.SilenceTrap:
-        console.error("SilenceTrap unimplemented"); // TODO
-        // "Lowers your phone's media volume (your music, if applicable)"
+        if (!hasDisplayedTrap(item)) {
+          const silence = new Audio("sfx/silence.wav");
+          // TODO: Experiment with audio session types, see which one works to pause music for this
+          // long a duration
+          playSound(silence, "transient-solo", true);
+          const timer = window.setTimeout(() => {
+            silence.pause();
+            game_data.last_displayed_trap = client.items.received.indexOf(item);
+            saveGame();
+          }, prefs.trap_duration * 1000);
+          client.socket.wait("disconnected").then(() => {
+            window.clearTimeout(timer);
+          });
+        }
         break;
       case ItemType.FogOfWarTrap:
         if (!hasDisplayedTrap(item)) {

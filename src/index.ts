@@ -14,7 +14,7 @@ import { setUpNotifs } from "./notifs";
 i18next.use(LanguageDetector).init({
   debug: import.meta.env.DEV,
   resources: {
-    en: en,
+    en: { translation: en },
   },
   supportedLngs: ["en"],
 });

@@ -29,7 +29,7 @@ function preloadSound(path: string, volume: number) {
   return snd;
 }
 
-function playSound(
+export function playSound(
   sound: HTMLAudioElement,
   audioSessionType?:
     | "auto"
