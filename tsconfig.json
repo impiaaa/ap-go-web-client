@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "lib": ["DOM", "ES2021"],
+    "lib": ["DOM", "ES2022"],
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
@@ -15,7 +15,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2021",
+    "target": "ES2022",
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": true
   },

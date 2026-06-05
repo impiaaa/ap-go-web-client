@@ -16,3 +16,4 @@ other:
 - add timeout to geo updates
 - for debugging, redirect console.log etc to AP log window
 - offline mode, queue collected locations when GPS active but no internet, then send when back online
+- use mp3 instead of ogg for sfx (wider support)

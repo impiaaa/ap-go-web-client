@@ -38,11 +38,13 @@ function playSound(
     | "transient-solo"
     | "ambient"
     | "play-and-record",
+  loop: boolean = false,
 ) {
   if (audioSessionType !== undefined && navigator.audioSession !== undefined) {
     navigator.audioSession.type = audioSessionType;
   }
   sound.currentTime = 0;
+  sound.loop = loop;
   try {
     sound.play();
   } catch {

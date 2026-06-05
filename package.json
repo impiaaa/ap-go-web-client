@@ -1,4 +1,12 @@
 {
+  "browserslist": [
+    "Chrome >= 114",
+    "ChromeAndroid >= 114",
+    "Edge >= 114",
+    "Firefox >= 125",
+    "iOS >= 17",
+    "Safari >= 17"
+  ],
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.4",
     "archipelago.js": "^2.1.0",
