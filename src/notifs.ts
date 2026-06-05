@@ -3,6 +3,7 @@ import i18next from "i18next";
 import { client, prefs } from "./globals";
 import { messageNodesToHtml } from "./log";
 import { start as start_particles } from "./particles";
+import { ItemType } from "./types";
 import { isPopoverOpen } from "./utils";
 
 interface SfxPack {
@@ -21,12 +22,17 @@ let send_sfx: SfxPack | null = null;
 const notif_queue: [MessageNode[], HTMLAudioElement?][] = [];
 let notif_timer: number = -1;
 let last_notif_sfx: [string, HTMLAudioElement] | null = null;
+let muted: boolean = false;
 
 function preloadSound(path: string, volume: number) {
   const snd = new Audio(path);
   snd.preload = "auto";
   snd.volume = volume;
   return snd;
+}
+
+export function setMuted(m: boolean) {
+  muted = m;
 }
 
 export function playSound(
@@ -42,6 +48,9 @@ export function playSound(
 ) {
   if (audioSessionType !== undefined && navigator.audioSession !== undefined) {
     navigator.audioSession.type = audioSessionType;
+  }
+  if (muted) {
+    return;
   }
   sound.currentTime = 0;
   sound.loop = loop;

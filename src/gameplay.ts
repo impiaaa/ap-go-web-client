@@ -32,7 +32,7 @@ import {
   setFogOfWarVisible,
   showMapPage,
 } from "./map";
-import { playSound } from "./notifs";
+import { playSound, setMuted } from "./notifs";
 import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
@@ -296,8 +296,10 @@ export function receiveItems(items: Item[]) {
           // TODO: Experiment with audio session types, see which one works to pause music for this
           // long a duration
           playSound(silence, "transient-solo", true);
+          setMuted(true);
           const timer = window.setTimeout(() => {
             silence.pause();
+            setMuted(false);
             game_data.last_displayed_trap = client.items.received.indexOf(item);
             saveGame();
           }, prefs.trap_duration * 1000);
