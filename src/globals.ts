@@ -35,11 +35,8 @@ export const LONG_MACGUFFIN_ITEMS = [
   ItemType.MacguffinO,
   ItemType.MacguffinExclamation,
 ];
-export const TRAP_ITEMS = [
-  // Not just traps, anything that has a temporary effect
-  ItemType.ShuffleTrap,
-  ItemType.SilenceTrap,
-  ItemType.FogOfWarTrap,
+const DIALOG_TRAP_ITEMS = [
+  // Not just traps, anything that shows a full-screen dialog
   ItemType.PushUpTrap,
   ItemType.SocializingTrap,
   ItemType.SitUpTrap,
@@ -48,6 +45,12 @@ export const TRAP_ITEMS = [
   ItemType.Hydrate,
   ItemType.TakeBreather,
 ];
+const TIMED_TRAP_ITEMS = [
+  ItemType.ShuffleTrap,
+  ItemType.SilenceTrap,
+  ItemType.FogOfWarTrap,
+];
+export const TRAP_ITEMS = DIALOG_TRAP_ITEMS.concat(TIMED_TRAP_ITEMS);
 
 // NOTE: When updating this, remember to also update OLD_QUERY_DIGESTS below!
 // TODO: try combining highway=*, access!=*, foot!=* into regex
@@ -146,11 +149,11 @@ export function setSlotData(new_slot_data: APGoSlotData | null) {
 }
 export const client = new Client();
 export const game_data: {
-  last_displayed_trap: number;
+  last_displayed_dialog_trap: number;
   points: Map<number, [number, number]>;
   scouted_locations: Map<number, NetworkItem>;
 } = {
-  last_displayed_trap: -1,
+  last_displayed_dialog_trap: -1,
   points: new Map<number, [number, number]>(),
   scouted_locations: new Map<number, NetworkItem>(),
 };

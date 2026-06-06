@@ -3,7 +3,6 @@ import i18next from "i18next";
 import { client, prefs } from "./globals";
 import { messageNodesToHtml } from "./log";
 import { start as start_particles } from "./particles";
-import { ItemType } from "./types";
 import { isPopoverOpen } from "./utils";
 
 interface SfxPack {
@@ -24,7 +23,7 @@ let notif_timer: number = -1;
 let last_notif_sfx: [string, HTMLAudioElement] | null = null;
 let muted: boolean = false;
 
-function preloadSound(path: string, volume: number) {
+export function preloadSound(path: string, volume: number) {
   const snd = new Audio(path);
   snd.preload = "auto";
   snd.volume = volume;
@@ -104,7 +103,8 @@ export function setUpNotifs() {
       nodes.some(
         (node) =>
           node.type === "player" &&
-          node.player.slot === client.players.self.slot,
+          node.player.slot === client.players.self.slot &&
+          node.player.team === client.players.self.team,
       ) &&
       window.location.hash !== "#log"
     ) {
@@ -164,7 +164,10 @@ export function setUpNotifs() {
   let victory_anim: CSSAnimation | null = null;
   // client.messages.on("serverChat", () => {
   client.messages.on("goaled", (_, player) => {
-    if (player.slot !== client.players.self.slot) {
+    if (
+      player.slot !== client.players.self.slot ||
+      player.team !== client.players.self.team
+    ) {
       return;
     }
 
@@ -215,13 +218,18 @@ export function setUpNotifs() {
 
   client.messages.on("itemSent", (message, item) => {
     if (
-      item.sender.slot !== client.players.self.slot &&
-      item.receiver.slot !== client.players.self.slot
+      (item.sender.slot !== client.players.self.slot ||
+        item.sender.team !== client.players.self.team) &&
+      (item.receiver.slot !== client.players.self.slot ||
+        item.receiver.team !== client.players.self.team)
     ) {
       return;
     }
     const sfx_pack =
-      item.sender.slot === client.players.self.slot ? send_sfx : receive_sfx;
+      item.sender.slot === client.players.self.slot &&
+      item.sender.team === client.players.self.team
+        ? send_sfx
+        : receive_sfx;
     if (sfx_pack !== null) {
       last_notif_sfx = [
         message,

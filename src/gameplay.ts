@@ -32,12 +32,14 @@ import {
   setFogOfWarVisible,
   showMapPage,
 } from "./map";
-import { playSound, setMuted } from "./notifs";
+import { playSound, preloadSound, setMuted } from "./notifs";
 import { GameState, Goal, ItemType } from "./types";
 import { coordinatesApproximatelyEqual } from "./utils";
 
-const trap_queue: Item[] = [];
-let displaying_trap: number;
+const dialog_trap_queue: Item[] = [];
+let displaying_dialog_trap: number = -1;
+const timed_trap_timers = new Map<ItemType, [number, number, number]>(); // item type -> [start time of currently active trap, item index of currently active trap, timer ID]
+let silence: HTMLAudioElement | null = null;
 
 export function getKeyProgress(): number {
   return client.items.received.filter((item) => item.id === ItemType.Key)
@@ -150,18 +152,24 @@ export function saveGame() {
     SAVED_GAME_KEY,
     JSON.stringify({
       home: prefs.home,
-      last_displayed_trap: game_data.last_displayed_trap,
+      last_displayed_trap: game_data.last_displayed_dialog_trap,
       points: Object.fromEntries(game_data.points),
       scouted_locations: Object.fromEntries(game_data.scouted_locations),
       seed: client.room.seedName,
+      timed_traps: Object.fromEntries(timed_trap_timers),
     }),
   );
 }
 
 export function loadGame() {
-  const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
   game_data.scouted_locations.clear();
-  game_data.last_displayed_trap = -1;
+  game_data.last_displayed_dialog_trap = -1;
+
+  dialog_trap_queue.splice(0);
+  displaying_dialog_trap = -1;
+  timed_trap_timers.clear();
+
+  const saved_game_json = localStorage.getItem(SAVED_GAME_KEY);
   if (!saved_game_json) return false;
 
   const saved_game = JSON.parse(saved_game_json);
@@ -169,6 +177,8 @@ export function loadGame() {
     typeof saved_game !== "object" ||
     saved_game.seed !== client.room.seedName
   ) {
+    // We're connecting to a different game than the one we were connected to the last time we
+    // saved, so throw away all progress.
     return false;
   }
 
@@ -182,13 +192,14 @@ export function loadGame() {
   }
 
   if (typeof saved_game.last_displayed_trap === "number") {
-    game_data.last_displayed_trap = saved_game.last_displayed_trap;
+    game_data.last_displayed_dialog_trap = saved_game.last_displayed_trap;
   } else if (Array.isArray(saved_game.displayed_trap_locations)) {
+    const displayed_trap_locations: any[] = saved_game.displayed_trap_locations;
     // find the last index of client.items.received where item in saved_game.displayed_trap_locations
-    game_data.last_displayed_trap = Math.max(
+    game_data.last_displayed_dialog_trap = Math.max(
       ...client.items.received.map((item, index) =>
-        saved_game.displayed_trap_locations.some(
-          (trap: any) =>
+        displayed_trap_locations.some(
+          (trap) =>
             Array.isArray(trap) &&
             trap.length === 2 &&
             item.sender.slot === trap[0] &&
@@ -198,6 +209,20 @@ export function loadGame() {
           : -1,
       ),
     );
+  }
+
+  if (typeof saved_game.timed_traps === "object") {
+    for (const item_type in saved_game.timed_traps) {
+      const obj = saved_game.timed_traps[item_type];
+      if (
+        Array.isArray(obj) &&
+        obj.length >= 2 &&
+        typeof obj[0] === "number" &&
+        typeof obj[1] === "number"
+      ) {
+        timed_trap_timers.set(parseInt(item_type, 10), [obj[0], obj[1], -1]);
+      }
+    }
   }
 
   if (typeof saved_game.points === "object") {
@@ -221,10 +246,14 @@ export function loadGame() {
           saved_game.points[location_id_str],
         );
       }
+      // We're connecting to the same game we're loading, and were able to load all trip points, so
+      // signal that we don't need to regenerate points.
       return true;
     }
   }
 
+  // We're connecting to the same game, but either the home location has changed or we couldn't load
+  // trip points, so we do need to regenerate them.
   return false;
 }
 
@@ -254,14 +283,14 @@ export function setUpGameplay() {
     trap_dialog.close();
   });
   trap_dialog?.addEventListener("close", () => {
-    game_data.last_displayed_trap = Math.max(
-      game_data.last_displayed_trap,
-      displaying_trap,
+    game_data.last_displayed_dialog_trap = Math.max(
+      game_data.last_displayed_dialog_trap,
+      displaying_dialog_trap,
     );
     saveGame();
-    const item = trap_queue.pop();
+    const item = dialog_trap_queue.pop();
     if (item) {
-      displayTrap(item);
+      displayDialogTrap(item);
     }
   });
   client.items.on("itemsReceived", receiveItems);
@@ -272,6 +301,127 @@ export function setUpGameplay() {
     });
     saveGame();
   });
+  silence = preloadSound("sfx/silence.wav", 1);
+  client.socket.on("disconnected", () => {
+    timed_trap_timers.forEach(([_start_time, _start_item_index, timer]) => {
+      window.clearTimeout(timer);
+    });
+    timed_trap_timers.clear();
+    setFogOfWarVisible(false);
+    stopSilenceTrap();
+  });
+}
+
+function stopSilenceTrap() {
+  silence?.pause();
+  setMuted(false);
+}
+
+function timedTrap(item: Item, start_trap: () => void, stop_trap: () => void) {
+  if (!slot_data) {
+    // If slot_data is undefined, we haven't loaded a game yet, so we don't know which traps have
+    // been displayed, so hold off from displaying any traps until after loading.
+    return;
+  }
+
+  const this_item_index = client.items.received.indexOf(item);
+  if (this_item_index === -1) {
+    throw "Tried to set a trap that hasn't been received";
+  }
+
+  const end_and_update = () => {
+    stop_trap();
+    // in case this item was queued and we kept the old start_item_index, we need to update the map
+    // with the latest index so that it isn't displayed again
+    timed_trap_timers.set(item.id, [0, this_item_index, -1]);
+    saveGame();
+  };
+
+  let timeout: number;
+  let new_start_time: number;
+  let new_item_index: number;
+
+  // check if there's a currently active timer
+  const timer_data = timed_trap_timers.get(item.id);
+  if (timer_data === undefined) {
+    console.log("Timed trap", item.id, "with no existing timer");
+    timeout = prefs.trap_duration * 1000;
+    new_start_time = Date.now();
+    new_item_index = this_item_index;
+  } else {
+    const [start_time, start_item_index, old_timer] = timer_data;
+    new_start_time = start_time;
+    new_item_index = start_item_index;
+
+    // check that this one is new
+    if (this_item_index < start_item_index) {
+      // e.g. during reconnection, and receiveItem is called for everything we've received
+      // previously, don't re-show traps that already expired before the current one in
+      // timed_trap_timers
+      return;
+    } else if (this_item_index === start_item_index) {
+      // re-receiving the item we already have a start time for
+      console.log(
+        "Timed trap",
+        item.id,
+        "previously started at",
+        new Date(start_time),
+      );
+      const new_end_time = start_time + prefs.trap_duration * 1000;
+      timeout = new_end_time - Date.now();
+      if (timeout <= 0) {
+        // it already expired, don't start a timer
+        return;
+      }
+    } else {
+      // newly received trap, check whether to start new or queue
+      console.log(
+        "Timed trap",
+        item.id,
+        "at index",
+        start_item_index,
+        "previously started at",
+        new Date(start_time),
+      );
+      const number_of_times_this_trap_should_have_been_displayed_previously =
+        client.items.received
+          .slice(start_item_index, this_item_index)
+          .filter((received_item) => received_item.id === item.id).length;
+      const end_time_for_the_last_trap =
+        start_time +
+        number_of_times_this_trap_should_have_been_displayed_previously *
+          prefs.trap_duration *
+          1000;
+
+      // check whether the timer would have expired by now
+      if (end_time_for_the_last_trap < Date.now()) {
+        // the previous trap has expired, so start a new timer
+        timeout = prefs.trap_duration * 1000;
+        new_start_time = Date.now();
+        new_item_index = this_item_index;
+      } else {
+        // it hasn't expired, so extend it
+        const total_number_of_times_this_trap_should_be_displayed =
+          number_of_times_this_trap_should_have_been_displayed_previously + 1;
+        const new_end_time =
+          start_time +
+          prefs.trap_duration *
+            1000 *
+            total_number_of_times_this_trap_should_be_displayed;
+        timeout = new_end_time - Date.now();
+      }
+    }
+
+    if (old_timer !== -1) {
+      window.clearTimeout(old_timer);
+    }
+  }
+
+  start_trap();
+  console.log("Timing trap", item.id, "for", timeout, "more ms");
+  const timer = window.setTimeout(end_and_update, timeout);
+  timed_trap_timers.set(item.id, [new_start_time, new_item_index, timer]);
+  saveGame();
 }
 
 export function receiveItems(items: Item[]) {
@@ -291,35 +441,27 @@ export function receiveItems(items: Item[]) {
         // "Moves some locations around the map, or swaps some locations with each other."
         break;
       case ItemType.SilenceTrap:
-        if (!hasDisplayedTrap(item)) {
-          const silence = new Audio("sfx/silence.wav");
-          // TODO: Experiment with audio session types, see which one works to pause music for this
-          // long a duration
-          playSound(silence, "transient-solo", true);
-          setMuted(true);
-          const timer = window.setTimeout(() => {
-            silence.pause();
-            setMuted(false);
-            game_data.last_displayed_trap = client.items.received.indexOf(item);
-            saveGame();
-          }, prefs.trap_duration * 1000);
-          client.socket.wait("disconnected").then(() => {
-            window.clearTimeout(timer);
-          });
-        }
+        timedTrap(
+          item,
+          () => {
+            // TODO: Experiment with audio session types, see which one works to pause music for this
+            // long a duration
+            if (silence) playSound(silence, "transient-solo", true);
+            setMuted(true);
+          },
+          stopSilenceTrap,
+        );
         break;
       case ItemType.FogOfWarTrap:
-        if (!hasDisplayedTrap(item)) {
-          setFogOfWarVisible(true);
-          const timer = window.setTimeout(() => {
+        timedTrap(
+          item,
+          () => {
+            setFogOfWarVisible(true);
+          },
+          () => {
             setFogOfWarVisible(false);
-            game_data.last_displayed_trap = client.items.received.indexOf(item);
-            saveGame();
-          }, prefs.trap_duration * 1000);
-          client.socket.wait("disconnected").then(() => {
-            window.clearTimeout(timer);
-          });
-        }
+          },
+        );
         break;
 
       case ItemType.PushUpTrap:
@@ -327,7 +469,7 @@ export function receiveItems(items: Item[]) {
       case ItemType.SitUpTrap:
       case ItemType.JumpingJackTrap:
       case ItemType.TouchGrassTrap:
-        displayTrap(item);
+        displayDialogTrap(item);
         break;
 
       case ItemType.MacguffinA:
@@ -363,7 +505,7 @@ export function receiveItems(items: Item[]) {
 
       case ItemType.Hydrate:
       case ItemType.TakeBreather:
-        displayTrap(item);
+        displayDialogTrap(item);
         break;
 
       default:
@@ -373,17 +515,17 @@ export function receiveItems(items: Item[]) {
   });
 }
 
-function hasDisplayedTrap(item: Item): boolean {
+function hasDisplayedDialogTrap(item: Item): boolean {
   // If slot_data is undefined, we haven't loaded a game yet, so we don't know which traps have
   // been displayed, so hold off from displaying any traps until after loading.
   return (
     !slot_data ||
-    client.items.received.indexOf(item) <= game_data.last_displayed_trap
+    client.items.received.indexOf(item) <= game_data.last_displayed_dialog_trap
   );
 }
 
-function displayTrap(item: Item) {
-  if (hasDisplayedTrap(item)) {
+function displayDialogTrap(item: Item) {
+  if (hasDisplayedDialogTrap(item)) {
     return;
   }
   if (
@@ -395,7 +537,7 @@ function displayTrap(item: Item) {
     // HACK: Dialog elements always layer on top of everything, including the victory animation. I
     // don't want the user to miss the victory animation because of a trap that auto-released. So if
     // the animation is playing, don't display any traps.
-    trap_queue.push(item);
+    dialog_trap_queue.push(item);
     return;
   }
 
@@ -407,7 +549,7 @@ function displayTrap(item: Item) {
   }
 
   if (trap_dialog.open) {
-    trap_queue.push(item);
+    dialog_trap_queue.push(item);
     return;
   }
 
@@ -446,7 +588,7 @@ function displayTrap(item: Item) {
     trap_dialog.querySelector("img")?.setAttribute("src", img_src);
   }
 
-  displaying_trap = client.items.received.indexOf(item);
+  displaying_dialog_trap = client.items.received.indexOf(item);
 
   trap_dialog.showModal();
 }
