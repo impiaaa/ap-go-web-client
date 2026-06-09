@@ -53,58 +53,23 @@ const TIMED_TRAP_ITEMS = [
 export const TRAP_ITEMS = DIALOG_TRAP_ITEMS.concat(TIMED_TRAP_ITEMS);
 
 // NOTE: When updating this, remember to also update OLD_QUERY_DIGESTS below!
-// TODO: try combining highway=*, access!=*, foot!=* into regex
 export const DEFAULT_OVERPASS_QUERY = `[out:json][timeout:{{timeout}}][maxsize:{{maxsize}}][bbox:{{bbox}}];
 (
-  way[highway=footway](around:{{maximum_distance}},{{center}});
-  way[highway=living_street](around:{{maximum_distance}},{{center}});
-  way[highway=path](around:{{maximum_distance}},{{center}});
-  way[highway=pedestrian](around:{{maximum_distance}},{{center}});
-  way[highway=platform](around:{{maximum_distance}},{{center}});
-  way[highway=primary](around:{{maximum_distance}},{{center}});
-  way[highway=primary_link](around:{{maximum_distance}},{{center}});
-  way[highway=residential](around:{{maximum_distance}},{{center}});
-  way[highway=secondary](around:{{maximum_distance}},{{center}});
-  way[highway=secondary_link](around:{{maximum_distance}},{{center}});
+  way[highway~"^(footway|living_street|path|pedestrian|platform|primary|primary_link|residential|secondary|secondary_link|steps|tertiary|tertiary_link|track|unclassified)$"](around:{{maximum_distance}},{{center}});
   way[highway=service][service=alley](around:{{maximum_distance}},{{center}});
-  way[highway=steps](around:{{maximum_distance}},{{center}});
-  way[highway=tertiary](around:{{maximum_distance}},{{center}});
-  way[highway=tertiary_link](around:{{maximum_distance}},{{center}});
-  way[highway=track](around:{{maximum_distance}},{{center}});
-  way[highway=unclassified](around:{{maximum_distance}},{{center}});
   way[leisure=track](around:{{maximum_distance}},{{center}});
   way[man_made=pier](around:{{maximum_distance}},{{center}});
   way[railway=platform](around:{{maximum_distance}},{{center}});
 );
 way._
-  [access!=agricultural]
-  [access!=customers]
-  [access!=delivery]
-  [access!=destination]
-  [access!=discouraged]
-  [access!=forestry]
-  [access!=no]
-  [access!=permit]
-  [access!=private]
-  [access!=unknown]
-  [access!=use_sidepath]
-  [foot!=agricultural]
-  [foot!=customers]
-  [foot!=delivery]
-  [foot!=destination]
-  [foot!=discouraged]
-  [foot!=forestry]
-  [foot!=no]
-  [foot!=permit]
-  [foot!=private]
-  [foot!=unknown]
-  [foot!=use_sidepath]
-  [sidewalk!=separate];
+  [access!~"^(agricultural|customers|delivery|destination|discouraged|forestry|no|permit|private|unknown|use_sidepath)$"]
+  [foot!~"^(agricultural|customers|delivery|destination|discouraged|forestry|no|permit|private|unknown|use_sidepath)$"]
+  [sidewalk!=separate]
+  [tunnel!=yes]
+;
 (
   ._;
-  way[highway][foot=designated](around:{{maximum_distance}},{{center}});
-  way[highway][foot=permissive](around:{{maximum_distance}},{{center}});
-  way[highway][foot=yes](around:{{maximum_distance}},{{center}});
+  way[highway][foot~"^(designated|permissive|yes)$"][tunnel!=yes](around:{{maximum_distance}},{{center}});
 );
 (
   ._;
@@ -114,6 +79,7 @@ out skel qt;`;
 export const OLD_QUERY_DIGESTS: string[] = [
   "2cf5d496485134db8a62fa42c61b2d06b4bad32e",
   "70fe8057f9e3ceddff08763aa63e98d76fb24c73",
+  "bf827c93c51c4085a49aa556d10f62a117614921",
 ];
 
 export const prefs: {
