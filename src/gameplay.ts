@@ -313,6 +313,10 @@ export function setUpGameplay() {
 }
 
 function stopSilenceTrap() {
+  if (navigator.audioSession !== undefined) {
+    // After the trap is over, reset the session type so that the OS knows we're done playing
+    navigator.audioSession.type = "transient";
+  }
   silence?.pause();
   setMuted(false);
 }
@@ -444,8 +448,6 @@ export function receiveItems(items: Item[]) {
         timedTrap(
           item,
           () => {
-            // TODO: Experiment with audio session types, see which one works to pause music for this
-            // long a duration
             if (silence) playSound(silence, "transient-solo", true);
             setMuted(true);
           },

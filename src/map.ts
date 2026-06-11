@@ -1,4 +1,5 @@
 import { type Hint, Item, itemClassifications } from "archipelago.js";
+import type GeoJSON from "geojson";
 import i18next from "i18next";
 import maplibregl, { type GeoJSONSource, type MapOptions } from "maplibre-gl";
 import { uniformInt } from "pure-rand/distribution/uniformInt";

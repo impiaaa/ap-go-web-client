@@ -45,6 +45,11 @@ export function playSound(
     | "play-and-record",
   loop: boolean = false,
 ) {
+  // Different audioSessionTypes are all supposed to have different behaviors in how they mix with
+  // other apps and how they display in OS playback controls. In my experimenting on my iPhone,
+  // there are really only two behaviors. "auto", "playback", "transient-solo", and
+  // "play-and-record" all pause any other apps and display in playback controls. "transient" and
+  // "ambient" mix with any other app sound and don't display in playback controls.
   if (audioSessionType !== undefined && navigator.audioSession !== undefined) {
     navigator.audioSession.type = audioSessionType;
   }
