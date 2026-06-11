@@ -95,6 +95,20 @@ export function setConnectionError(message: string) {
   msgbox.classList.add("error");
 }
 
+export function startTracking() {
+  if (cheat) {
+    return;
+  }
+  if (watch_id >= 0) {
+    console.error("startTracking called when already tracking");
+    return;
+  }
+  watch_id = navigator.geolocation.watchPosition(
+    geoLocationUpdate,
+    geoLocationError,
+  );
+}
+
 export function stopTracking() {
   if (watch_id >= 0) {
     navigator.geolocation.clearWatch(watch_id);
@@ -181,12 +195,7 @@ function doLogin(thenShowMap: boolean) {
           fitMapToPoints(false);
         }
 
-        if (!cheat) {
-          watch_id = navigator.geolocation.watchPosition(
-            geoLocationUpdate,
-            geoLocationError,
-          );
-        }
+        startTracking();
       };
 
       if (did_load_points) {

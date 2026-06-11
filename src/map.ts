@@ -319,6 +319,13 @@ export function setFogOfWarVisible(visible: boolean) {
   }
 }
 
+export function setCirclesVisible(visibility: "visible" | "none") {
+  if (circles_layer.layout!.visibility !== visibility) {
+    circles_layer.layout!.visibility = visibility;
+    game_map!.setLayoutProperty("circles", "visibility", visibility);
+  }
+}
+
 function lateSetUpMap() {
   window
     .matchMedia("(prefers-color-scheme: dark)")
@@ -361,12 +368,9 @@ function lateSetUpMap() {
   client.socket.on("connected", () => {
     updateCircleRadii();
     game_map!.setGlobalStateProperty("key_progression", getKeyProgress());
-    circles_layer.layout!.visibility = "visible";
-    game_map!.setLayoutProperty("circles", "visibility", "visible");
   });
   client.socket.on("disconnected", () => {
-    circles_layer.layout!.visibility = "none";
-    game_map!.setLayoutProperty("circles", "visibility", "none");
+    setCirclesVisible("none");
     setFogOfWarVisible(false);
   });
   client.room.on("locationsChecked", (locations) => {
@@ -510,6 +514,7 @@ function lateSetUpMap() {
 }
 
 export function updateCircleCenters(lng: number, lat: number) {
+  setCirclesVisible("visible");
   circles_geojson.features.forEach((feat) => {
     feat.geometry.coordinates[0] = lng;
     feat.geometry.coordinates[1] = lat;
@@ -543,6 +548,7 @@ export function updateMapLocation(position: GeolocationPosition) {
 
 export function updateMapLocationError(error: GeolocationPositionError) {
   geolocate_control?.onError(error);
+  setCirclesVisible("none");
 }
 
 function requestWakeLock() {

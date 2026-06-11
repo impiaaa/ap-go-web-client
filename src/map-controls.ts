@@ -1,7 +1,7 @@
 import type { ConnectedPacket, Item } from "archipelago.js";
 import i18next from "i18next";
 import maplibregl from "maplibre-gl";
-import { saveConnectInfo } from "./connect";
+import { saveConnectInfo, startTracking, stopTracking } from "./connect";
 import { checkLocations, getKeyProgress, moveGameState } from "./gameplay";
 import {
   COLLECTION_DISTANCE_BASE_M,
@@ -13,7 +13,7 @@ import {
   SHORT_MACGUFFIN_ITEMS,
   slot_data,
 } from "./globals";
-import { fitMapToPoints, updateCircleCenters } from "./map";
+import { fitMapToPoints, setCirclesVisible, updateCircleCenters } from "./map";
 import { type APGoSlotData, GameState, Goal, ItemType } from "./types";
 
 // Source - https://stackoverflow.com/a/2450976
@@ -46,14 +46,13 @@ const APColors = [
 ];
 
 export class MacguffinDisplayControl implements maplibregl.IControl {
-  private _map?: maplibregl.Map;
   private _container?: HTMLDivElement;
   private _letters: HTMLSpanElement[] = [];
   private _item_ids: number[] = [];
-  onAdd(map: maplibregl.Map): HTMLElement {
-    this._map = map;
+  onAdd(_map: maplibregl.Map): HTMLElement {
     this._container = document.createElement("div");
     this._container.className = "macguffin-control";
+    this._container.style.visibility = "hidden";
 
     if (slot_data) {
       this.setUpLetters(slot_data);
@@ -71,6 +70,9 @@ export class MacguffinDisplayControl implements maplibregl.IControl {
     this._letters.forEach((el) => {
       this._container?.removeChild(el);
     });
+    if (this._container) {
+      this._container.style.visibility = "hidden";
+    }
     this._letters = [];
     this._item_ids = [];
   }
@@ -105,8 +107,13 @@ export class MacguffinDisplayControl implements maplibregl.IControl {
         this._item_ids = LONG_MACGUFFIN_ITEMS;
         break;
       default:
-        this._map?.removeControl(this);
+        if (this._container) {
+          this._container.style.visibility = "hidden";
+        }
         return;
+    }
+    if (this._container) {
+      this._container.style.visibility = "visible";
     }
     this._letters = Array.from(letters).map((letter, index) => {
       const el = document.createElement("span");
@@ -124,7 +131,6 @@ export class MacguffinDisplayControl implements maplibregl.IControl {
     this._container?.parentNode?.removeChild(this._container);
     this._letters = [];
     this._item_ids = [];
-    this._map = undefined;
     client.socket.off("connected", this.onConnected.bind(this));
     client.socket.off("disconnected", this.onDisconnected.bind(this));
     client.items.off("itemsReceived", this.onItemsReceived.bind(this));
@@ -135,13 +141,12 @@ export class MacguffinDisplayControl implements maplibregl.IControl {
 }
 
 export class KeyDisplayControl implements maplibregl.IControl {
-  private _map?: maplibregl.Map;
   private _container?: HTMLDivElement;
   private _keys: HTMLImageElement[] = [];
-  onAdd(map: maplibregl.Map): HTMLElement {
-    this._map = map;
+  onAdd(_map: maplibregl.Map): HTMLElement {
     this._container = document.createElement("div");
     this._container.className = "keys-control";
+    this._container.style.visibility = "hidden";
 
     if (slot_data) {
       this.setUpKeys(slot_data);
@@ -160,6 +165,9 @@ export class KeyDisplayControl implements maplibregl.IControl {
       this._container?.removeChild(el);
     });
     this._keys = [];
+    if (this._container) {
+      this._container.style.visibility = "hidden";
+    }
   }
   private onItemsReceived(items: Item[]) {
     if (items.some((item) => item.id === ItemType.Key)) {
@@ -175,8 +183,13 @@ export class KeyDisplayControl implements maplibregl.IControl {
       ...Object.values(slot_data.trips).map((trip) => trip.key_needed),
     );
     if (max_keys === 0) {
-      this._map?.removeControl(this);
+      if (this._container) {
+        this._container.style.visibility = "hidden";
+      }
       return;
+    }
+    if (this._container) {
+      this._container.style.visibility = "visible";
     }
     this._keys = new Array(max_keys);
     for (let i = 0; i < max_keys; i++) {
@@ -200,7 +213,6 @@ export class KeyDisplayControl implements maplibregl.IControl {
   onRemove(_map: maplibregl.Map): void {
     this._container?.parentNode?.removeChild(this._container);
     this._keys = [];
-    this._map = undefined;
     client.socket.off("connected", this.onConnected.bind(this));
     client.socket.off("disconnected", this.onDisconnected.bind(this));
     client.items.off("itemsReceived", this.onItemsReceived.bind(this));
@@ -215,7 +227,8 @@ export class MyGeolocateControl
   implements maplibregl.IControl
 {
   // Simplified version of the MapLibre geolocate control.
-  // - Receives location updates from game, only toggle between tracking/not
+  // - Receives location updates from game
+  // - Disabling tracking stops game tracking
   // - Draggable in cheat mode
   _map: maplibregl.Map | undefined;
   _container: HTMLElement | undefined;
@@ -477,22 +490,22 @@ export class MyGeolocateControl
     this._map.on("movestart", this._onMoveStart);
   };
 
-  _onSocketConnected() {
-    if (this._lastKnownPosition) {
-      this._updateMarker(this._lastKnownPosition);
-      this._moveToState("BACKGROUND");
-    } else {
-      this._moveToState("WAITING_BACKGROUND");
-    }
+  _startCheat() {
     if (cheat) {
+      const pos = this._lastKnownPosition
+        ? [
+            this._lastKnownPosition.coords.longitude,
+            this._lastKnownPosition.coords.latitude,
+          ]
+        : prefs.home!;
       this.onSuccess({
         coords: {
           accuracy: COLLECTION_DISTANCE_BASE_M,
           altitude: null,
           altitudeAccuracy: null,
           heading: null,
-          latitude: prefs.home![1] + 0.001,
-          longitude: prefs.home![0] + 0.001,
+          latitude: pos[1] + 0.001,
+          longitude: pos[0] + 0.001,
           speed: null,
           toJSON: function () {
             return {
@@ -512,6 +525,16 @@ export class MyGeolocateControl
         },
       });
     }
+  }
+
+  _onSocketConnected() {
+    if (this._lastKnownPosition) {
+      this._updateMarker(this._lastKnownPosition);
+      this._moveToState("BACKGROUND");
+    } else {
+      this._moveToState("WAITING_BACKGROUND");
+    }
+    this._startCheat();
   }
 
   _onSocketDisconnected() {
@@ -608,22 +631,30 @@ export class MyGeolocateControl
       console.warn("Geolocate control triggered before added to a map");
       return false;
     }
-    if (game_state !== GameState.Tracking) {
+    if (
+      game_state !== GameState.Tracking &&
+      game_state !== GameState.ReadyNotTracking
+    ) {
       return false;
     }
     // update watchState and do any outgoing state cleanup
     switch (this._watchState) {
-      case "ACTIVE_LOCK":
-        this._moveToState("BACKGROUND");
-        break;
-      case "WAITING_ACTIVE":
+      case "OFF":
         this._moveToState("WAITING_BACKGROUND");
+        startTracking();
+        this._startCheat();
+        break;
+      case "ACTIVE_LOCK":
+      case "WAITING_ACTIVE":
+      case "ACTIVE_ERROR":
+        //this._moveToState("BACKGROUND");
+        stopTracking();
+        moveGameState(GameState.ReadyNotTracking);
+        setCirclesVisible("none");
+        this._moveToState("OFF");
         break;
       case "WAITING_BACKGROUND":
         this._moveToState("WAITING_ACTIVE");
-        break;
-      case "ACTIVE_ERROR":
-        this._moveToState("BACKGROUND_ERROR");
         break;
       case "BACKGROUND":
         this._moveToState("ACTIVE_LOCK");
