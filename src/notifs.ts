@@ -258,15 +258,14 @@ function loadSfxPack(
   with_victory: boolean,
 ): SfxPack | null {
   if (pack_name.length > 0) {
-    const ext = pack_name === "8bit" ? "mp3" : "ogg";
     return {
-      filler: preloadSound(`sfx/${pack_name}/Filler.${ext}`, volume),
-      progression: preloadSound(`sfx/${pack_name}/Progression.${ext}`, volume),
-      proguseful: preloadSound(`sfx/${pack_name}/ProgUseful.${ext}`, volume),
-      trap: preloadSound(`sfx/${pack_name}/Trap.${ext}`, volume),
-      useful: preloadSound(`sfx/${pack_name}/Useful.${ext}`, volume),
+      filler: preloadSound(`sfx/${pack_name}/Filler.mp3`, volume),
+      progression: preloadSound(`sfx/${pack_name}/Progression.mp3`, volume),
+      proguseful: preloadSound(`sfx/${pack_name}/ProgUseful.mp3`, volume),
+      trap: preloadSound(`sfx/${pack_name}/Trap.mp3`, volume),
+      useful: preloadSound(`sfx/${pack_name}/Useful.mp3`, volume),
       victory: with_victory
-        ? preloadSound(`sfx/${pack_name}/Victory.${ext}`, volume)
+        ? preloadSound(`sfx/${pack_name}/Victory.mp3`, volume)
         : undefined,
     };
   } else {

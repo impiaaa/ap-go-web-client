@@ -796,7 +796,7 @@ function testSound(this: HTMLElement) {
     const a = new Audio(
       selection.id === "countdown-vox"
         ? `vox/${selection.value}/10.ogg`
-        : `sfx/${selection.value}/Useful.${selection.value === "8bit" ? "mp3" : "ogg"}`,
+        : `sfx/${selection.value}/Useful.mp3`,
     );
     a.volume = volume.valueAsNumber;
     a.play();
