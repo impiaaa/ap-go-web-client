@@ -20,8 +20,27 @@
       "sizes": "any",
       "src": "compass-icon-monochrome.svg",
       "type": "image/svg"
+    },
+    {
+      "purpose": "any",
+      "sizes": "144x144",
+      "src": "compass-icon.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "144x144",
+      "src": "compass-icon-circled.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "monochrome",
+      "sizes": "144x144",
+      "src": "compass-icon-monochrome.png",
+      "type": "image/png"
     }
   ],
+  "name": "Archipela-GO!",
   "protocol_handlers": [
     {
       "protocol": "archipelago",
@@ -30,6 +49,20 @@
     {
       "protocol": "web+archipelago",
       "url": "?connecturl=%s"
+    }
+  ],
+  "screenshots": [
+    {
+      "form_factor": "narrow",
+      "sizes": "750x1334",
+      "src": "screenshot-tall.png",
+      "type": "image/png"
+    },
+    {
+      "form_factor": "wide",
+      "sizes": "2420x1668",
+      "src": "screenshot-wide.png",
+      "type": "image/png"
     }
   ],
   "start_url": "index.html#connect",

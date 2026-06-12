@@ -740,9 +740,15 @@ export function setUpConnectPage() {
     .getElementById("send-sfx-volume")
     ?.addEventListener("change", testSound);
 
-  const connecturl = URL.parse(document.URL)?.searchParams.get("connecturl");
+  let connecturl: string | null = null;
+  try {
+    connecturl = new URL(document.URL)?.searchParams.get("connecturl");
+  } catch (_) {}
   if (connecturl) {
-    const connect_url = URL.parse(connecturl);
+    let connect_url: URL | null = null;
+    try {
+      connect_url = URL.parse(connecturl);
+    } catch (_) {}
     if (connect_url && connect_url.searchParams.get("game") === AP_GAME_NAME) {
       window.location.hash = "#connect";
       player.value = connect_url.username;
