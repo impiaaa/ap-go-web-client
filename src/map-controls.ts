@@ -498,7 +498,7 @@ export class MyGeolocateControl
             this._lastKnownPosition.coords.latitude,
           ]
         : prefs.home!;
-      this.onSuccess({
+      const ret = {
         coords: {
           accuracy: COLLECTION_DISTANCE_BASE_M,
           altitude: null,
@@ -523,7 +523,8 @@ export class MyGeolocateControl
         toJSON: function () {
           return { coords: this.coords, timestamp: this.timestamp };
         },
-      });
+      };
+      this.onSuccess(ret);
     }
   }
 

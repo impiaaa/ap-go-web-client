@@ -2,6 +2,7 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "lib": ["DOM", "ES2022"],
+    "libReplacement": true,
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
