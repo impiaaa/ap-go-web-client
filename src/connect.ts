@@ -433,7 +433,7 @@ function openAppSettings() {
   ).showModal();
 }
 
-function saveGenerationSettings(ev: PointerEvent) {
+function saveGenerationSettings(ev: MouseEvent) {
   const generation_settings_form = document.getElementById(
     "generation-settings-form",
   ) as HTMLFormElement;
@@ -479,7 +479,7 @@ function saveGenerationSettings(ev: PointerEvent) {
   }
 }
 
-function saveAppSettings(ev: PointerEvent) {
+function saveAppSettings(ev: MouseEvent) {
   ev.preventDefault();
   const app_settings_form = document.getElementById(
     "app-settings-form",
@@ -747,7 +747,7 @@ export function setUpConnectPage() {
   if (connecturl) {
     let connect_url: URL | null = null;
     try {
-      connect_url = URL.parse(connecturl);
+      connect_url = new URL(connecturl);
     } catch (_) {}
     if (connect_url && connect_url.searchParams.get("game") === AP_GAME_NAME) {
       window.location.hash = "#connect";
