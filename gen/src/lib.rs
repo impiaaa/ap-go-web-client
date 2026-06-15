@@ -13,7 +13,7 @@ mod osm_types;
 use crate::geo::{AffineTransform3d, Coord3d};
 
 const DISTANCE_LENIENCY_M: f64 = 0.1;
-const COLLECTION_DISTANCE_BASE_M: f64 = 20.0;
+const COLLECTION_DISTANCE_BASE_M: f64 = 20.0 * 0.5;
 const GENERATED_DISTANCE_THRESHOLD_M_2: f64 =
     COLLECTION_DISTANCE_BASE_M * COLLECTION_DISTANCE_BASE_M;
 
