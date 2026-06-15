@@ -22,6 +22,20 @@
 
 Once connected, your goal is to either collect "macguffin" letters, or to check all locations, depending on what you set in the YAML. The letters are scattered throughout your game and any other games connected to the same Archipelago game. To collect them or to help other players collect them, you must go to the locations on your map. Map pins with a lock icon won't become available until you collect enough keys.
 
+## System Requirements
+
+Any of:
+
+* Google Chrome version 114 or later
+* Microsoft Edge version 114 or later
+* Firefox version 125 or later
+* iOS version 17 or later
+* Safari version 17 or later
+
+## Web App Limitations
+
+Most mobile browsers kill the connection to the AP server, and stop GPS tracking, as soon as the browser is hidden or the screen is turned off. A check will only count if the screen is turned on and the app is open, connected, and tracking.
+
 ## Developing and Hosting the App
 
 Download the source code. On GitHub, the green "Code" button has options for checking out with Git over HTTPS or SSH, and for downloading a Zip.
