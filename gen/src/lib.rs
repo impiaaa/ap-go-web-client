@@ -563,7 +563,7 @@ pub fn generate(
         }
     }
 
-    let mut points_tree = RTree::<GeomWithData<Point, i64>>::new();
+    let mut points_tree = RTree::<Point>::new();
     let trip_points: js_sys::Map<js_sys::Number, js_sys::Array<js_sys::Number>> =
         js_sys::Map::new_typed();
 
@@ -572,74 +572,93 @@ pub fn generate(
             .unwrap()
             .unchecked_into();
 
-        let max_dist = distance_tier_to_maximum_distance(trip.distance_tier(), params.slot_data().minimum_distance(), params.slot_data().maximum_distance());
+        let max_dist = distance_tier_to_maximum_distance(
+            trip.distance_tier(),
+            params.slot_data().minimum_distance(),
+            params.slot_data().maximum_distance(),
+        );
 
-        let mut attempt = 1;
-        const MAX_ATTEMPTS: i32 = 256;
-        loop {
-            console_log!(
-                    "Attempt {attempt}: Generating random point with radius between {min_dist} and {max_dist}"
-                );
-
-            let random_point = random_point_in_circle(min_dist, max_dist, &mut rng);
-            console_log!("Random point is {random_point:?}");
-
-            // Don't generate points too close to each other, but at a lower priority than
-            // checking for nearby segments
-            if attempt < MAX_ATTEMPTS / 2
-                && let Some(nearest_other_point) = points_tree.nearest_neighbor(&random_point)
-                && random_point.distance_2(nearest_other_point.geom())
-                    < GENERATED_DISTANCE_THRESHOLD_M_2
-            {
-                continue;
-            }
-
-            let Some(nearest_segment) = trees.segments_tree.nearest_neighbor(&random_point) else {
-                // empty tree?
-                return;
-            };
-            let nearest_point_on_segment = match nearest_segment.geom().closest_point(&random_point) {
-                ::geo::Closest::Indeterminate => continue,
-                ::geo::Closest::Intersection(point) => point,
-                ::geo::Closest::SinglePoint(point) => point,
-            };
-            let distance_to_nearest_point_m_2 =
-                random_point.distance_2(&nearest_point_on_segment);
-            if distance_to_nearest_point_m_2 < GENERATED_DISTANCE_THRESHOLD_M_2
-                || attempt >= MAX_ATTEMPTS
-            {
-                let selected_point = if attempt < MAX_ATTEMPTS {
-                    random_point
-                } else {
-                    console_log!("Out of attempts, snapping to {nearest_point_on_segment:?}");
-                    nearest_point_on_segment
-                };
-                points_tree.insert(GeomWithData::new(
-                    selected_point,
-                    location_id.as_f64().unwrap() as i64,
-                ));
-                // TODO: Route from here to home:
-                // - Snap home point to network, include that distance in route length
-                // - Reroll if point isn't routable or if route is shorter than min_dist
-                // - Trim route to selected distance, use that new end point
-                let enu_coord = Coord3d {
-                    x: selected_point.x(),
-                    y: selected_point.y(),
-                    z: 0.0,
-                };
-                let geo_coord = enu_to_geo(&enu_coord, &ref_ecef, &geo_mat);
-                let arr: js_sys::Array<js_sys::Number> =
-                    js_sys::Array::new_with_length_typed(2);
-                arr.set(0, geo_coord.x.into());
-                arr.set(1, geo_coord.y.into());
-                trip_points.set(&location_id, &arr);
-                break;
-            }
-            attempt += 1;
+        if let Some(geo_coord) = generate_trip(
+            &mut rng,
+            &mut points_tree,
+            &trees,
+            &ref_ecef,
+            &geo_mat,
+            min_dist,
+            max_dist,
+        ) {
+            let arr: js_sys::Array<js_sys::Number> = js_sys::Array::new_with_length_typed(2);
+            arr.set(0, geo_coord.x.into());
+            arr.set(1, geo_coord.y.into());
+            trip_points.set(&location_id, &arr);
         }
     });
 
     Ok(trip_points)
+}
+
+fn generate_trip(
+    rng: &mut rand::rngs::SmallRng,
+    points_tree: &mut RTree<Point>,
+    trees: &GeneratorData,
+    ref_ecef: &Coord3d,
+    geo_mat: &AffineTransform3d,
+    min_dist: f64,
+    max_dist: f64,
+) -> Option<Coord> {
+    let mut attempt = 1;
+    const MAX_ATTEMPTS: i32 = 256;
+    loop {
+        console_log!(
+            "Attempt {attempt}: Generating random point with radius between {min_dist} and {max_dist}"
+        );
+
+        let random_point = random_point_in_circle(min_dist, max_dist, rng);
+        console_log!("Random point is {random_point:?}");
+
+        // Don't generate points too close to each other, but at a lower priority than
+        // checking for nearby segments
+        if attempt < MAX_ATTEMPTS / 2
+            && let Some(nearest_other_point) = points_tree.nearest_neighbor(&random_point)
+            && random_point.distance_2(nearest_other_point) < GENERATED_DISTANCE_THRESHOLD_M_2
+        {
+            attempt += 1;
+            continue;
+        }
+
+        let Some(nearest_segment) = trees.segments_tree.nearest_neighbor(&random_point) else {
+            // empty tree?
+            return None;
+        };
+        let nearest_point_on_segment = match nearest_segment.geom().closest_point(&random_point) {
+            ::geo::Closest::Indeterminate => continue,
+            ::geo::Closest::Intersection(point) => point,
+            ::geo::Closest::SinglePoint(point) => point,
+        };
+        let distance_to_nearest_point_m_2 = random_point.distance_2(&nearest_point_on_segment);
+        if distance_to_nearest_point_m_2 < GENERATED_DISTANCE_THRESHOLD_M_2
+            || attempt >= MAX_ATTEMPTS
+        {
+            let selected_point = if attempt < MAX_ATTEMPTS {
+                random_point
+            } else {
+                console_log!("Out of attempts, snapping to {nearest_point_on_segment:?}");
+                nearest_point_on_segment
+            };
+            points_tree.insert(selected_point);
+            // TODO: Route from here to home:
+            // - Snap home point to network, include that distance in route length
+            // - Reroll if point isn't routable or if route is shorter than min_dist
+            // - Trim route to selected distance, use that new end point
+            let enu_coord = Coord3d {
+                x: selected_point.x(),
+                y: selected_point.y(),
+                z: 0.0,
+            };
+            return Some(enu_to_geo(&enu_coord, ref_ecef, geo_mat));
+        }
+        attempt += 1;
+    }
 }
 
 fn random_point_in_circle<T: Rng, U: ::geo::CoordFloat + num_traits::FloatConst>(
